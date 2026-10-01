@@ -50,11 +50,9 @@ const client = new MongoClient(uri);
 ```
 
 An explicit `plugin` option wins over `setDefaultPlugin`. With neither, the
-first operation throws `MissingPluginError`.
-
-Plugin selection is always explicit in code. The driver reads no environment
-variable to decide which plugin to load, though a plugin may read the
-environment for its own configuration.
+first operation throws `MissingPluginError`. There is no environment variable
+for choosing a plugin, though a plugin may read the environment for its own
+configuration.
 
 ## Routing
 
@@ -75,25 +73,21 @@ primary, one client serves both. `close()` closes every client it opened.
 
 ### Cursors and bulk writes
 
-`find`, `aggregate`, `listIndexes`, `listSearchIndexes`, `listCollections`, and
-`runCursorCommand` hand back a cursor synchronously, but routing has to read
-the topology first. They return a cursor that configures nothing until you
-await it:
+Cursors work as they normally do:
 
 ```ts
 const docs = await collection.find({ a: 1 }).sort({ b: -1 }).limit(10).toArray();
 ```
 
-Chained calls are buffered and replayed in order against the real cursor, which
-is created by the first terminal call (`toArray`, `next`, `hasNext`, `forEach`,
-`for await`). A cursor you never read opens no connection.
+Under the hood the real cursor is not created until the first terminal call
+(`toArray`, `next`, `hasNext`, `forEach`, `for await`), since routing has to
+read the topology first. Chained calls are buffered and replayed in order, and
+a cursor you never read opens no connection. `initializeOrderedBulkOp` and
+`initializeUnorderedBulkOp` work the same way, replaying on `execute()`.
 
-The same applies to `initializeOrderedBulkOp` and `initializeUnorderedBulkOp`,
-whose operations replay on `execute()`.
-
-One consequence: a property that only exists once the cursor does, such as
-`cursor.id` or `cursor.namespace`, throws if read before a terminal call rather
-than returning `undefined`.
+So a property that only exists once the cursor does, such as `cursor.id` or
+`cursor.namespace`, throws if read before a terminal call rather than returning
+`undefined`.
 
 ## Errors
 
@@ -114,19 +108,15 @@ than returning `undefined`.
 different client than the one that created it, so a session cannot span our
 read and write clients. Any session-bearing operation that would route to the
 secondary raises `SessionRoutingError`, which includes a read inside
-`withTransaction`. Routing session operations to the primary instead is a small
-change, and worth making once real usage shows whether this is too strict.
+`withTransaction`.
 
 **`watch()` and `startSession()` throw.** Change streams need a resume story
-that belongs with the watcher's design. `startSession()` cannot work while a
-session is confined to one client.
+that belongs with the watcher's design, and a session cannot leave the client
+that created it.
 
-**Nine mongodb exports are omitted.** `CancellationToken`,
-`ChangeStreamCursor`, `MongoClientAuthProviders`, and six server selection and
-SRV polling event classes are exported at runtime but marked "Excluded from
-this release type" in `mongodb.d.ts`, so re-exporting them would not typecheck.
-Import them from `mongodb` directly if you need them. The full list is
-`INTERNAL_MONGODB_EXPORTS`.
+**A few mongodb exports are missing.** The driver marks some of its runtime
+exports as internal, and those are not re-exported here. `INTERNAL_MONGODB_EXPORTS`
+lists them; import them from `mongodb` directly if you need one.
 
 **`estimatedDocumentCount` can disagree with `countDocuments`.** It reads
 collection metadata, which lags on a secondary. `countDocuments` aggregates and
@@ -136,4 +126,3 @@ does not.
 topology through `replSetGetStatus`.
 
 **Topology is read once per client.** There is no refresh while a client lives.
-`refreshIntervalMS` on the plugin base exists for the watcher to use.

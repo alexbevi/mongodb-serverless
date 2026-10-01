@@ -2,17 +2,9 @@
 
 The abstract class and types every plugin in [`plugins/`](..) is built from.
 
-**This is not a package.** There is no `package.json`, nothing to install, and
-nothing published. It compiles into each plugin's own `dist` through that
-plugin's `tsconfig.json`, so a plugin carries the contract with it and has no
-runtime dependency to resolve.
-
-That is deliberate. A published base would need its own version and release
-whenever the contract changed, and every plugin would pin a version of it. Two
-plugins pinning different versions puts two copies of the class in one
-dependency tree, which is exactly the case where `instanceof` fails. The driver
-validates structurally to survive that, which in turn means nothing needs the
-class identity, which means there is no reason to publish it.
+Not a package. It compiles into each plugin's own `dist` through that plugin's
+`tsconfig.json`, so there is nothing to install and a plugin resolves nothing
+at runtime.
 
 ## The contract
 
@@ -44,7 +36,7 @@ document and `write()` replaces it.
 `get()` and `set()` throw `RangeError` on an unknown key, listing the keys that
 do exist. Config is per instance, so two plugins never share state.
 
-See [`../README.md`](..) for the default values and the reasoning behind them.
+See [the plugin overview](..) for the default values.
 
 ## Extending the config
 
@@ -63,5 +55,4 @@ class MyPlugin extends ServerlessPlugin<MyConfig> {
 ## Extending this class is optional
 
 The driver checks a plugin by shape, so any object with the right members
-works. The class is here for the config plumbing and the defaults. A plugin
-that would rather implement the interface directly loses nothing.
+works. This class only supplies the config plumbing and the defaults.

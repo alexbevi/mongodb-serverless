@@ -59,6 +59,23 @@ Replica sets only. No sharded clusters, no load-balanced clusters, no change
 streams, no sessions spanning the read and write client. Keep these fences
 explicit in the READMEs rather than letting them be discovered at runtime.
 
+## Prefer the real cluster to a mocked client
+
+Routing claims are asserted against a real replica set, reading `commandStarted`
+events to see which member served each operation. An injected client factory
+can only confirm that the code calls what the test told it to expect.
+
+The gap is not theoretical. `initializeOrderedBulkOp` as the first operation on
+a client threw "MongoClient must be connected" against a real server, because
+the driver's bulk builders read connection state at construction and nothing
+had called `connect()`. Every mocked test passed, because the fakes had no such
+requirement. Mocks are still right for error paths and for topology shapes that
+are awkward to produce on a live cluster, such as a stale document naming a
+member that is gone.
+
+When adding a fake client, give it the methods the real one needs, including
+`connect()`. A fake that is easier to satisfy than the driver hides bugs.
+
 ## Verify docs by running them
 
 README examples are checked by running them against the built packages, not by

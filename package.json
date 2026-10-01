@@ -9,8 +9,10 @@
   "scripts": {
     "build": "tsc --build",
     "test": "npm run build && vitest run",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --exclude '**/integration.test.ts'",
+    "test:integration": "npm run build && vitest run driver/test/integration --testTimeout=60000",
     "test:watch": "vitest",
+    "cluster:stop": "docker rm -f mongodb-serverless-driver-test-rs",
     "typecheck": "tsc --build"
   },
   "devDependencies": {

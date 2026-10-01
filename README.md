@@ -61,13 +61,31 @@ for a deployment where a failover can happen.
 
 ```sh
 pnpm install
-pnpm test       # builds first, then runs every suite
-pnpm test:unit  # skips the build, for a fast loop
+pnpm test              # everything, including the real cluster
+pnpm test:unit         # no Docker, no build, for a fast loop
+pnpm test:integration  # just the cluster suite
 pnpm typecheck
 ```
 
-`pnpm test` builds because the drop-in suite runs ESM and CJS scripts against
-`driver/dist` outside Vitest's resolver, which is the only way to catch a
-module resolution bug that aliasing to source would hide.
+`pnpm test` builds first because the drop-in suite runs ESM and CJS scripts
+against `driver/dist` outside Vitest's resolver, which is the only way to catch
+a module resolution bug that aliasing to source would hide.
+
+### The test cluster
+
+The integration suite runs against a real 3-node replica set in Docker, started
+on demand by `driver/test/harness/cluster.ts` and reused across runs. Routing is
+asserted from `commandStarted` events, so the tests read back which member
+actually served each operation.
+
+Without Docker the suite skips rather than fails. `pnpm cluster:stop` removes
+the container; the harness recreates it on the next run, which takes about 30
+seconds.
+
+Two details the harness depends on. The container runs with
+`--hostname localhost` so the `host:port` names in `replSetGetStatus` resolve
+from the host as well as inside the container, and writes that a later read
+checks use `w: 3` rather than `w: 'majority'`, since a majority on three nodes
+leaves one secondary behind and that may be the one the read client is on.
 
 Requires Node 20.19 or later. See `AGENTS.md` for the working agreement.

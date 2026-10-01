@@ -62,8 +62,25 @@ call `npm publish` per package directly.
 
 ### Setting the token
 
-Create a granular access token on npmjs.com with read and write access to the
-`@mongodb-serverless` scope, and set it as the `NPM_TOKEN` repository secret.
+Create a **granular access token** on npmjs.com with:
+
+- read and write access to the `@mongodb-serverless` scope
+- **2FA bypass enabled**
+
+Both matter. Without the bypass the registry accepts the token and then
+refuses the publish with `E403: Two-factor authentication or granular access
+token with bypass 2fa enabled is required to publish packages`, because the
+account requires 2FA for writes and CI cannot answer a prompt.
+
+Set it as the `NPM_TOKEN` repository secret, piping the value in so it stays
+out of your shell history:
+
+```sh
+pbpaste | gh secret set NPM_TOKEN
+```
+
+`gh secret set NPM_TOKEN` on its own reads EOF from a non-interactive stdin
+and silently stores an empty value, which shows up later as `ENEEDAUTH`.
 
 Set an expiry you are willing to track yourself, and put a calendar reminder
 somewhere other than this repo. **npm does not expose a token's expiry date**:

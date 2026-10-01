@@ -43,34 +43,25 @@ first publish of each package needs a token.
 ### Token, for the first publish and as a fallback
 
 Create a granular access token on npmjs.com with read and write access to the
-`@mongodb-serverless` scope, then set:
+`@mongodb-serverless` scope, and set it as the `NPM_TOKEN` repository secret.
 
-| Kind | Name | Value |
-|---|---|---|
-| Secret | `NPM_TOKEN` | The token |
-| Variable | `NPM_TOKEN_EXPIRES` | Its expiry, as `YYYY-MM-DD` |
-
-The variable exists because **npm does not expose a token's expiry date**.
+Set an expiry you are willing to track yourself, and put a calendar reminder
+somewhere other than this repo. **npm does not expose a token's expiry date**:
 `npm token list` reports `created` but no expiry, and granular tokens do not
-appear there at all. The date has to be recorded by hand when the token is
-made, or the 15-day warning has nothing to measure against.
+appear there at all. Nothing in CI can warn you before it lapses.
 
-Once trusted publishing is configured for both packages, delete the secret and
-the variable. The health check then reports nothing to watch.
+Once trusted publishing is configured for both packages, delete the secret.
 
 ## The health check
 
-`npm-token-health.yml` runs weekly and on demand. It:
+`npm-token-health.yml` runs weekly and on demand. It checks the token still
+authenticates, against `GET /-/whoami`, and fails the run if the registry
+rejects it. GitHub emails the repository owner when a scheduled workflow fails.
 
-- confirms the token still authenticates, against `GET /-/whoami`
-- works out the days remaining from `NPM_TOKEN_EXPIRES`
-- warns at 15 days or fewer, and opens or updates an issue assigned to the
-  repository owner
+That is all it can do. Checking validity catches a token that has already
+lapsed or been revoked; it cannot see one about to. A registry outage reports
+`unknown` rather than failing, so an npm incident does not look like a dead
+token.
 
-The issue is the part that reaches a human. A `::warning::` annotation only
-shows in the Actions UI and emails nobody; GitHub does email on issue
-assignment, and on a scheduled workflow failing, which is why a rejected token
-also fails the job.
-
-A registry outage reports `unknown` rather than warning, so an npm incident
-does not look like an expiring token.
+With no `NPM_TOKEN` set the check reports that there is nothing to watch, which
+is the expected state once trusted publishing is in place.

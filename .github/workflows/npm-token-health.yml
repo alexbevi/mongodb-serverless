@@ -2,14 +2,14 @@ name: npm token health
 
 on:
   schedule:
-    # Mondays at 08:00 UTC. A weekly check gives two warnings inside the
-    # 15-day window before anything breaks.
+    # Mondays at 08:00 UTC. npm does not report a token's expiry, so this
+    # cannot warn ahead of time; a weekly check finds a dead token before the
+    # next release needs it rather than during one.
     - cron: '0 8 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write # the warning reaches a human by opening an issue
 
 jobs:
   check:
@@ -25,7 +25,6 @@ jobs:
 
           if [ -z "${NPM_TOKEN}" ]; then
             echo "state=absent" >> "$GITHUB_OUTPUT"
-            echo "NPM_TOKEN is not set. Nothing to check." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -45,159 +44,50 @@ jobs:
               echo "state=rejected" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              # A registry outage is not a token problem, so do not warn.
+              # A registry outage is not a token problem.
               echo "state=unknown" >> "$GITHUB_OUTPUT"
               echo "http=${status}" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
-      - name: Work out how long the token has left
-        id: expiry
-        env:
-          # npm exposes no way to read a token's own expiry, so the date set at
-          # creation is recorded here. Repository settings > Variables.
-          EXPIRES: ${{ vars.NPM_TOKEN_EXPIRES }}
-          WARN_WITHIN_DAYS: '15'
-        run: |
-          set -uo pipefail
-          node <<'NODE' >> "$GITHUB_OUTPUT"
-          const iso = (process.env.EXPIRES ?? '').trim();
-          const warnWithin = Number(process.env.WARN_WITHIN_DAYS);
-
-          if (iso === '') {
-            console.log('state=unset');
-            process.exit(0);
-          }
-
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || Number.isNaN(Date.parse(`${iso}T00:00:00Z`))) {
-            console.log('state=unparseable');
-            console.log(`raw=${iso}`);
-            process.exit(0);
-          }
-
-          // Date to date in UTC, so the answer does not depend on the time of
-          // day the job happens to run.
-          const now = new Date();
-          const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-          const days = Math.round((Date.parse(`${iso}T00:00:00Z`) - today) / 86_400_000);
-
-          console.log(`days=${days}`);
-          console.log(`date=${iso}`);
-          console.log(`state=${days < 0 ? 'expired' : days <= warnWithin ? 'warn' : 'ok'}`);
-          NODE
-
       - name: Summarise
         env:
-          VALIDITY: ${{ steps.validity.outputs.state }}
+          STATE: ${{ steps.validity.outputs.state }}
           USERNAME: ${{ steps.validity.outputs.username }}
           HTTP: ${{ steps.validity.outputs.http }}
-          EXPIRY: ${{ steps.expiry.outputs.state }}
-          DAYS: ${{ steps.expiry.outputs.days }}
-          DATE: ${{ steps.expiry.outputs.date }}
         run: |
           set -uo pipefail
           {
             echo '## npm token health'
             echo
-
-            case "${VALIDITY}" in
-              valid)    echo "- Authenticates as \`${USERNAME}\`" ;;
-              rejected) echo '- **Rejected by the registry.** Expired or revoked.' ;;
-              absent)   echo '- `NPM_TOKEN` is not set.' ;;
-              unknown)  echo "- Could not reach the registry (HTTP ${HTTP:-?})." ;;
+            case "${STATE}" in
+              valid)
+                echo "Authenticates as \`${USERNAME}\`."
+                echo
+                echo 'npm does not expose a token'"'"'s expiry date, so this cannot say how'
+                echo 'long it has left. Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers)'
+                echo 'to remove the token entirely.'
+                ;;
+              rejected)
+                echo 'Rejected by the registry: expired, revoked, or no longer has access.'
+                echo
+                echo 'Replace the `NPM_TOKEN` secret, or configure trusted publishing and delete it.'
+                ;;
+              absent)
+                echo '`NPM_TOKEN` is not set, so there is nothing to check.'
+                echo
+                echo 'That is the expected state once trusted publishing is configured.'
+                ;;
+              unknown)
+                echo "Could not reach the registry (HTTP ${HTTP:-?}). Not a token problem."
+                ;;
             esac
-
-            case "${EXPIRY}" in
-              ok)          echo "- Expires ${DATE}, in ${DAYS} days" ;;
-              warn)        echo "- **Expires ${DATE}, in ${DAYS} days**" ;;
-              expired)     echo "- **Recorded expiry ${DATE} has passed**" ;;
-              unset)       echo '- Expiry unknown: set the `NPM_TOKEN_EXPIRES` repository variable' ;;
-              unparseable) echo '- `NPM_TOKEN_EXPIRES` is not a `YYYY-MM-DD` date' ;;
-            esac
-
-            echo
-            echo 'npm does not report a token'"'"'s expiry, so the date above is whatever'
-            echo 'was recorded in the `NPM_TOKEN_EXPIRES` variable when the token was made.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "${VALIDITY}" = 'rejected' ]; then
-            echo "::error::The npm token was rejected by the registry. Publishing will fail until it is replaced."
-          elif [ "${EXPIRY}" = 'expired' ]; then
-            echo "::warning::The npm token's recorded expiry (${DATE}) has passed."
-          elif [ "${EXPIRY}" = 'warn' ]; then
-            echo "::warning::The npm token expires in ${DAYS} days, on ${DATE}."
-          fi
-
-      # An annotation emails nobody, so anything needing action becomes an
-      # issue, which GitHub notifies on through normal settings.
-      - name: Open or update an issue when action is needed
-        if: |
-          steps.validity.outputs.state == 'rejected' ||
-          steps.expiry.outputs.state == 'warn' ||
-          steps.expiry.outputs.state == 'expired'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const validity = ${{ toJSON(steps.validity.outputs.state) }};
-            const expiry = ${{ toJSON(steps.expiry.outputs.state) }};
-            const days = ${{ toJSON(steps.expiry.outputs.days) }};
-            const date = ${{ toJSON(steps.expiry.outputs.date) }};
-
-            const title = 'npm token needs rotating';
-            const rejected = validity === 'rejected';
-
-            const body = [
-              rejected
-                ? 'The npm token stored in `NPM_TOKEN` was **rejected by the registry**, so publishing will fail until it is replaced.'
-                : expiry === 'expired'
-                  ? `The npm token's recorded expiry (**${date}**) has passed.`
-                  : `The npm token expires on **${date}**, in **${days} days**.`,
-              '',
-              '### To rotate it',
-              '',
-              '1. Create a granular access token on npmjs.com with read and write access to the `@mongodb-serverless` scope.',
-              '2. Update the `NPM_TOKEN` repository secret.',
-              '3. Update the `NPM_TOKEN_EXPIRES` repository variable to the new expiry date, as `YYYY-MM-DD`.',
-              '4. Re-run the *npm token health* workflow to confirm, then close this issue.',
-              '',
-              '### Or remove the token entirely',
-              '',
-              'Configuring [trusted publishing](https://docs.npmjs.com/trusted-publishers) for each package removes the need for a stored token, since the release workflow already requests an OIDC credential. Nothing would then expire.',
-              '',
-              `_Checked by [this run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})._`
-            ].join('\n');
-
-            const { data: open } = await github.rest.issues.listForRepo({
-              ...context.repo,
-              state: 'open',
-              labels: 'npm-token'
-            });
-
-            const existing = open.find(issue => issue.title === title);
-
-            if (existing) {
-              // Updated rather than duplicated, so a weekly schedule does not
-              // file an issue every Monday.
-              await github.rest.issues.update({
-                ...context.repo,
-                issue_number: existing.number,
-                body
-              });
-              core.info(`Updated #${existing.number}`);
-              return;
-            }
-
-            const { data: created } = await github.rest.issues.create({
-              ...context.repo,
-              title,
-              body,
-              labels: ['npm-token'],
-              assignees: [context.repo.owner]
-            });
-            core.info(`Opened #${created.number}`);
-
-      # GitHub emails the repo owner when a scheduled workflow fails, so a
-      # rejected token is loud even if issue notifications are muted.
+      # Fails the scheduled run, which GitHub emails the repository owner
+      # about. An annotation alone would reach nobody.
       - name: Fail when the token no longer works
         if: steps.validity.outputs.state == 'rejected'
-        run: exit 1
+        run: |
+          echo "::error::The npm token was rejected by the registry. Publishing will fail until it is replaced."
+          exit 1

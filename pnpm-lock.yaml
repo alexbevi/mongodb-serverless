@@ -21,6 +21,25 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.4)
 
+  driver:
+    dependencies:
+      mongodb:
+        specifier: '>=7.0.0'
+        version: 7.7.0
+      mongodb-connection-string-url:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  plugins/base: {}
+
+  plugins/local:
+    dependencies:
+      '@mongodb-serverless/plugin-base':
+        specifier: workspace:*
+        version: link:../base
+
+  watcher: {}
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':

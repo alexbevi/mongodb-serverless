@@ -4,7 +4,7 @@ import {
   resolvePlugin,
   setDefaultPlugin,
   validatePlugin
-} from '../src/plugin-resolver.js';
+} from '../../plugins/shared/src/index.js';
 import { InvalidPluginError, MissingPluginError, PluginNotInstalledError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
 

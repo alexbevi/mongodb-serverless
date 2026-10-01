@@ -1,5 +1,22 @@
 import type { ReplSetGetStatus } from './status.js';
 
+/**
+ * The shape a plugin must have, independent of how it was built.
+ *
+ * Consumers validate against this structurally, so a plugin satisfies it
+ * without extending {@link ServerlessPlugin} or sharing a class.
+ */
+export interface TopologyPlugin {
+  readonly name: string;
+  readonly version: string;
+  readonly author: string;
+
+  setup(): Promise<void>;
+  verify(): Promise<void>;
+  read(): Promise<ReplSetGetStatus>;
+  write(status: ReplSetGetStatus): Promise<void>;
+}
+
 export interface PluginConfig {
   /** How often the watcher refreshes stored topology. */
   refreshIntervalMS: number;

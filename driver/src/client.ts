@@ -3,7 +3,7 @@ import { ConnectionString } from 'mongodb-connection-string-url';
 import { ClientPair, type ClientFactory } from './clients.js';
 import { UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
-import { resolvePlugin, type PluginSource } from './plugin-resolver.js';
+import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
 import type { TopologyPlugin } from './plugin.js';
 
 export interface ServerlessClientOptions extends MongoClientOptions {

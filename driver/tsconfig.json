@@ -1,8 +1,13 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    // rootDir spans both directories so the shared plugin contract compiles
+    // into this package's own dist. It is not published, so the driver cannot
+    // depend on it at runtime.
+    "rootDir": "..",
+    "outDir": "dist",
+    // Outside dist, so build metadata stays out of the published tarball.
+    "tsBuildInfoFile": "../tsconfig.driver.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../plugins/shared/src/**/*.ts"]
 }

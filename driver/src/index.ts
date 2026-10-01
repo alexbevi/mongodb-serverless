@@ -5,7 +5,11 @@ export * from './generated/reexports.js';
 export { ServerlessMongoClient as MongoClient } from './client.js';
 export type { ServerlessClientOptions } from './client.js';
 
-export { setDefaultPlugin, clearDefaultPlugin, type PluginSource } from './plugin-resolver.js';
+export {
+  setDefaultPlugin,
+  clearDefaultPlugin,
+  type PluginSource
+} from '../../plugins/shared/src/index.js';
 export type { TopologyPlugin, ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
 
 export {
@@ -17,5 +21,6 @@ export {
   InvalidTopologyError,
   NoPrimaryError,
   SessionRoutingError,
-  UnsupportedOperationError
+  UnsupportedOperationError,
+  PluginReadOnlyError
 } from './errors.js';

@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "description": "Drop-in MongoDB driver wrapper that routes reads and writes to pre-discovered replica set members",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/driver/src/index.js",
+  "types": "./dist/driver/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/driver/src/index.d.ts",
+      "default": "./dist/driver/src/index.js"
     }
   },
   "files": [

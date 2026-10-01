@@ -47,8 +47,11 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm version
-          publish: pnpm release
+          # `pnpm run`, not `pnpm <script>`: `version` is a built-in pnpm
+          # command, so the bare form prints version info and never runs the
+          # script, leaving an empty branch and no PR to open.
+          version: pnpm run version
+          publish: pnpm run release
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:

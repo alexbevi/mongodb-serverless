@@ -4,15 +4,17 @@
   "description": "Polls a MongoDB replica set and writes its topology through a plugin",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/watcher/src/index.js",
+  "types": "./dist/watcher/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/watcher/src/index.d.ts",
+      "default": "./dist/watcher/src/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
@@ -21,5 +23,8 @@
   },
   "peerDependencies": {
     "mongodb": ">=7.0.0"
+  },
+  "dependencies": {
+    "mongodb-connection-string-url": "^7.0.2"
   }
 }

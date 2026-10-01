@@ -1,8 +1,11 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    // rootDir spans both directories so the shared plugin contract compiles
+    // into this package's own dist, matching how plugins/local does it.
+    "rootDir": "..",
+    "outDir": "dist",
+    "tsBuildInfoFile": "../tsconfig.watcher.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../plugins/shared/src/**/*.ts"]
 }

@@ -38,6 +38,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # setup-node writes its .npmrc to a temp path and points
+      # NPM_CONFIG_USERCONFIG at it, which pnpm does not read, so pnpm publish
+      # fails with ENEEDAUTH. Write the token to the project .npmrc, which
+      # every tool reads.
+      - name: Authenticate with npm
+        run: |
+          set -euo pipefail
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${NPM_TOKEN}" >> .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Open a version PR, or publish if one was merged
         id: changesets
         uses: changesets/action@v1

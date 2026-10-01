@@ -98,9 +98,25 @@ export async function startCluster(): Promise<void> {
 
   // Priority 10 on the first member makes the primary predictable, so a test
   // can assert which host served a write.
-  await mongosh(PORTS[0], `rs.initiate({_id:"${REPLICA_SET}", members:[${members}]})`).catch(
-    () => ''
-  );
+  //
+  // Retried rather than attempted once: a second worker can arrive while the
+  // first is still starting mongod, and "already initialized" means the other
+  // worker won, which is fine. Swallowing every error here instead left a
+  // failed initiate to surface 90 seconds later as "no replset config has
+  // been received".
+  await waitFor(async () => {
+    const already = await mongosh(PORTS[0], 'print(rs.status().ok)').catch(() => '');
+
+    if (already.trim() === '1') return true;
+
+    const out = await mongosh(
+      PORTS[0],
+      `try { rs.initiate({_id:"${REPLICA_SET}", members:[${members}]}) } ` +
+        `catch (e) { print('initiate-failed: ' + e.message) }`
+    ).catch(error => `initiate-failed: ${error instanceof Error ? error.message : String(error)}`);
+
+    return !out.includes('initiate-failed') || /already initialized/i.test(out);
+  }, 'the replica set to accept its configuration');
 
   await waitFor(async () => {
     const states = await mongosh(

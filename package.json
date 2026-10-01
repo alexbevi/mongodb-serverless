@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc --build",
+    "clean": "tsc --build --clean",
     "test": "npm run build && vitest run",
     "test:unit": "vitest run --exclude '**/integration.test.ts'",
     "test:integration": "npm run build && vitest run driver/test/integration --testTimeout=60000",

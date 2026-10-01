@@ -162,3 +162,44 @@ async function waitFor(
   const detail = lastError instanceof Error ? `: ${lastError.message}` : '';
   throw new Error(`Timed out after ${timeoutMs}ms waiting for ${description}${detail}`);
 }
+
+const STANDALONE = 'mongodb-serverless-driver-test-standalone';
+
+/** Port the standalone listens on, distinct from the replica set's. */
+export const STANDALONE_PORT = 29200;
+
+/**
+ * Starts a single mongod with no replica set.
+ *
+ * Needed to prove the watcher rejects a server that has no topology. A direct
+ * connection to one replica set member is not a substitute: it still reports
+ * `setName`, so it passes the check it is meant to fail.
+ */
+export async function startStandalone(): Promise<void> {
+  await docker(['rm', '-f', STANDALONE]).catch(() => '');
+
+  await docker([
+    'run',
+    '-d',
+    '--name',
+    STANDALONE,
+    '--hostname',
+    'localhost',
+    '-p',
+    `${STANDALONE_PORT}:27017`,
+    '--entrypoint',
+    'bash',
+    IMAGE,
+    '-c',
+    'mkdir -p /tmp/standalone && mongod --port 27017 --dbpath /tmp/standalone --bind_ip_all'
+  ]);
+
+  await waitFor(async () => {
+    await docker(['exec', STANDALONE, 'mongosh', '--quiet', '--eval', 'db.version()']);
+    return true;
+  }, 'the standalone mongod to accept connections');
+}
+
+export async function stopStandalone(): Promise<void> {
+  await docker(['rm', '-f', STANDALONE]).catch(() => '');
+}

@@ -49,6 +49,20 @@ describe('resolvePlugin', () => {
     await expect(plugin.read()).resolves.toHaveProperty('members');
   });
 
+  it('finds a plugin exported under its own name', async () => {
+    // plugin-local exports only `LocalPlugin`, with no default export. A
+    // resolver that checks default/plugin/Plugin alone misses it.
+    const plugin = await resolvePlugin(fixture('plugin-named'));
+
+    expect(plugin.name).toBe('named-export');
+  });
+
+  it('ignores a non-plugin named export', async () => {
+    const plugin = await resolvePlugin(fixture('plugin-named'));
+
+    expect(plugin.version).toBe('3.0.0');
+  });
+
   it('falls back to the default plugin', async () => {
     const plugin = stub('default');
     setDefaultPlugin(plugin);

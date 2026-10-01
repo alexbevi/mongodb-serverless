@@ -70,7 +70,30 @@ The read client connects to the first member whose `stateStr` is `SECONDARY`
 with `health: 1`. With no healthy secondary, reads fall back to the primary,
 which is what a single-node set needs.
 
-Both clients are created on first use and reused. `close()` closes both.
+Both clients are created on first use and reused. When reads fall back to the
+primary, one client serves both. `close()` closes every client it opened.
+
+### Cursors and bulk writes
+
+`find`, `aggregate`, `listIndexes`, `listSearchIndexes`, `listCollections`, and
+`runCursorCommand` hand back a cursor synchronously, but routing has to read
+the topology first. They return a cursor that configures nothing until you
+await it:
+
+```ts
+const docs = await collection.find({ a: 1 }).sort({ b: -1 }).limit(10).toArray();
+```
+
+Chained calls are buffered and replayed in order against the real cursor, which
+is created by the first terminal call (`toArray`, `next`, `hasNext`, `forEach`,
+`for await`). A cursor you never read opens no connection.
+
+The same applies to `initializeOrderedBulkOp` and `initializeUnorderedBulkOp`,
+whose operations replay on `execute()`.
+
+One consequence: a property that only exists once the cursor does, such as
+`cursor.id` or `cursor.namespace`, throws if read before a terminal call rather
+than returning `undefined`.
 
 ## Errors
 
@@ -94,8 +117,16 @@ secondary raises `SessionRoutingError`, which includes a read inside
 `withTransaction`. Routing session operations to the primary instead is a small
 change, and worth making once real usage shows whether this is too strict.
 
-**`watch()` throws.** Change streams need a resume story that belongs with the
-watcher's design.
+**`watch()` and `startSession()` throw.** Change streams need a resume story
+that belongs with the watcher's design. `startSession()` cannot work while a
+session is confined to one client.
+
+**Nine mongodb exports are omitted.** `CancellationToken`,
+`ChangeStreamCursor`, `MongoClientAuthProviders`, and six server selection and
+SRV polling event classes are exported at runtime but marked "Excluded from
+this release type" in `mongodb.d.ts`, so re-exporting them would not typecheck.
+Import them from `mongodb` directly if you need them. The full list is
+`INTERNAL_MONGODB_EXPORTS`.
 
 **`estimatedDocumentCount` can disagree with `countDocuments`.** It reads
 collection metadata, which lags on a secondary. `countDocuments` aggregates and

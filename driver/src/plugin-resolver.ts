@@ -56,18 +56,35 @@ async function load(specifier: string): Promise<unknown> {
   }
 }
 
-/** Accepts a default export, a named `plugin` export, or the module itself. */
+/**
+ * Finds the plugin in a module.
+ *
+ * Checks the conventional names first, then every other export, since a plugin
+ * may be exported only under its own name with no default. `plugin-local`
+ * exports just `LocalPlugin`.
+ */
 function instantiate(module: unknown, specifier: string): unknown {
-  const candidates = isRecord(module)
-    ? [module['default'], module['plugin'], module['Plugin'], module]
+  const preferred = isRecord(module)
+    ? [module['default'], module['plugin'], module['Plugin']]
     : [module];
 
-  for (const candidate of candidates) {
+  const named = isRecord(module)
+    ? Object.keys(module)
+        .filter(key => !['default', 'plugin', 'Plugin'].includes(key))
+        .map(key => module[key])
+    : [];
+
+  for (const candidate of [...preferred, ...named, module]) {
     if (candidate == null) continue;
 
-    const value = typeof candidate === 'function' ? construct(candidate, specifier) : candidate;
+    const value =
+      typeof candidate === 'function'
+        ? buildsAPlugin(candidate)
+          ? construct(candidate, specifier)
+          : undefined
+        : candidate;
 
-    if (looksLikePlugin(value)) return value;
+    if (value != null && looksLikePlugin(value)) return value;
   }
 
   // Nothing matched. Hand back the most likely candidate, constructed if it is
@@ -123,6 +140,20 @@ function looksLikePlugin(value: unknown): boolean {
     isRecord(value) &&
     REQUIRED_METHODS.every(m => typeof (value as Record<string, unknown>)[m] === 'function')
   );
+}
+
+/**
+ * True when a function is a class whose prototype carries the plugin methods.
+ *
+ * Checked before constructing, so an unrelated exported function is never
+ * called for its side effects.
+ */
+function buildsAPlugin(candidate: Function): boolean {
+  const prototype = candidate.prototype as Record<string, unknown> | undefined;
+
+  if (prototype == null) return false;
+
+  return REQUIRED_METHODS.every(method => typeof prototype[method] === 'function');
 }
 
 /**

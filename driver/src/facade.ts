@@ -5,6 +5,20 @@ import {
   UnsupportedOperationError
 } from './errors.js';
 import { COLLECTION_ROUTES, DB_ROUTES, routeFor, type Route } from './routing.js';
+import { createCursorProxy } from './cursor.js';
+
+/**
+ * Methods that hand back a cursor synchronously, so they cannot await the
+ * topology. Each returns a lazy cursor proxy instead.
+ */
+const CURSOR_METHODS = new Set([
+  'find',
+  'aggregate',
+  'listIndexes',
+  'listSearchIndexes',
+  'listCollections',
+  'runCursorCommand'
+]);
 
 /** Hands back the client an operation should run on. */
 export interface Router {
@@ -99,7 +113,13 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
       );
     }
 
-    return invoke(route === 'read' ? router.read() : router.write(), owner, method, args);
+    const client = () => (route === 'read' ? router.read() : router.write());
+
+    if (CURSOR_METHODS.has(method)) {
+      return createCursorProxy(() => invoke(client(), owner, method, args), method);
+    }
+
+    return invoke(client(), owner, method, args);
   };
 }
 

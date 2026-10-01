@@ -1,6 +1,6 @@
 {
   "name": "@mongodb-serverless/plugin-local",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Local Environment plugin: reads cluster topology from an environment variable",
   "type": "module",
   "main": "./dist/local/src/index.js",

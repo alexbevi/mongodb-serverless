@@ -1,6 +1,6 @@
 {
   "name": "@mongodb-serverless/driver",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Drop-in MongoDB driver wrapper that routes reads and writes to pre-discovered replica set members",
   "type": "module",
   "main": "./dist/driver/src/index.js",

@@ -55,30 +55,37 @@ const running = async (): Promise<boolean> => {
 export async function startCluster(): Promise<void> {
   if (await running()) return;
 
-  await docker(['rm', '-f', CONTAINER]).catch(() => '');
-
   const launch = PORTS.map(
     port =>
       `mkdir -p /tmp/rs${port} && mongod --replSet ${REPLICA_SET} --port ${port} ` +
       `--dbpath /tmp/rs${port} --bind_ip_all --fork --logpath /tmp/mongod-${port}.log`
   ).join(' && ');
 
-  await docker([
-    'run',
-    '-d',
-    '--name',
-    CONTAINER,
-    '--hostname',
-    'localhost',
-    ...PORTS.flatMap(port => ['-p', `${port}:${port}`]),
-    '--entrypoint',
-    'bash',
-    IMAGE,
-    '-c',
-    // dbpath under /tmp because the image runs as a non-root user that cannot
-    // write to /data.
-    `${launch} && tail -f /dev/null`
-  ]);
+  try {
+    await docker([
+      'run',
+      '-d',
+      '--name',
+      CONTAINER,
+      '--hostname',
+      'localhost',
+      ...PORTS.flatMap(port => ['-p', `${port}:${port}`]),
+      '--entrypoint',
+      'bash',
+      IMAGE,
+      '-c',
+      // dbpath under /tmp because the image runs as a non-root user that
+      // cannot write to /data.
+      `${launch} && tail -f /dev/null`
+    ]);
+  } catch (error) {
+    // Vitest runs test files in parallel workers, so two suites can reach
+    // this at once and the loser sees a name conflict. That means the
+    // container exists, which is all this function promises.
+    if (!/already in use/i.test(error instanceof Error ? error.message : String(error))) {
+      throw error;
+    }
+  }
 
   await waitFor(async () => {
     await mongosh(PORTS[0], 'db.version()');
@@ -176,23 +183,28 @@ export const STANDALONE_PORT = 29200;
  * `setName`, so it passes the check it is meant to fail.
  */
 export async function startStandalone(): Promise<void> {
-  await docker(['rm', '-f', STANDALONE]).catch(() => '');
-
-  await docker([
-    'run',
-    '-d',
-    '--name',
-    STANDALONE,
-    '--hostname',
-    'localhost',
-    '-p',
-    `${STANDALONE_PORT}:27017`,
-    '--entrypoint',
-    'bash',
-    IMAGE,
-    '-c',
-    'mkdir -p /tmp/standalone && mongod --port 27017 --dbpath /tmp/standalone --bind_ip_all'
-  ]);
+  try {
+    await docker([
+      'run',
+      '-d',
+      '--name',
+      STANDALONE,
+      '--hostname',
+      'localhost',
+      '-p',
+      `${STANDALONE_PORT}:27017`,
+      '--entrypoint',
+      'bash',
+      IMAGE,
+      '-c',
+      'mkdir -p /tmp/standalone && mongod --port 27017 --dbpath /tmp/standalone --bind_ip_all'
+    ]);
+  } catch (error) {
+    // Same parallel-worker race as startCluster.
+    if (!/already in use/i.test(error instanceof Error ? error.message : String(error))) {
+      throw error;
+    }
+  }
 
   await waitFor(async () => {
     await docker(['exec', STANDALONE, 'mongosh', '--quiet', '--eval', 'db.version()']);

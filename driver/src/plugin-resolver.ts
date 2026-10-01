@@ -110,7 +110,7 @@ function construct(candidate: Function, specifier: string): unknown {
  * Checks the plugin by shape, never with `instanceof`.
  *
  * `instanceof` returns false across two copies of the same class, which is
- * what a dependency tree holding two versions of plugin-base produces. A valid
+ * what a dependency tree holding two copies of a shared base produces. A valid
  * plugin would be rejected for where it was installed.
  */
 export function validatePlugin(value: unknown, source: string): TopologyPlugin {

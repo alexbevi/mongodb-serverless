@@ -30,13 +30,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  plugins/base: {}
-
-  plugins/local:
-    dependencies:
-      '@mongodb-serverless/plugin-base':
-        specifier: workspace:*
-        version: link:../base
+  plugins/local: {}
 
   watcher: {}
 

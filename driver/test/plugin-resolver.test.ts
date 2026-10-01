@@ -129,7 +129,7 @@ describe('validatePlugin', () => {
   });
 
   it('accepts a plugin built against a duplicate copy of the base class', () => {
-    // instanceof fails across two installed copies of plugin-base. Structural
+    // instanceof fails across two copies of a shared base class. Structural
     // validation is the only check that survives it.
     class BaseCopyOne {
       async setup(): Promise<void> {}

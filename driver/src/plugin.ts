@@ -1,7 +1,7 @@
 /**
  * The plugin shape the driver requires.
  *
- * Declared here rather than imported from `@mongodb-serverless/plugin-base` so
+ * Declared here rather than imported from the shared plugin contract so
  * the driver depends on no plugin package. Validation is structural, so a
  * plugin satisfies this by shape without sharing a class with us.
  */

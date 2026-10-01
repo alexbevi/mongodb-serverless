@@ -1,6 +1,6 @@
 /**
  * A plugin that satisfies the contract structurally without extending
- * `@mongodb-serverless/plugin-base`, standing in for a third-party plugin.
+ * the shared plugin contract, standing in for a third-party plugin.
  */
 export default class ThirdPartyPlugin {
   readonly name = 'third-party';

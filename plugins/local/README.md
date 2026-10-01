@@ -39,7 +39,7 @@ plugin.set('clusterTopologyVariableName', 'MY_TOPOLOGY');
 ```
 
 The default is `__MONGODB_CLUSTER_TOPOLOGY`. See
-[`plugin-base`](../base) for the rest of the config.
+[the plugin overview](..) for the rest of the config.
 
 ## Scope
 

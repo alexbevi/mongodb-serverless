@@ -19,7 +19,7 @@ created on first use.
 |---|---|---|
 | `driver/` | `@mongodb-serverless/driver` | Replaces `MongoClient` and routes operations to a read or write client |
 | `watcher/` | `@mongodb-serverless/watcher` | Refreshes stored topology on an interval. Not yet implemented |
-| `plugins/base/` | `@mongodb-serverless/plugin-base` | The abstract contract a topology source implements |
+| `plugins/shared/` | not published | The plugin contract, compiled into each plugin |
 | `plugins/local/` | `@mongodb-serverless/plugin-local` | Reads topology from an environment variable |
 
 ## Quickstart

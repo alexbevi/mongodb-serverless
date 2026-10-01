@@ -1,4 +1,4 @@
-import { ServerlessPlugin, type ReplSetGetStatus } from '@mongodb-serverless/plugin-base';
+import { ServerlessPlugin, type ReplSetGetStatus } from '../../shared/src/index.js';
 
 /** Reads cluster topology from a process environment variable. */
 export class LocalPlugin extends ServerlessPlugin {

@@ -1,4 +1,6 @@
 packages:
   - driver
   - watcher
-  - plugins/*
+  # plugins/shared holds the plugin contract, compiled into each plugin rather
+  # than published, so it is deliberately not a workspace package.
+  - plugins/local

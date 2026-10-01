@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     // Test against source, so a suite never passes on a stale dist/ build.
     alias: {
-      '@mongodb-serverless/plugin-base': src('plugins/base'),
       '@mongodb-serverless/driver': src('driver')
     }
   },

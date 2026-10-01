@@ -19,7 +19,7 @@ fix(plugin-local): throw when the topology variable is unset
 docs: per-package READMEs
 ```
 
-Scopes are `driver`, `watcher`, `plugin-base`, `plugin-local`, or omitted for
+Scopes are `driver`, `watcher`, `plugins`, `plugin-local`, or omitted for
 repo-wide changes.
 
 Each commit is a self-contained unit: code, tests, and docs for one slice of
@@ -38,8 +38,23 @@ require a driver release.
 ## Validate plugins structurally, never with instanceof
 
 `instanceof` returns false across two copies of the same class, which happens
-whenever a dependency tree resolves two versions of `plugin-base`. Check that
+whenever a dependency tree resolves two versions of a shared base. Check that
 the required methods are functions instead.
+
+## The plugin contract is not published
+
+`plugins/shared/` has no `package.json` and is not a workspace package. It
+compiles into each plugin's own `dist` through that plugin's `tsconfig.json`,
+so a published plugin carries the contract and resolves nothing at runtime.
+
+Keep it that way. A published base would need a version and a release of its
+own, and two plugins pinning different versions is precisely the duplicate
+class case that makes `instanceof` fail.
+
+A plugin must also never carry a `workspace:*` dependency. That protocol is
+pnpm-only, so the published tarball is uninstallable with npm and fails with
+`EUNSUPPORTEDPROTOCOL`. Tests in `driver/test/workspace.test.ts` enforce both
+rules, but verify a real install with `npm pack` before releasing.
 
 ## Writing
 

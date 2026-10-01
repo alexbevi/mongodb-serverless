@@ -6,6 +6,7 @@ import {
 } from './errors.js';
 import { COLLECTION_ROUTES, DB_ROUTES, routeFor, type Route } from './routing.js';
 import { createCursorProxy } from './cursor.js';
+import { createBulkProxy } from './bulk.js';
 
 /**
  * Methods that hand back a cursor synchronously, so they cannot await the
@@ -19,6 +20,9 @@ const CURSOR_METHODS = new Set([
   'listCollections',
   'runCursorCommand'
 ]);
+
+/** Methods returning a stateful bulk builder, also synchronously. */
+const BULK_METHODS = new Set(['initializeOrderedBulkOp', 'initializeUnorderedBulkOp']);
 
 /** Hands back the client an operation should run on. */
 export interface Router {
@@ -117,6 +121,10 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
     if (CURSOR_METHODS.has(method)) {
       return createCursorProxy(() => invoke(client(), owner, method, args), method);
+    }
+
+    if (BULK_METHODS.has(method)) {
+      return createBulkProxy(() => invoke(client(), owner, method, args), method);
     }
 
     return invoke(client(), owner, method, args);

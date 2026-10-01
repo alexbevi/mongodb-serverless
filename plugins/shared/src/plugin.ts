@@ -1,4 +1,5 @@
 import type { ReplSetGetStatus } from './status.js';
+import { PluginReadOnlyError } from './errors.js';
 
 /**
  * The shape a plugin must have, independent of how it was built.
@@ -41,14 +42,41 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   abstract readonly author: string;
 
   readonly #config: C;
+  readonly #writable: boolean;
 
-  /** @param defaults Config keys a subclass adds on top of {@link PluginConfig}. */
-  constructor(defaults?: Omit<C, keyof PluginConfig>) {
+  /**
+   * @param options Config keys a subclass adds on top of {@link PluginConfig},
+   * plus `writable` to permit writes.
+   */
+  constructor(options?: { writable?: boolean } & Omit<C, keyof PluginConfig>) {
     if (new.target === ServerlessPlugin) {
       throw new TypeError('ServerlessPlugin is abstract and cannot be constructed directly');
     }
 
+    const { writable = false, ...defaults } = options ?? {};
+
+    this.#writable = writable;
     this.#config = { ...DEFAULT_PLUGIN_CONFIG, ...defaults } as C;
+  }
+
+  /**
+   * Whether this plugin may write to its store.
+   *
+   * Read-only unless asked for, so a consumer that only reads is safe without
+   * doing anything. The watcher is the only writer.
+   */
+  get writable(): boolean {
+    return this.#writable;
+  }
+
+  /** Call first from `write()`. Throws unless this plugin is writable. */
+  protected assertWritable(): void {
+    if (!this.#writable) {
+      throw new PluginReadOnlyError(
+        `Plugin "${this.name}" is read-only. Construct it with { writable: true } to ` +
+          'write topology, which is the watcher\'s job rather than the driver\'s.'
+      );
+    }
   }
 
   /** Prepare the store holding the topology document. */

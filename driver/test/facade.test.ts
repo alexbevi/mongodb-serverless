@@ -56,7 +56,13 @@ const fakeClients = () => {
       }
     });
 
-    return { db: vi.fn(db), close: vi.fn(async () => void closed.push(host)) } as never;
+    return {
+      db: vi.fn(db),
+      connect: vi.fn(async function (this: unknown) {
+        return this;
+      }),
+      close: vi.fn(async () => void closed.push(host))
+    } as never;
   });
 
   return { calls, closed, create };

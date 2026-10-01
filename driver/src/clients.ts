@@ -24,7 +24,7 @@ export interface ClientPairOptions {
  */
 export class ClientPair {
   readonly #options: ClientPairOptions;
-  readonly #clients = new Map<string, MongoClient>();
+  readonly #clients = new Map<string, Promise<MongoClient>>();
   #topology: Promise<Topology> | undefined;
   #closed = false;
 
@@ -46,11 +46,17 @@ export class ClientPair {
 
   async close(): Promise<void> {
     this.#closed = true;
-    const clients = [...this.#clients.values()];
+    const pending = [...this.#clients.values()];
     this.#clients.clear();
     this.#topology = undefined;
 
-    await Promise.all(clients.map(client => client.close()));
+    // A client whose connect() failed has nothing to close, and its rejection
+    // should not mask the close.
+    await Promise.all(
+      pending.map(async client => {
+        await (await client).close().catch(() => {});
+      })
+    );
   }
 
   /** Read once and reuse, but never cache a failure. */
@@ -67,7 +73,15 @@ export class ClientPair {
     return this.#topology;
   }
 
-  #clientFor(hostPort: string): MongoClient {
+  /**
+   * Builds and connects the client for one member, once.
+   *
+   * Connecting eagerly rather than letting the first operation do it: the
+   * driver's bulk write builders read connection state at construction and
+   * throw "MongoClient must be connected" if nothing has connected yet, so an
+   * unconnected client breaks initializeOrderedBulkOp as a first operation.
+   */
+  async #clientFor(hostPort: string): Promise<MongoClient> {
     this.#assertOpen();
 
     const existing = this.#clients.get(hostPort);
@@ -75,10 +89,21 @@ export class ClientPair {
     if (existing != null) return existing;
 
     const uri = directUri(this.#options.uri, hostPort);
-    const client = this.#options.createClient(uri, this.#options.driverOptions);
-    this.#clients.set(hostPort, client);
 
-    return client;
+    // Memoise the promise, not the client, so concurrent callers share one
+    // connect() instead of racing to create a second client.
+    const pending = (async () => {
+      const client = this.#options.createClient(uri, this.#options.driverOptions);
+      await client.connect();
+      return client;
+    })().catch(error => {
+      this.#clients.delete(hostPort);
+      throw error;
+    });
+
+    this.#clients.set(hostPort, pending);
+
+    return pending;
   }
 
   #assertOpen(): void {

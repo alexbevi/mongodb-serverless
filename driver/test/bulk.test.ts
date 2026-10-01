@@ -70,6 +70,9 @@ const setup = () => {
           initializeUnorderedBulkOp: vi.fn(build(false))
         })
       }),
+      connect: vi.fn(async function (this: unknown) {
+        return this;
+      }),
       close: vi.fn(async () => {})
     } as never;
   });

@@ -31,11 +31,19 @@ const pluginFor = (status: ReplSetGetStatus | null): TopologyPlugin => ({
 const factory = () => {
   const built: string[] = [];
   const closed: string[] = [];
+  const connected: string[] = [];
   const create = vi.fn((uri: string) => {
     built.push(uri);
-    return { uri, close: vi.fn(async () => void closed.push(uri)) } as never;
+    return {
+      uri,
+      connect: vi.fn(async function (this: unknown) {
+        connected.push(uri);
+        return this;
+      }),
+      close: vi.fn(async () => void closed.push(uri))
+    } as never;
   });
-  return { built, closed, create };
+  return { built, closed, connected, create };
 };
 
 const pairFor = (status: ReplSetGetStatus | null, uri = 'mongodb://seed:27017/') => {
@@ -86,6 +94,32 @@ describe('ClientPair', () => {
     await pair.read();
 
     expect(built[0]).toContain('a:27017');
+  });
+
+  it('connects each client it builds', async () => {
+    // The driver's bulk write builders throw "MongoClient must be connected"
+    // unless connect() has been awaited, so handing back an unconnected client
+    // breaks initializeOrderedBulkOp as a first operation.
+    const { pair, connected } = pairFor(threeNode);
+    await pair.write();
+
+    expect(connected).toHaveLength(1);
+  });
+
+  it('connects the read client too', async () => {
+    const { pair, connected } = pairFor(threeNode);
+    await pair.read();
+
+    expect(connected).toHaveLength(1);
+  });
+
+  it('connects each client only once', async () => {
+    const { pair, connected } = pairFor(threeNode);
+    await pair.write();
+    await pair.write();
+    await pair.read();
+
+    expect(connected).toHaveLength(2);
   });
 
   it('builds each client once', async () => {

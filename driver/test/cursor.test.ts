@@ -90,6 +90,9 @@ const setup = (docs: unknown[] = [{ a: 1 }, { a: 2 }]) => {
         listCollections: vi.fn(makeCursor),
         aggregate: vi.fn(makeCursor)
       }),
+      connect: vi.fn(async function (this: unknown) {
+        return this;
+      }),
       close: vi.fn(async () => {})
     } as never;
   });

@@ -1,3 +1,22 @@
-// The watcher is built in the slices that follow. This file exists so the
-// package has a compilable entry point.
-export const PLACEHOLDER = true;
+export { Watcher, type WatcherOptions, type CheckResult } from './watcher.js';
+export {
+  ClusterConnection,
+  type ClusterConnectionOptions,
+  type ClusterIdentity,
+  type ClientFactory
+} from './cluster.js';
+export {
+  WatcherError,
+  ClusterUnreachableError,
+  AuthenticationFailedError,
+  NotAReplicaSetError,
+  PluginReadOnlyError,
+  MissingPluginError
+} from './errors.js';
+export {
+  setDefaultPlugin,
+  clearDefaultPlugin,
+  type PluginSource,
+  type TopologyPlugin,
+  type ReplSetGetStatus
+} from '../../plugins/shared/src/index.js';

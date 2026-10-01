@@ -32,7 +32,11 @@ importers:
 
   plugins/local: {}
 
-  watcher: {}
+  watcher:
+    dependencies:
+      mongodb:
+        specifier: '>=7.0.0'
+        version: 7.7.0
 
 packages:
 

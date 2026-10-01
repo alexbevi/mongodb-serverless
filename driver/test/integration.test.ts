@@ -7,7 +7,7 @@ import {
   dockerAvailable,
   startCluster,
   type TestCluster
-} from './harness/cluster.js';
+} from '../../test/harness/cluster.js';
 import { TestPlugin } from './harness/plugin.js';
 
 const hasDocker = await dockerAvailable();

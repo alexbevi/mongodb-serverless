@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./plugins/local" },
-    { "path": "./driver" }
+    { "path": "./driver" },
+    { "path": "./watcher" }
   ]
 }

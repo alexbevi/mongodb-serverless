@@ -1,10 +1,25 @@
 {
   "name": "@mongodb-serverless/watcher",
   "version": "0.0.0",
-  "description": "Topology monitor that refreshes replica set status through a plugin (not yet implemented)",
+  "description": "Polls a MongoDB replica set and writes its topology through a plugin",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "engines": {
     "node": ">=20.19.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "peerDependencies": {
+    "mongodb": ">=7.0.0"
   }
 }

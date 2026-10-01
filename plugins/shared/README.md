@@ -15,6 +15,8 @@ interface PluginConfig {
 }
 
 abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
+  constructor(options?: { writable?: boolean } & Omit<C, keyof PluginConfig>);
+
   abstract readonly name: string;
   abstract readonly version: string;
   abstract readonly author: string;
@@ -26,6 +28,9 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   get<K extends keyof C>(key: K): C[K];
   set<K extends keyof C>(key: K, value: C[K]): void;
+
+  get writable(): boolean;
+  protected assertWritable(): void;   // throws PluginReadOnlyError
 }
 ```
 
@@ -35,6 +40,16 @@ document and `write()` replaces it.
 
 `get()` and `set()` throw `RangeError` on an unknown key, listing the keys that
 do exist. Config is per instance, so two plugins never share state.
+
+## Read-only by default
+
+A plugin refuses to write unless constructed with `{ writable: true }`. Call
+`assertWritable()` at the top of `write()`, before touching the store, so a
+refused write changes nothing.
+
+`set()` is allowed either way, since it configures the plugin rather than the
+store. The driver constructs plugins plainly and only reads; the watcher asks
+to write.
 
 See [the plugin overview](..) for the default values.
 

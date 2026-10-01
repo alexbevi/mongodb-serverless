@@ -19,6 +19,15 @@ setDefaultPlugin(new LocalPlugin());   // once at startup
 **The driver depends on no plugin package**, not even optionally, so publishing
 a plugin never requires a driver release.
 
+**Plugins are read-only unless constructed writable.** The driver only reads,
+so it gets the safe default without doing anything. The watcher is the only
+writer and asks for it:
+
+```ts
+new LocalPlugin()                    // driver: write() throws
+new LocalPlugin({ writable: true })  // watcher: write() permitted
+```
+
 **A plugin does not have to extend anything.** The driver checks that `setup`,
 `verify`, `read`, and `write` are functions and that `name`, `version`, and
 `author` are strings, so any object of that shape works. [`shared/`](shared)
@@ -63,12 +72,18 @@ export class MyPlugin extends ServerlessPlugin {
   async setup(): Promise<void> {}                      // prepare the store
   async verify(): Promise<void> {}                     // throw if unusable
   async read(): Promise<ReplSetGetStatus> { /* ... */ } // fetch the document
-  async write(status: ReplSetGetStatus): Promise<void> {} // replace it
+
+  async write(status: ReplSetGetStatus): Promise<void> {
+    this.assertWritable();                             // refuse if read-only
+    // replace the stored document
+  }
 }
 ```
 
 `verify()` should throw with a message naming what is wrong, since that message
-is what a user sees when their topology is missing or malformed.
+is what a user sees when their topology is missing or malformed. `write()`
+should call `assertWritable()` before touching the store, so a refused write
+changes nothing.
 
 The driver resolves a plugin from a package by checking a `default` export, a
 `plugin` or `Plugin` export, then every other named export, so exporting the

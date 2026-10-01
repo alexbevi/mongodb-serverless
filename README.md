@@ -18,7 +18,7 @@ created on first use.
 | Directory | Package | What it does |
 |---|---|---|
 | `driver/` | `@mongodb-serverless/driver` | Replaces `MongoClient` and routes operations to a read or write client |
-| `watcher/` | `@mongodb-serverless/watcher` | Refreshes stored topology on an interval. Not yet implemented |
+| `watcher/` | `@mongodb-serverless/watcher` | Polls a cluster and writes its topology through a plugin |
 | `plugins/shared/` | not published | The plugin contract, compiled into each plugin |
 | `plugins/local/` | `@mongodb-serverless/plugin-local` | Reads topology from an environment variable |
 
@@ -39,7 +39,18 @@ await client.db('app').collection('users').find({}).toArray();  // secondary
 Every other export (`ObjectId`, `ReadPreference`, the error classes) passes
 through to the real driver unchanged.
 
-Populate the topology from a running cluster:
+The topology comes from the watcher, which runs separately:
+
+```ts
+import { Watcher } from '@mongodb-serverless/watcher';
+import { LocalPlugin } from '@mongodb-serverless/plugin-local';
+
+const watcher = new Watcher({ uri, plugin: new LocalPlugin({ writable: true }) });
+watcher.start();
+```
+
+The driver's plugin is read-only; only the watcher's is writable. For a
+one-off local setup you can also populate the variable by hand:
 
 ```sh
 export __MONGODB_CLUSTER_TOPOLOGY="$(mongosh --quiet --eval 'JSON.stringify(rs.status())')"
@@ -53,9 +64,9 @@ different source. Change streams and sessions that span the read and write
 client are also unsupported. See `driver/README.md` for the details and the
 reasoning.
 
-The watcher is not implemented. Until it is, the stored topology is only as
-current as whatever last wrote it, which is fine for local development and not
-for a deployment where a failover can happen.
+A failover is only picked up on the watcher's next cycle. Until then the stored
+topology names a member that is no longer primary and writes will fail, so
+`refreshIntervalMS` is a tradeoff rather than a fix.
 
 ## Development
 

@@ -29,6 +29,16 @@ export __MONGODB_CLUSTER_TOPOLOGY="$(mongosh --quiet --eval 'JSON.stringify(rs.s
 
 `verify()` throws if the variable is unset or does not parse as JSON.
 
+This plugin is read-only as constructed above, which is what the driver wants.
+The watcher needs to write, so it asks:
+
+```ts
+new LocalPlugin({ writable: true });
+```
+
+A read-only `write()` throws `PluginReadOnlyError` and leaves the variable
+untouched.
+
 ## Configuration
 
 Override the variable name with the inherited `clusterTopologyVariableName`:
@@ -44,9 +54,8 @@ The default is `__MONGODB_CLUSTER_TOPOLOGY`. See
 ## Scope
 
 This plugin is for local and development use. It reads one process environment,
-so the topology is as fresh as whatever last exported it, and nothing refreshes
-it while your process runs. Deployments that need current topology want a
-shared store and the watcher.
+so a watcher in another process cannot update it. A deployment wants a plugin
+backed by a store both processes can reach.
 
 `replSetGetStatus` describes a replica set, so sharded and load-balanced
 clusters are out of scope.

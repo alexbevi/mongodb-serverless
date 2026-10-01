@@ -74,6 +74,15 @@ Replica sets only. No sharded clusters, no load-balanced clusters, no change
 streams, no sessions spanning the read and write client. Keep these fences
 explicit in the READMEs rather than letting them be discovered at runtime.
 
+## Errors fail instanceof across packages
+
+The contract compiles into each package, so the driver, the watcher, and a
+plugin each hold their own copy of the shared error classes. `instanceof` is
+false across that boundary even for the right error.
+
+The `name` getter is stable across copies, so match on that. Keep it on every
+new error class, and do not reach for `instanceof` in a cross-package test.
+
 ## Prefer the real cluster to a mocked client
 
 Routing claims are asserted against a real replica set, reading `commandStarted`
@@ -90,6 +99,12 @@ member that is gone.
 
 When adding a fake client, give it the methods the real one needs, including
 `connect()`. A fake that is easier to satisfy than the driver hides bugs.
+
+The harness lives in `test/harness/` at the repo root, shared by both packages.
+It hardcodes container names, so two copies would fight over one container.
+`startCluster` gives a 3-node replica set; `startStandalone` gives a server
+with no replica set, which a direct connection to one member cannot stand in
+for because that still reports `setName`.
 
 ## Verify docs by running them
 

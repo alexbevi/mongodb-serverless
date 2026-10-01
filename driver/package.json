@@ -11,12 +11,17 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "scripts"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "generate": "node scripts/generate-reexports.mjs",
+    "prepack": "npm run generate && tsc --build"
   },
   "dependencies": {
     "mongodb-connection-string-url": "^7.0.2"

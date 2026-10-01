@@ -36,29 +36,31 @@ Actions to create and approve pull requests**.
 Without it the release job fails *after* pushing the branch, so the PR can
 still be opened by hand from the link in the log.
 
-### Trusted publishing, preferred
+### Why a token is required
 
-With this configured there is no token to store, leak, or rotate, and npm
-records provenance automatically for public repos.
+Changesets publishes through `pnpm publish`, because `pnpm-workspace.yaml`
+makes this a pnpm workspace and that choice is not configurable.
 
-On npmjs.com, for each of `@mongodb-serverless/driver` and
-`@mongodb-serverless/plugin-local`, open the package settings and add a trusted
-publisher:
+**`pnpm publish` has no trusted-publishing support** and no `--provenance`
+flag, so npm's OIDC flow is unavailable here and a stored token is the only
+option. Attempting it also breaks the publish outright: `pnpm publish` passes
+`--no-git-checks`, which it delegates to npm, and current npm rejects the
+unknown flag with `EUNKNOWNCONFIG`.
 
-| Field | Value |
-|---|---|
-| Publisher | GitHub Actions |
-| Repository owner | `alexbevi` |
-| Repository | `mongodb-serverless` |
-| Workflow filename | `release.yml` |
+Moving to trusted publishing would mean publishing with `npm publish` instead,
+which means not using Changesets' publish step.
 
-The release workflow already requests `id-token: write`, so nothing else
-changes. npm 11.5.1 or later is required, which the workflow installs.
+<details>
+<summary>What trusted publishing would give up in exchange</summary>
 
-A package must exist before it can be given a trusted publisher, so the very
-first publish of each package needs a token.
+No stored token to leak or rotate, and automatic provenance attestation. Worth
+revisiting if pnpm gains OIDC support, or if the release step is rewritten to
+call `npm publish` per package directly.
 
-### Token, for the first publish and as a fallback
+</details>
+
+
+### Setting the token
 
 Create a granular access token on npmjs.com with read and write access to the
 `@mongodb-serverless` scope, and set it as the `NPM_TOKEN` repository secret.
@@ -67,8 +69,6 @@ Set an expiry you are willing to track yourself, and put a calendar reminder
 somewhere other than this repo. **npm does not expose a token's expiry date**:
 `npm token list` reports `created` but no expiry, and granular tokens do not
 appear there at all. Nothing in CI can warn you before it lapses.
-
-Once trusted publishing is configured for both packages, delete the secret.
 
 ## The health check
 

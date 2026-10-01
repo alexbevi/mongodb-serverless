@@ -18,6 +18,24 @@ it from both when the watcher is ready to ship.
 
 ## One-time setup
 
+### Let Actions open the version PR
+
+Changesets pushes a `changeset-release/main` branch and opens a PR from it.
+GitHub blocks that by default, with *"GitHub Actions is not permitted to
+create or approve pull requests"*, so enable it once:
+
+```sh
+gh api --method PUT repos/alexbevi/mongodb-serverless/actions/permissions/workflow \
+  -F default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=true
+```
+
+Or tick **Settings > Actions > General > Workflow permissions > Allow GitHub
+Actions to create and approve pull requests**.
+
+Without it the release job fails *after* pushing the branch, so the PR can
+still be opened by hand from the link in the log.
+
 ### Trusted publishing, preferred
 
 With this configured there is no token to store, leak, or rotate, and npm

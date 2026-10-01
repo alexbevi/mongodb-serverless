@@ -1,0 +1,24 @@
+{
+  "name": "@mongodb-serverless/plugin-local",
+  "version": "0.0.0",
+  "description": "Local Environment plugin: reads cluster topology from an environment variable",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@mongodb-serverless/plugin-base": "workspace:*"
+  }
+}

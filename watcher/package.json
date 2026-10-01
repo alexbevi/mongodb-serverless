@@ -1,0 +1,10 @@
+{
+  "name": "@mongodb-serverless/watcher",
+  "version": "0.0.0",
+  "description": "Topology monitor that refreshes replica set status through a plugin (not yet implemented)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

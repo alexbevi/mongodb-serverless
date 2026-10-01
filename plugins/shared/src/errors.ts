@@ -1,4 +1,10 @@
-/** Base for every error this project raises, so callers can catch one type. */
+/**
+ * Base for every error this project raises.
+ *
+ * The contract compiles into each package, so the driver and a plugin hold
+ * separate copies of these classes and `instanceof` across that boundary is
+ * false. Match on `name` instead, which is stable across copies.
+ */
 export class ServerlessError extends Error {
   override get name(): string {
     return this.constructor.name;

@@ -19,6 +19,7 @@ export class LocalPlugin extends ServerlessPlugin {
   }
 
   async write(status: ReplSetGetStatus): Promise<void> {
+    this.assertWritable();
     process.env[this.#variableName()] = JSON.stringify(status);
   }
 

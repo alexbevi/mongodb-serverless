@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocalPlugin } from '../src/index.js';
+import { PluginReadOnlyError } from '../../shared/src/index.js';
 
 const VAR = '__MONGODB_CLUSTER_TOPOLOGY';
 
@@ -45,14 +46,14 @@ describe('LocalPlugin', () => {
   });
 
   it('writes topology back to the variable', async () => {
-    const plugin = new LocalPlugin();
+    const plugin = new LocalPlugin({ writable: true });
     await plugin.write(status);
 
     expect(JSON.parse(process.env[VAR] as string)).toEqual(status);
   });
 
   it('round-trips a write through a read', async () => {
-    const plugin = new LocalPlugin();
+    const plugin = new LocalPlugin({ writable: true });
     await plugin.write(status);
 
     await expect(plugin.read()).resolves.toEqual(status);
@@ -95,4 +96,44 @@ describe('LocalPlugin', () => {
 
     await expect(plugin.read()).resolves.toEqual(status);
   });
+
+  describe('writability', () => {
+    it('is read-only by default', () => {
+      expect(new LocalPlugin().writable).toBe(false);
+    });
+
+    it('refuses to write when read-only', async () => {
+      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+    });
+
+    it('leaves the environment untouched when a write is refused', async () => {
+      delete process.env[VAR];
+
+      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+      expect(process.env[VAR]).toBeUndefined();
+    });
+
+    it('does not overwrite an existing value when refused', async () => {
+      process.env[VAR] = JSON.stringify({ set: 'original', members: [] });
+
+      await expect(new LocalPlugin().write(status)).rejects.toThrow();
+      expect(JSON.parse(process.env[VAR] as string).set).toBe('original');
+    });
+
+    it('writes when constructed writable', async () => {
+      const plugin = new LocalPlugin({ writable: true });
+      await plugin.write(status);
+
+      expect(JSON.parse(process.env[VAR] as string)).toEqual(status);
+    });
+
+    it('reads and verifies while read-only', async () => {
+      process.env[VAR] = JSON.stringify(status);
+      const plugin = new LocalPlugin();
+
+      await expect(plugin.verify()).resolves.toBeUndefined();
+      await expect(plugin.read()).resolves.toEqual(status);
+    });
+  });
+
 });

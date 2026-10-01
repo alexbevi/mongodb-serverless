@@ -59,6 +59,17 @@ Replica sets only. No sharded clusters, no load-balanced clusters, no change
 streams, no sessions spanning the read and write client. Keep these fences
 explicit in the READMEs rather than letting them be discovered at runtime.
 
+## Verify docs by running them
+
+README examples are checked by running them against the built packages, not by
+reading them. Resolving `plugin-local` by specifier was broken for every
+release until an example was actually executed: the package exports only
+`LocalPlugin`, and the resolver looked for `default`, `plugin`, or `Plugin`.
+Tests passed throughout, because the fixtures used a default export.
+
+When a README documents a mechanism, exercise that mechanism the way a user
+would.
+
 ## Upgrading mongodb
 
 The wrapper depends on driver internals that are verified, not guessed. The

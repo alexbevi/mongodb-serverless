@@ -78,3 +78,19 @@ Structural checking is also the only thing that works reliably. `instanceof`
 returns false across two copies of the same class, which happens whenever a
 dependency tree holds two versions of this package. A plugin built against one
 version would be rejected by a driver that resolved another.
+
+## Exporting your plugin
+
+The driver resolves a plugin from a package by checking a `default` export, a
+`plugin` or `Plugin` export, then every other named export, so any of these
+work:
+
+```ts
+export default class MyPlugin extends ServerlessPlugin { /* ... */ }
+export class MyPlugin extends ServerlessPlugin { /* ... */ }
+export const plugin = new MyPlugin();
+```
+
+A class is constructed with no arguments. Configure it after construction with
+`set()`, or give the class defaults of its own, since the driver passes nothing
+to the constructor.

@@ -53,12 +53,21 @@ different source. Change streams and sessions that span the read and write
 client are also unsupported. See `driver/README.md` for the details and the
 reasoning.
 
+The watcher is not implemented. Until it is, the stored topology is only as
+current as whatever last wrote it, which is fine for local development and not
+for a deployment where a failover can happen.
+
 ## Development
 
 ```sh
 pnpm install
-pnpm test
+pnpm test       # builds first, then runs every suite
+pnpm test:unit  # skips the build, for a fast loop
 pnpm typecheck
 ```
+
+`pnpm test` builds because the drop-in suite runs ESM and CJS scripts against
+`driver/dist` outside Vitest's resolver, which is the only way to catch a
+module resolution bug that aliasing to source would hide.
 
 Requires Node 20.19 or later. See `AGENTS.md` for the working agreement.

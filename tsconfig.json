@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./plugins/base" },
+    { "path": "./plugins/local" },
+    { "path": "./driver" }
+  ]
+}

@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # commit version bumps, create releases and tags
+      pull-requests: write # open the "Version Packages" PR
+      id-token: write # exchange for an npm publish credential
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # changesets reads history to find what changed
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Trusted publishing needs npm 11.5.1 or later. The Node image ships an
+      # older npm, so upgrade rather than relying on whatever is bundled.
+      - run: npm install --global npm@latest
+
+      - name: Open a version PR, or publish if one was merged
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm version
+          publish: pnpm release
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only used if trusted publishing is not configured for a package on
+          # npmjs.com. With it configured, npm uses the OIDC token above and
+          # ignores this.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Report what was published
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          {
+            echo '### Published'
+            echo
+            echo '${{ steps.changesets.outputs.publishedPackages }}' \
+              | node -e "
+                const packages = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+                for (const pkg of packages) console.log(\`- \${pkg.name}@\${pkg.version}\`);
+              "
+          } >> "$GITHUB_STEP_SUMMARY"

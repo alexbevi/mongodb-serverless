@@ -83,4 +83,16 @@ The integration suite runs against a real 3-node replica set that
 runs. Without Docker it skips. `pnpm cluster:stop` removes the container; the
 next run rebuilds it in about 30 seconds.
 
-Requires Node 20.19 or later. See `AGENTS.md` for the working agreement.
+Requires Node 20.19 or later. See `AGENTS.md` for the working agreement and
+[`.github/RELEASING.md`](.github/RELEASING.md) for how releases work.
+
+## Releasing
+
+Add a changeset with your change:
+
+```sh
+pnpm changeset
+```
+
+Merging to `main` opens a version PR; merging that publishes and creates the
+GitHub Releases.

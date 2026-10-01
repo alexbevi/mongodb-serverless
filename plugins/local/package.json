@@ -11,11 +11,26 @@
       "default": "./dist/local/src/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
     "typecheck": "tsc --build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexbevi/mongodb-serverless.git",
+    "directory": "plugins/local"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/alexbevi/mongodb-serverless#readme",
+  "bugs": {
+    "url": "https://github.com/alexbevi/mongodb-serverless/issues"
   }
 }

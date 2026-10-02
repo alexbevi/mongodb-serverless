@@ -161,6 +161,17 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   });
 
   describe('cursors', () => {
+    it('exposes cursor properties after the cursor is created', async () => {
+      const { client } = connect();
+      const cursor = client.db('test').collection('cursor_properties').find({});
+
+      expect(() => cursor.namespace).toThrow(/terminal call/);
+      await cursor.next();
+      expect(cursor.namespace.toString()).toBe('test.cursor_properties');
+      await cursor.close();
+      expect(cursor.closed).toBe(true);
+    });
+
     const seed = async (client: ServerlessMongoClient, name: string, count: number) => {
       const docs = Array.from({ length: count }, (_, n) => ({ n }));
       await client

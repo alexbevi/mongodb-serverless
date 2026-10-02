@@ -76,6 +76,7 @@ const DEFERRED_PROPERTIES = new Set([
 export function createCursorProxy(source: CursorSource, label: string): never {
   const buffered: Array<{ method: string; args: unknown[] }> = [];
   let real: Promise<Record<string, unknown>> | undefined;
+  let resolved: Record<string, unknown> | undefined;
 
   const resolve = (): Promise<Record<string, unknown>> => {
     real ??= (async () => {
@@ -91,6 +92,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
         (fn as (...a: unknown[]) => unknown).apply(cursor, args);
       }
 
+      resolved = cursor;
       return cursor;
     })();
 
@@ -145,6 +147,8 @@ export function createCursorProxy(source: CursorSource, label: string): never {
         }
 
         if (DEFERRED_PROPERTIES.has(property)) {
+          if (resolved != null) return resolved[property];
+
           throw new ServerlessDriverError(
             `"${property}" is only readable once the ${label} cursor exists. ` +
               'Await a terminal call such as toArray() or next() first.'

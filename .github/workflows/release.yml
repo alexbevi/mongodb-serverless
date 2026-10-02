@@ -22,6 +22,7 @@ jobs:
     permissions:
       contents: write # commit version bumps, create releases and tags
       pull-requests: write # open the "Version Packages" PR
+      id-token: write # exchange for a short-lived npm publish credential
 
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +30,8 @@ jobs:
           fetch-depth: 0 # changesets reads history to find what changed
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
 
       - uses: actions/setup-node@v4
         with:
@@ -37,21 +40,6 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
-
-      # Fails early with a clear message rather than letting changesets reach
-      # the registry and report ENEEDAUTH, which reads like a config problem.
-      - name: Check the npm token is set
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${NPM_TOKEN}" ]; then
-            echo "::error::The NPM_TOKEN secret is empty or unset. Set it with: gh secret set NPM_TOKEN"
-            exit 1
-          fi
-
-          echo "NPM_TOKEN is set (${#NPM_TOKEN} characters)."
 
       - name: Open a version PR, or publish if one was merged
         id: changesets
@@ -66,10 +54,9 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Changesets publishes through `pnpm publish` because this is a pnpm
-          # workspace, and pnpm has no trusted-publishing support, so a token
-          # is required. See RELEASING.md.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No npm credential: pnpm 12 exchanges the OIDC token above for a
+          # short-lived one. Each package needs a trusted publisher on
+          # npmjs.com pointing at this workflow. See RELEASING.md.
 
       - name: Report what was published
         if: steps.changesets.outputs.published == 'true'

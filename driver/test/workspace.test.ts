@@ -10,6 +10,20 @@ const resolve = (path: string): string => fileURLToPath(new URL(path, root));
 const read = (path: string): string => readFileSync(resolve(path), 'utf8');
 
 describe('workspace', () => {
+  it('selects a pnpm version for both CI and trusted publishing', () => {
+    const versions = ['ci', 'release'].map(workflow => {
+      const config = read(`.github/workflows/${workflow}.yml`);
+      const version = config.match(
+        /uses: pnpm\/action-setup@[^\n]+\n\s+with:\n\s+version: ['"]?(\d+\.\d+\.\d+)/
+      )?.[1];
+      expect(version, `${workflow} must select pnpm explicitly`).toBeDefined();
+      expect(Number(version?.split('.')[0])).toBeGreaterThanOrEqual(12);
+      return version;
+    });
+
+    expect(versions[0]).toBe(versions[1]);
+  });
+
   it('selects both packages with the integration command', () => {
     const { scripts } = JSON.parse(read('package.json'));
     const args = scripts['test:integration'].split('vitest run ')[1].split(/\s+/);

@@ -36,67 +36,48 @@ Actions to create and approve pull requests**.
 Without it the release job fails *after* pushing the branch, so the PR can
 still be opened by hand from the link in the log.
 
-### Why a token is required
+### Trusted publishing
 
-Changesets publishes through `pnpm publish`, because `pnpm-workspace.yaml`
-makes this a pnpm workspace and that choice is not configurable.
+CI publishes with no stored credential. pnpm 12 exchanges the workflow's OIDC
+token for a short-lived npm one, and the release job already requests
+`id-token: write`.
 
-**`pnpm publish` has no trusted-publishing support** and no `--provenance`
-flag, so npm's OIDC flow is unavailable here and a stored token is the only
-option. Attempting it also breaks the publish outright: `pnpm publish` passes
-`--no-git-checks`, which it delegates to npm, and current npm rejects the
-unknown flag with `EUNKNOWNCONFIG`.
+Both workflows select pnpm 12.8.1 explicitly. Keep those versions aligned when
+upgrading the release tooling.
 
-Moving to trusted publishing would mean publishing with `npm publish` instead,
-which means not using Changesets' publish step.
-
-<details>
-<summary>What trusted publishing would give up in exchange</summary>
-
-No stored token to leak or rotate, and automatic provenance attestation. Worth
-revisiting if pnpm gains OIDC support, or if the release step is rewritten to
-call `npm publish` per package directly.
-
-</details>
-
-
-### Setting the token
-
-Create a **granular access token** on npmjs.com with:
-
-- read and write access to the `@mongodb-serverless` scope
-- **2FA bypass enabled**
-
-Both matter. Without the bypass the registry accepts the token and then
-refuses the publish with `E403: Two-factor authentication or granular access
-token with bypass 2fa enabled is required to publish packages`, because the
-account requires 2FA for writes and CI cannot answer a prompt.
-
-Set it as the `NPM_TOKEN` repository secret, piping the value in so it stays
-out of your shell history:
+Each package needs a trusted publisher on npm, which can only be added to a
+package that already exists. So the first publish of a new package is manual:
 
 ```sh
-pbpaste | gh secret set NPM_TOKEN
+npm login
+pnpm build
+( cd driver        && npm publish --access public --otp=CODE )
+( cd plugins/local && npm publish --access public --otp=CODE )
 ```
 
-`gh secret set NPM_TOKEN` on its own reads EOF from a non-interactive stdin
-and silently stores an empty value, which shows up later as `ENEEDAUTH`.
+`--otp` satisfies the account's 2FA requirement directly. Do not create a
+token with 2FA bypass for this; npm has announced restrictions on those, and
+trusted publishing removes the need.
 
-Set an expiry you are willing to track yourself, and put a calendar reminder
-somewhere other than this repo. **npm does not expose a token's expiry date**:
-`npm token list` reports `created` but no expiry, and granular tokens do not
-appear there at all. Nothing in CI can warn you before it lapses.
+Then register the publisher for each package:
 
-## The health check
+```sh
+npm trust github @mongodb-serverless/driver \
+  --repo alexbevi/mongodb-serverless --file release.yml --allow-publish
+npm trust github @mongodb-serverless/plugin-local \
+  --repo alexbevi/mongodb-serverless --file release.yml --allow-publish
+```
 
-`npm-token-health.yml` runs weekly and on demand. It checks the token still
-authenticates, against `GET /-/whoami`, and fails the run if the registry
-rejects it. GitHub emails the repository owner when a scheduled workflow fails.
+Check it with `npm trust list @mongodb-serverless/driver`. After that, merging
+a version PR publishes with no secret involved, and npm records provenance.
 
-That is all it can do. Checking validity catches a token that has already
-lapsed or been revoked; it cannot see one about to. A registry outage reports
-`unknown` rather than failing, so an npm incident does not look like a dead
-token.
+## No token to monitor
 
-With no `NPM_TOKEN` set the check reports that there is nothing to watch, which
-is the expected state once trusted publishing is in place.
+The release workflow no longer reads `NPM_TOKEN`. After verifying a trusted
+publish, delete any old repository secret and revoke its npm token. The
+token-health workflow is no longer needed.
+
+If a token is ever reintroduced, note that **npm does not expose a token's
+expiry date**: `npm token list` reports `created` but no expiry, and granular
+tokens do not appear there at all. Validity can be checked against
+`GET /-/whoami`; remaining lifetime cannot.

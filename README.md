@@ -96,3 +96,67 @@ pnpm changeset
 
 Merging to `main` opens a version PR; merging that publishes and creates the
 GitHub Releases.
+
+### First release of a new plugin
+
+Each package needs its own trusted publisher on npm. Configure it after the
+package's first manual publish so later releases can run through GitHub Actions
+without an npm token.
+
+Add the plugin to `pnpm-workspace.yaml` and the root TypeScript build references.
+Give it a release version, ensure it is not private or ignored by Changesets,
+and verify an `npm pack` tarball installs before publishing.
+
+From the repository root, replace `example` with your plugin's directory suffix
+and package suffix, such as `local` for `plugins/local` and
+`@mongodb-serverless/plugin-local`:
+
+```sh
+plugin_name=example
+npm login
+pnpm build
+( cd "plugins/$plugin_name" && npm publish --access public )
+```
+
+Complete npm's 2FA prompt. If you use an authenticator app, you can supply its
+current code with `--otp=YOUR_CODE`. A passkey or security key uses browser
+authentication instead.
+
+Publishing can succeed before npm makes the package available while its scan
+runs. Confirm availability before configuring trust:
+
+```sh
+npm view "@mongodb-serverless/plugin-$plugin_name" version
+```
+
+Then authorize the release workflow and verify the configuration:
+
+```sh
+npm trust github "@mongodb-serverless/plugin-$plugin_name" \
+  --repo alexbevi/mongodb-serverless \
+  --file release.yml \
+  --allow-publish
+
+npm trust list "@mongodb-serverless/plugin-$plugin_name"
+```
+
+`npm trust` requires npm 11.15.0 or later, package write access, and account 2FA.
+Complete any authentication prompts.
+
+Alternatively, open the package's npm **Settings > Trusted Publisher > GitHub
+Actions** and enter:
+
+| Field | Value |
+|---|---|
+| Organization or user | `alexbevi` |
+| Repository | `mongodb-serverless` |
+| Workflow filename | `release.yml` |
+| Environment | Leave blank |
+| Allowed actions | Enable direct publishing with `npm publish` |
+
+Use the filename alone, not `.github/workflows/release.yml`. Repeat this setup
+for every new package; trust is not shared across the npm scope. The existing
+release workflow already requests `id-token: write`.
+
+See [npm's trusted publishing instructions](https://docs.npmjs.com/trusted-publishers/)
+and [the release guide](.github/RELEASING.md) for repository setup and token cleanup.

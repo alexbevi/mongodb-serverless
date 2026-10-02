@@ -85,6 +85,14 @@ read the topology first. Chained calls are buffered and replayed in order, and
 a cursor you never read opens no connection. `initializeOrderedBulkOp` and
 `initializeUnorderedBulkOp` work the same way, replaying on `execute()`.
 
+Bulk find modifiers stay on the find builder until an update or delete:
+
+```ts
+const bulk = collection.initializeOrderedBulkOp();
+bulk.find({ key: 'example' }).upsert().updateOne({ $set: { value: 1 } });
+await bulk.execute();
+```
+
 So a property that only exists once the cursor does, such as `cursor.id` or
 `cursor.namespace`, throws if read before a terminal call rather than returning
 `undefined`.

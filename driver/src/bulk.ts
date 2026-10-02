@@ -12,7 +12,7 @@ const TERMINAL = new Set(['execute']);
 /** Readable only once the builder exists. */
 const DEFERRED_PROPERTIES = new Set(['length', 'batches', 'isOrdered', 'bsonOptions']);
 
-/** Calls on the object `find()` returns, all of which return the builder. */
+/** Calls on the object `find()` returns. */
 const FIND_OPERATIONS = new Set([
   'delete',
   'deleteOne',
@@ -24,6 +24,8 @@ const FIND_OPERATIONS = new Set([
   'collation',
   'hint'
 ]);
+
+const FIND_MODIFIERS = new Set(['upsert', 'arrayFilters', 'collation', 'hint']);
 
 type Recorded = { path: 'self' | 'find'; method: string; args: unknown[] };
 
@@ -54,8 +56,8 @@ export function createBulkProxy(source: BulkSource, label: string): never {
             );
           }
 
-          apply(pendingFind, method, args, label);
-          pendingFind = undefined;
+          const result = apply(pendingFind, method, args, label);
+          pendingFind = FIND_MODIFIERS.has(method) ? (result as Record<string, unknown>) : undefined;
           continue;
         }
 
@@ -86,7 +88,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
 
         return (...args: unknown[]) => {
           recorded.push({ path: 'find', method: property, args });
-          return proxy;
+          return FIND_MODIFIERS.has(property) ? findProxy : proxy;
         };
       }
     }

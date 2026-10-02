@@ -236,6 +236,35 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   });
 
   describe('bulk writes', () => {
+    it('chains find modifiers before an upsert on either bulk builder', async () => {
+      const { client, commands } = connect();
+      const collection = client.db('itest').collection(`bulk-modifiers-${Date.now()}`);
+
+      for (const ordered of [true, false]) {
+        const bulk = ordered
+          ? collection.initializeOrderedBulkOp()
+          : collection.initializeUnorderedBulkOp();
+        bulk
+          .find({ ordered, values: [1, 2] })
+          .upsert()
+          .hint({ _id: 1 })
+          .collation({ locale: 'simple' })
+          .arrayFilters([{ value: 2 }])
+          .updateOne({ $set: { 'values.$[value]': 3 } });
+
+        const result = await bulk.execute();
+        expect(result.upsertedCount).toBe(1);
+        await expect(
+          collection.findOne({ ordered }, { readPreference: 'primary' })
+        ).resolves.toMatchObject({ values: [1, 3] });
+      }
+
+      expect(portsFor(commands, 'update')).toEqual([
+        portOf(cluster.primary),
+        portOf(cluster.primary)
+      ]);
+    });
+
     it('executes on the primary', async () => {
       const { client, commands } = connect();
       const bulk = client.db('itest').collection('bulk').initializeOrderedBulkOp();

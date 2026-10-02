@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const root = new URL('../../', import.meta.url);
 
@@ -9,6 +10,19 @@ const resolve = (path: string): string => fileURLToPath(new URL(path, root));
 const read = (path: string): string => readFileSync(resolve(path), 'utf8');
 
 describe('workspace', () => {
+  it('selects both packages with the integration command', () => {
+    const { scripts } = JSON.parse(read('package.json'));
+    const args = scripts['test:integration'].split('vitest run ')[1].split(/\s+/);
+    const files = execFileSync(
+      process.execPath,
+      [resolve('node_modules/vitest/vitest.mjs'), 'list', ...args, '--filesOnly'],
+      { cwd: resolve('.'), encoding: 'utf8' }
+    );
+
+    expect(files).toContain('driver/test/integration.test.ts');
+    expect(files).toContain('watcher/test/integration.test.ts');
+  });
+
   it('declares every publishable package', () => {
     const workspace = read('pnpm-workspace.yaml');
 

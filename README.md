@@ -79,7 +79,7 @@ pnpm typecheck
 ```
 
 The integration suite runs against a real 3-node replica set that
-`driver/test/harness/cluster.ts` starts in Docker on demand and reuses across
+`test/harness/cluster.ts` starts in Docker on demand and reuses across
 runs. Without Docker it skips. `pnpm cluster:stop` removes the container; the
 next run rebuilds it in about 30 seconds.
 

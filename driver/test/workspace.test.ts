@@ -10,6 +10,10 @@ const resolve = (path: string): string => fileURLToPath(new URL(path, root));
 const read = (path: string): string => readFileSync(resolve(path), 'utf8');
 
 describe('workspace', () => {
+  it('allows the esbuild installation script used by the test runner', () => {
+    expect(read('pnpm-workspace.yaml')).toMatch(/allowBuilds:\s*\n\s+esbuild: true/);
+  });
+
   it('selects a pnpm version for both CI and trusted publishing', () => {
     const versions = ['ci', 'release'].map(workflow => {
       const config = read(`.github/workflows/${workflow}.yml`);

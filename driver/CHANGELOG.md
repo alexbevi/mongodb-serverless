@@ -1,5 +1,12 @@
 # @mongodb-serverless/driver
 
+## 0.1.1
+
+### Patch Changes
+
+- Keep bulk find modifier chains intact through upsert, hint, collation, and arrayFilters.
+- Expose cursor properties after the underlying cursor has been created.
+
 ## 0.1.0
 
 ### Minor Changes

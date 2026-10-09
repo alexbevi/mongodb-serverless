@@ -6,5 +6,6 @@ COPY driver/package.json ./driver/package.json
 COPY plugins/local/package.json ./plugins/local/package.json
 COPY driver/dist ./driver/dist
 COPY plugins/local/dist ./plugins/local/dist
-COPY benchmark ./benchmark
+COPY benchmark/dist ./benchmark/dist
+COPY package.json ./package.json
 CMD ["sleep", "infinity"]

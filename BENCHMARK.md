@@ -1,12 +1,12 @@
-# Mini Benchmark
+# Mini Benchmark Results
 
-The MongoDB Serverless driver includes a small custom benchmark harness which attempts to replicate realistic latency for cold starts in a cloud environment for a single region replica set.
+Here are the latest results from our small custom benchmark harness which attempts to replicate realistic latency for cold starts in a cloud environment for a single region replica set.
 
 For documentation on the benchmark, see [README.md](benchmark/README.md).
 
 ## Execution
 
-To run the benchmark and refresh the local results here:
+To run the benchmark and refresh the local results:
 ```sh
 npm run benchmark -- --samples 48 --local-rtt 0.5 --cross-rtt 2 --output benchmark/results/repeat.json
 python3 -m venv /tmp/mongodb-benchmark-plot
@@ -42,9 +42,5 @@ Lambda initialization.
 ![Operation latency](benchmark/baseline/results.png)
 
 The results image includes differences in sample medians; positive means the wrapper took longer.
-
-A single run does not establish a statistically significant performance difference.
-The normal driver can select the local primary before discovery of remote members finishes.
-The direct client also performs TCP, TLS, MongoDB handshake and authentication.
 
 [Local results breakdown](benchmark/README.md#local-results-breakdown)

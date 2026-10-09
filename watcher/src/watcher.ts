@@ -3,7 +3,6 @@ import {
   DEFAULT_PLUGIN_CONFIG,
   resolvePlugin,
   type PluginSource,
-  type ReplSetGetStatus,
   type TopologyPlugin
 } from '../../plugins/shared/src/index.js';
 import { refreshIntervalMS } from './interval.js';
@@ -72,7 +71,7 @@ export class Watcher {
     // hello first, so a bad connection string or a non-replica-set fails
     // before anything is written.
     const identity = await this.#connection.hello();
-    const status = (await this.#connection.status()) as unknown as ReplSetGetStatus;
+    const status = await this.#connection.status();
 
     await plugin.write(status);
 

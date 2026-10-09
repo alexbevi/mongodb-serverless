@@ -70,10 +70,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
   it('stores the member names the cluster reports', async () => {
     await watcherFor().check();
 
-    const stored = JSON.parse(process.env[VAR] as string) as {
-      set: string;
-      members: Array<{ name: string }>;
-    };
+    const stored = await new LocalPlugin().read();
 
     expect(stored.set).toBe('rstest');
     expect(stored.members.map(m => m.name).sort()).toEqual(
@@ -84,9 +81,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
   it('records which member is primary', async () => {
     await watcherFor().check();
 
-    const stored = JSON.parse(process.env[VAR] as string) as {
-      members: Array<{ name: string; stateStr: string }>;
-    };
+    const stored = await new LocalPlugin().read();
 
     expect(stored.members.find(m => m.stateStr === 'PRIMARY')?.name).toBe(cluster.primary);
   });
@@ -153,18 +148,14 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       const watcher = watcherFor();
       const before = await watcher.check();
 
-      const original = JSON.parse(process.env[VAR] as string) as {
-        members: Array<{ name: string; stateStr: string }>;
-      };
+      const original = await new LocalPlugin().read();
 
       const originalPrimary = original.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
       await stepDownPrimary();
       await watcher.check();
 
-      const updated = JSON.parse(process.env[VAR] as string) as {
-        members: Array<{ name: string; stateStr: string }>;
-      };
+      const updated = await new LocalPlugin().read();
 
       const newPrimary = updated.members.find(m => m.stateStr === 'PRIMARY')?.name;
 

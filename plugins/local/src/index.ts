@@ -1,4 +1,4 @@
-import { ServerlessPlugin, type ReplSetGetStatus } from '../../shared/src/index.js';
+import { assertStatus, ServerlessPlugin, type ReplSetGetStatus } from '../../shared/src/index.js';
 
 /** Reads cluster topology from a process environment variable. */
 export class LocalPlugin extends ServerlessPlugin {
@@ -51,16 +51,12 @@ export class LocalPlugin extends ServerlessPlugin {
       throw new Error(`${name} does not contain valid JSON`, { cause });
     }
 
-    if (parsed == null || typeof parsed !== 'object') {
-      throw new Error(`${name} must contain a JSON object, got ${typeof parsed}`);
+    try {
+      assertStatus(parsed);
+    } catch (cause) {
+      throw new Error(`${name} must hold a replSetGetStatus document: ${String(cause)}`, { cause });
     }
 
-    const status = parsed as Partial<ReplSetGetStatus>;
-
-    if (!Array.isArray(status.members)) {
-      throw new Error(`${name} has no members array; it must hold a replSetGetStatus document`);
-    }
-
-    return status as ReplSetGetStatus;
+    return parsed;
   }
 }

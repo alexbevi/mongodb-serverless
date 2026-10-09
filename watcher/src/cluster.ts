@@ -1,5 +1,6 @@
 import { MongoClient, type Db, type Document, type MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
+import { assertStatus, type ReplSetGetStatus } from '../../plugins/shared/src/index.js';
 import {
   AuthenticationFailedError,
   ClusterUnreachableError,
@@ -88,8 +89,11 @@ export class ClusterConnection {
   }
 
   /** The cluster's `replSetGetStatus` document, returned unchanged. */
-  async status(): Promise<Record<string, unknown>> {
-    return (await this.#command({ replSetGetStatus: 1 })) as Record<string, unknown>;
+  async status(): Promise<ReplSetGetStatus> {
+    const status = await this.#command({ replSetGetStatus: 1 });
+    assertStatus(status);
+
+    return status;
   }
 
   async close(): Promise<void> {

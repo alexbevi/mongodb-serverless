@@ -45,7 +45,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     options: ServerlessClientOptions = {}
   ) => {
     const commands: CommandStartedEvent[] = [];
-    const plugin = new TestPlugin(status as never);
+    const plugin = new TestPlugin(status);
 
     const client = new ServerlessMongoClient(uri, {
       plugin,
@@ -324,13 +324,13 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     it('fails with NoPrimaryError when no member claims primary', async () => {
       const stale = {
         ...cluster.status,
-        members: (cluster.status['members'] as Array<Record<string, unknown>>).map(member => ({
+        members: cluster.status.members.map(member => ({
           ...member,
           stateStr: 'SECONDARY'
         }))
       };
 
-      const { client } = connect(stale as never);
+      const { client } = connect(stale);
 
       await expect(
         client.db('itest').collection('writes').insertOne({ at: Date.now() })
@@ -345,7 +345,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
         members: [{ name: 'localhost:29999', stateStr: 'PRIMARY', health: 1 }]
       };
 
-      const { client } = connect(stale as never, cluster.uri, {
+      const { client } = connect(stale, cluster.uri, {
         serverSelectionTimeoutMS: 2000
       });
 
@@ -357,12 +357,12 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     it('falls back to the primary when every secondary is unhealthy', async () => {
       const degraded = {
         ...cluster.status,
-        members: (cluster.status['members'] as Array<Record<string, unknown>>).map(member =>
+        members: cluster.status.members.map(member =>
           member['stateStr'] === 'SECONDARY' ? { ...member, health: 0 } : member
         )
       };
 
-      const { client, commands } = connect(degraded as never);
+      const { client, commands } = connect(degraded);
       await client.db('itest').collection('writes').findOne({});
 
       expect(portsFor(commands, 'find')).toEqual([portOf(cluster.primary)]);

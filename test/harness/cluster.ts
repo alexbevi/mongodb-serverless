@@ -1,3 +1,4 @@
+import { parseStatus, type ReplSetGetStatus } from '../../plugins/shared/src/index.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -19,7 +20,7 @@ export interface TestCluster {
   /** `host:port` of each secondary. */
   secondaries: string[];
   /** The raw replSetGetStatus document, for plugins to serve. */
-  status: Record<string, unknown>;
+  status: ReplSetGetStatus;
 }
 
 const docker = async (args: string[]): Promise<string> => {
@@ -143,9 +144,7 @@ export async function stopCluster(): Promise<void> {
 export async function describeCluster(): Promise<TestCluster> {
   const raw = await mongosh(PORTS[0], 'print(JSON.stringify(rs.status()))');
 
-  const status = JSON.parse(raw) as {
-    members: Array<{ name: string; stateStr: string }>;
-  };
+  const status = parseStatus(raw);
 
   const primary = status.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
@@ -155,7 +154,7 @@ export async function describeCluster(): Promise<TestCluster> {
     uri: `mongodb://${PORTS.map(p => `localhost:${p}`).join(',')}/?replicaSet=${REPLICA_SET}`,
     primary,
     secondaries: status.members.filter(m => m.stateStr === 'SECONDARY').map(m => m.name),
-    status: status as unknown as Record<string, unknown>
+    status
   };
 }
 

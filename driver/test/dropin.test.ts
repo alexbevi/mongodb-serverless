@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const pkgRoot = fileURLToPath(new URL('../', import.meta.url));
+
 const built = join(pkgRoot, 'dist/driver/src/index.js');
 
 /**

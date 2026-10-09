@@ -1,5 +1,7 @@
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { describe, expect, it, vi } from 'vitest';
-import { ClusterConnection } from '../src/cluster.js';
+import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from '../src/cluster.js';
 import {
   AuthenticationFailedError,
   ClusterUnreachableError,
@@ -15,10 +17,11 @@ const helloReplicaSet = {
 };
 
 /** A fake client whose `command` behaviour each test chooses. */
-const fakeClient = (command: (doc: Record<string, unknown>) => Promise<unknown>) => {
+const fakeClient = (command: (doc: Document) => Promise<Document>) => {
   const closed = { count: 0 };
+
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({ command: vi.fn(command) })),
@@ -26,19 +29,22 @@ const fakeClient = (command: (doc: Record<string, unknown>) => Promise<unknown>)
       closed.count += 1;
     })
   };
+
   return { client, closed };
 };
 
 const connectionFor = (
-  command: (doc: Record<string, unknown>) => Promise<unknown>,
-  options: Record<string, unknown> = {}
+  command: (doc: Document) => Promise<Document>,
+  options: Partial<ClusterConnectionOptions> = {}
 ) => {
   const fake = fakeClient(command);
+
   const connection = new ClusterConnection({
     uri: 'mongodb://host:27017/?replicaSet=rs0',
-    createClient: vi.fn(() => fake.client as never),
+    createClient: vi.fn(() => fake.client),
     ...options
   });
+
   return { ...fake, connection };
 };
 
@@ -46,12 +52,14 @@ const connectionFor = (
 const serverError = (code: number, message: string): Error => {
   const error = new Error(message);
   Object.assign(error, { code, name: 'MongoServerError' });
+
   return error;
 };
 
 const selectionError = (message: string): Error => {
   const error = new Error(message);
   Object.assign(error, { name: 'MongoServerSelectionError' });
+
   return error;
 };
 
@@ -66,12 +74,23 @@ describe('ClusterConnection.hello', () => {
     });
   });
 
+  it('does not expose non-string hosts from a malformed hello response', async () => {
+    const { connection } = connectionFor(async () => ({
+      ...helloReplicaSet, hosts: ['a:27017', 42]
+    }));
+
+    await expect(connection.hello()).resolves.toMatchObject({ hosts: [] });
+  });
+
   it('sends the hello command', async () => {
-    const seen: Record<string, unknown>[] = [];
+    const seen: Document[] = [];
+
     const { connection } = connectionFor(async doc => {
       seen.push(doc);
+
       return helloReplicaSet;
     });
+
     await connection.hello();
 
     expect(seen).toEqual([{ hello: 1 }]);
@@ -80,11 +99,13 @@ describe('ClusterConnection.hello', () => {
   it('sets no pool options', async () => {
     // minPoolSize turns an auth failure into an opaque PoolClearedError, with
     // the real cause buried on .cause.
-    const create = vi.fn(() => fakeClient(async () => helloReplicaSet).client as never);
+    const create = vi.fn<ClientFactory>(() => fakeClient(async () => helloReplicaSet).client);
+
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
       createClient: create
     });
+
     await connection.hello();
 
     const options = create.mock.calls[0]?.[1] ?? {};
@@ -131,9 +152,10 @@ describe('ClusterConnection.hello', () => {
     const fake = fakeClient(async () => {
       throw serverError(18, 'Authentication failed.');
     });
+
     const connection = new ClusterConnection({
       uri: 'mongodb://user:secret@host:27017/',
-      createClient: vi.fn(() => fake.client as never)
+      createClient: vi.fn(() => fake.client)
     });
 
     const attempt = connection.hello();
@@ -151,6 +173,7 @@ describe('ClusterConnection.hello', () => {
 
   it('keeps the underlying reason on the cause', async () => {
     const cause = selectionError('getaddrinfo ENOTFOUND nope.invalid');
+
     const { connection } = connectionFor(async () => {
       throw cause;
     });
@@ -163,9 +186,10 @@ describe('ClusterConnection.hello', () => {
     fake.client.connect = vi.fn(async () => {
       throw selectionError('connect ECONNREFUSED 127.0.0.1:27017');
     });
+
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
-      createClient: vi.fn(() => fake.client as never)
+      createClient: vi.fn(() => fake.client)
     });
 
     await expect(connection.hello()).rejects.toThrow(ClusterUnreachableError);
@@ -173,6 +197,7 @@ describe('ClusterConnection.hello', () => {
 
   it('passes an unrecognised error through unchanged', async () => {
     const cause = new Error('something else entirely');
+
     const { connection } = connectionFor(async () => {
       throw cause;
     });

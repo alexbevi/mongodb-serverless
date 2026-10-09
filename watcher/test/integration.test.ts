@@ -16,6 +16,7 @@ import {
 } from '../../test/harness/cluster.js';
 
 const hasDocker = await dockerAvailable();
+
 const VAR = '__MONGODB_CLUSTER_TOPOLOGY';
 
 /**
@@ -53,6 +54,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
   const watcherFor = (uri = cluster.uri): Watcher => {
     const watcher = new Watcher({ uri, plugin: new LocalPlugin({ writable: true }) });
     open.push(watcher);
+
     return watcher;
   };
 
@@ -67,10 +69,8 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
 
   it('stores the member names the cluster reports', async () => {
     await watcherFor().check();
-    const stored = JSON.parse(process.env[VAR] as string) as {
-      set: string;
-      members: Array<{ name: string }>;
-    };
+
+    const stored = await new LocalPlugin().read();
 
     expect(stored.set).toBe('rstest');
     expect(stored.members.map(m => m.name).sort()).toEqual(
@@ -80,9 +80,8 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
 
   it('records which member is primary', async () => {
     await watcherFor().check();
-    const stored = JSON.parse(process.env[VAR] as string) as {
-      members: Array<{ name: string; stateStr: string }>;
-    };
+
+    const stored = await new LocalPlugin().read();
 
     expect(stored.members.find(m => m.stateStr === 'PRIMARY')?.name).toBe(cluster.primary);
   });
@@ -94,6 +93,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       plugin: new LocalPlugin({ writable: true }),
       driverOptions: { serverSelectionTimeoutMS: 2000 }
     });
+
     open.push(watcher);
 
     await expect(watcher.check()).rejects.toThrow(/cannot reach/i);
@@ -115,15 +115,18 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       await watcherFor().check();
 
       const commands: CommandStartedEvent[] = [];
+
       const client = new ServerlessMongoClient(cluster.uri, {
         plugin: new LocalPlugin(),
         monitorCommands: true,
         createClient: (uri, options) => {
           const real = new RealMongoClient(uri, options);
           real.on('commandStarted', event => commands.push(event));
+
           return real;
         }
       });
+
       open.push(client);
 
       const collection = client.db('watcher-e2e').collection('c');
@@ -131,9 +134,9 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       await collection.findOne({});
 
       const portsFor = (name: string): number[] =>
-        commands
-          .filter(event => event.commandName === name)
-          .map(event => Number(event.address.split(':').at(-1)));
+        commands.flatMap(event =>
+          event.commandName === name ? [Number(event.address.split(':').at(-1))] : []
+        );
 
       expect(portsFor('insert')).toEqual([portOf(cluster.primary)]);
       expect(cluster.secondaries.map(portOf)).toContain(portsFor('find')[0]);
@@ -144,17 +147,16 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
     it('records the new primary', async () => {
       const watcher = watcherFor();
       const before = await watcher.check();
-      const original = JSON.parse(process.env[VAR] as string) as {
-        members: Array<{ name: string; stateStr: string }>;
-      };
+
+      const original = await new LocalPlugin().read();
+
       const originalPrimary = original.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
       await stepDownPrimary();
       await watcher.check();
 
-      const updated = JSON.parse(process.env[VAR] as string) as {
-        members: Array<{ name: string; stateStr: string }>;
-      };
+      const updated = await new LocalPlugin().read();
+
       const newPrimary = updated.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
       expect(before.setName).toBe('rstest');
@@ -174,6 +176,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       const write = plugin.write.bind(plugin);
       plugin.write = vi.fn(async doc => {
         writes.push(doc);
+
         return write(doc);
       });
 
@@ -205,6 +208,7 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
         plugin: new LocalPlugin({ writable: true }),
         driverOptions: { serverSelectionTimeoutMS: 5000 }
       });
+
       open.push(watcher);
 
       await expect(watcher.check()).rejects.toThrow(NotAReplicaSetError);

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { MongoClient } from 'mongodb';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import { SessionRoutingError, UnsupportedOperationError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -32,33 +33,37 @@ const fakeClients = () => {
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
 
-    const collection = (dbName: string, name: string): unknown =>
+    const collection = (dbName: string, name: string) =>
       new Proxy(
         {},
         {
           get: (_t, method: string) => (...args: unknown[]) => {
             calls.push(`${host} ${dbName}.${name}.${method}`);
+
             return Promise.resolve({ host, method, args });
           }
         }
       );
 
-    const db = (dbName: string): unknown => ({
+    const db = (dbName: string) => ({
       databaseName: dbName,
       collection: (name: string) => collection(dbName, name),
       command: (...args: unknown[]) => {
         calls.push(`${host} ${dbName}.command`);
+
         return Promise.resolve({ host, args });
       },
       dropDatabase: () => {
         calls.push(`${host} ${dbName}.dropDatabase`);
+
         return Promise.resolve(true);
       }
     });
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: vi.fn(db),
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       close: vi.fn(async () => void closed.push(host))
@@ -70,10 +75,12 @@ const fakeClients = () => {
 
 const clientFor = (status: ReplSetGetStatus = topology) => {
   const fake = fakeClients();
+
   const client = new ServerlessMongoClient('mongodb://seed:27017/', {
     plugin: plugin(status),
     createClient: fake.create
   });
+
   return { ...fake, client };
 };
 
@@ -96,12 +103,13 @@ describe('ServerlessMongoClient', () => {
     const { client } = clientFor();
     const filter = { a: 1 };
     const options = { upsert: true };
-    const result = (await client
+
+    const result = await client
       .db('app')
       .collection('users')
-      .updateOne(filter, { $set: { b: 2 } }, options)) as { args: unknown[] };
+      .updateOne(filter, { $set: { b: 2 } }, options);
 
-    expect(result.args).toEqual([filter, { $set: { b: 2 } }, options]);
+    expect(result).toHaveProperty('args', [filter, { $set: { b: 2 } }, options]);
   });
 
   it('routes each operation independently', async () => {
@@ -158,10 +166,12 @@ describe('ServerlessMongoClient', () => {
 
   it('uses the default database from the uri', async () => {
     const fake = fakeClients();
+
     const client = new ServerlessMongoClient('mongodb://seed:27017/mydb', {
       plugin: plugin(),
       createClient: fake.create
     });
+
     await client.db().collection('users').insertOne({});
 
     expect(fake.calls).toEqual(['primary:27017 mydb.users.insertOne']);
@@ -184,11 +194,26 @@ describe('ServerlessMongoClient', () => {
   });
 
   describe('sessions', () => {
+    const sessionOwner = new MongoClient('mongodb://seed:27017/');
+    const sessions: ReturnType<MongoClient['startSession']>[] = [];
+
+    const newSession = () => {
+      const session = sessionOwner.startSession();
+      sessions.push(session);
+
+      return session;
+    };
+
+    afterEach(async () => {
+      await Promise.all(sessions.splice(0).map(session => session.endSession()));
+      await sessionOwner.close();
+    });
+
     it('rejects a session on a read-routed operation', async () => {
       // The driver rejects a session used with a different client, so a read
       // cannot borrow one created by the write client.
       const { client } = clientFor();
-      const session = { id: 1 } as never;
+      const session = newSession();
 
       await expect(
         client.db('app').collection('users').findOne({}, { session })
@@ -199,13 +224,13 @@ describe('ServerlessMongoClient', () => {
       const { client } = clientFor();
 
       await expect(
-        client.db('app').collection('users').findOne({}, { session: {} as never })
+        client.db('app').collection('users').findOne({}, { session: newSession() })
       ).rejects.toThrow(/same MongoClient|primary/i);
     });
 
     it('allows a session on a write', async () => {
       const { client, calls } = clientFor();
-      await client.db('app').collection('users').insertOne({}, { session: {} as never });
+      await client.db('app').collection('users').insertOne({}, { session: newSession() });
 
       expect(calls).toEqual(['primary:27017 app.users.insertOne']);
     });
@@ -254,9 +279,12 @@ describe('ServerlessMongoClient', () => {
 
   it('throws on an unknown collection member', () => {
     const { client } = clientFor();
-    const users = client.db('app').collection('users') as unknown as Record<string, unknown>;
+    const users = client.db('app').collection('users');
 
-    expect(() => users['somethingNew']).toThrow(/somethingNew/);
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return users.somethingNew;
+    }).toThrow(/somethingNew/);
   });
 
   it('surfaces a topology failure on first use', async () => {

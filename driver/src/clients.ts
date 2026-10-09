@@ -35,12 +35,14 @@ export class ClientPair {
   /** The client for operations that must reach the primary. */
   async write(): Promise<MongoClient> {
     const { primary } = await this.#resolveTopology();
+
     return this.#clientFor(primary);
   }
 
   /** The client for reads, targeting a secondary when one is healthy. */
   async read(): Promise<MongoClient> {
     const topology = await this.#resolveTopology();
+
     return this.#clientFor(selectSecondary(topology) ?? topology.primary);
   }
 
@@ -95,6 +97,7 @@ export class ClientPair {
     const pending = (async () => {
       const client = this.#options.createClient(uri, this.#options.driverOptions);
       await client.connect();
+
       return client;
     })().catch(error => {
       this.#clients.delete(hostPort);

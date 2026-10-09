@@ -3,6 +3,7 @@ export * from './generated/reexports.js';
 
 // Ours, standing in for the driver's MongoClient.
 export { ServerlessMongoClient as MongoClient } from './client.js';
+
 export type { ServerlessClientOptions } from './client.js';
 
 export {
@@ -10,6 +11,7 @@ export {
   clearDefaultPlugin,
   type PluginSource
 } from '../../plugins/shared/src/index.js';
+
 export type { TopologyPlugin, ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
 
 export {

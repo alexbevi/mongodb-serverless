@@ -1,5 +1,6 @@
-import { MongoClient, type MongoClientOptions } from 'mongodb';
+import { MongoClient, type Db, type Document, type MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
+import { assertStatus, type ReplSetGetStatus } from '../../plugins/shared/src/index.js';
 import {
   AuthenticationFailedError,
   ClusterUnreachableError,
@@ -7,7 +8,13 @@ import {
 } from './errors.js';
 
 /** Builds a real client. Injectable so tests need no server. */
-export type ClientFactory = (uri: string, options?: MongoClientOptions) => MongoClient;
+export type ClientFactory = (uri: string, options?: MongoClientOptions) => ClusterClient;
+
+export interface ClusterClient {
+  connect(): Promise<ClusterClient>;
+  db(name: string): Pick<Db, 'command'>;
+  close(): Promise<void>;
+}
 
 export interface ClusterConnectionOptions {
   uri: string;
@@ -42,7 +49,7 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
  */
 export class ClusterConnection {
   readonly #options: ClusterConnectionOptions;
-  #client: Promise<MongoClient> | undefined;
+  #client: Promise<ClusterClient> | undefined;
 
   constructor(options: ClusterConnectionOptions) {
     this.#options = options;
@@ -56,7 +63,7 @@ export class ClusterConnection {
    * @throws {NotAReplicaSetError} Reachable, but not a replica set.
    */
   async hello(): Promise<ClusterIdentity> {
-    const hello = (await this.#command({ hello: 1 })) as Record<string, unknown>;
+    const hello = await this.#command({ hello: 1 });
 
     if (hello['msg'] === 'isdbgrid') {
       throw new NotAReplicaSetError(
@@ -67,7 +74,7 @@ export class ClusterConnection {
 
     const setName = hello['setName'];
 
-    if (typeof setName !== 'string' || setName === '') {
+    if (!isString(setName) || setName === '') {
       throw new NotAReplicaSetError(
         `${this.#safeUri()} is not a replica set: hello reported no setName. ` +
           'A standalone server has no topology to watch.'
@@ -76,14 +83,17 @@ export class ClusterConnection {
 
     return {
       setName,
-      hosts: Array.isArray(hello['hosts']) ? (hello['hosts'] as string[]) : [],
-      me: typeof hello['me'] === 'string' ? hello['me'] : undefined
+      hosts: isStringArray(hello['hosts']) ? hello['hosts'] : [],
+      me: isString(hello['me']) ? hello['me'] : undefined
     };
   }
 
   /** The cluster's `replSetGetStatus` document, returned unchanged. */
-  async status(): Promise<Record<string, unknown>> {
-    return (await this.#command({ replSetGetStatus: 1 })) as Record<string, unknown>;
+  async status(): Promise<ReplSetGetStatus> {
+    const status = await this.#command({ replSetGetStatus: 1 });
+    assertStatus(status);
+
+    return status;
   }
 
   async close(): Promise<void> {
@@ -95,20 +105,22 @@ export class ClusterConnection {
     await (await pending).close().catch(() => {});
   }
 
-  async #command(document: Record<string, unknown>): Promise<unknown> {
+  async #command(document: Document): Promise<Document> {
     try {
       const client = await this.#connect();
+
       return await client.db('admin').command(document);
-    } catch (error) {
-      throw this.#classify(error);
+    } catch (cause) {
+      this.#throwClassified(cause);
     }
   }
 
-  #connect(): Promise<MongoClient> {
+  #connect(): Promise<ClusterClient> {
     this.#client ??= (async () => {
       const create = this.#options.createClient ?? defaultFactory;
       const client = create(this.#options.uri, this.#options.driverOptions);
       await client.connect();
+
       return client;
     })().catch(error => {
       // Not cached, so a transient failure does not disable this connection.
@@ -119,34 +131,34 @@ export class ClusterConnection {
     return this.#client;
   }
 
-  /** Turns a driver error into one that says what the operator should fix. */
-  #classify(error: unknown): unknown {
-    if (!(error instanceof Error)) return error;
+  /** Throws a driver failure with the context the operator needs to fix it. */
+  #throwClassified(cause: unknown): never {
+    if (!(cause instanceof Error)) throw cause;
 
-    const code = (error as { code?: unknown }).code;
+    const code = 'code' in cause ? cause.code : undefined;
 
     if (code === AUTHENTICATION_FAILED) {
-      return new AuthenticationFailedError(
+      throw new AuthenticationFailedError(
         `Authentication failed for ${this.#safeUri()}. Check the credentials and authSource.`,
-        { cause: error }
+        { cause }
       );
     }
 
     if (code === NO_REPLICATION_ENABLED) {
-      return new NotAReplicaSetError(
+      throw new NotAReplicaSetError(
         `${this.#safeUri()} is not running with --replSet, so it has no topology to watch.`,
-        { cause: error }
+        { cause }
       );
     }
 
-    if (error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError') {
-      return new ClusterUnreachableError(
-        `Cannot reach ${this.#safeUri()}: ${error.message}`,
-        { cause: error }
+    if (cause.name === 'MongoServerSelectionError' || cause.name === 'MongoNetworkError') {
+      throw new ClusterUnreachableError(
+        `Cannot reach ${this.#safeUri()}: ${cause.message}`,
+        { cause }
       );
     }
 
-    return error;
+    throw cause;
   }
 
   /** The uri with any password removed, safe to put in an error message. */
@@ -154,9 +166,18 @@ export class ClusterConnection {
     try {
       const url = new ConnectionString(this.#options.uri);
       url.password = '';
+
       return url.hosts.join(',');
     } catch {
       return 'the cluster';
     }
   }
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
 }

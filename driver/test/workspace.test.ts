@@ -1,3 +1,4 @@
+import { DEPENDENCY_FIELDS, parseManifest } from './harness/package-manifest.js';
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -17,11 +18,14 @@ describe('workspace', () => {
   it('selects a pnpm version for both CI and trusted publishing', () => {
     const versions = ['ci', 'release'].map(workflow => {
       const config = read(`.github/workflows/${workflow}.yml`);
+
       const version = config.match(
         /uses: pnpm\/action-setup@[^\n]+\n\s+with:\n\s+version: ['"]?(\d+\.\d+\.\d+)/
       )?.[1];
+
       expect(version, `${workflow} must select pnpm explicitly`).toBeDefined();
       expect(Number(version?.split('.')[0])).toBeGreaterThanOrEqual(12);
+
       return version;
     });
 
@@ -31,6 +35,7 @@ describe('workspace', () => {
   it('selects both packages with the integration command', () => {
     const { scripts } = JSON.parse(read('package.json'));
     const args = scripts['test:integration'].split('vitest run ')[1].split(/\s+/);
+
     const files = execFileSync(
       process.execPath,
       [resolve('node_modules/vitest/vitest.mjs'), 'list', ...args, '--filesOnly'],
@@ -52,7 +57,7 @@ describe('workspace', () => {
   it('resolves the peer mongodb driver the wrapper is built against', async () => {
     const { MongoClient } = await import('mongodb');
 
-    expect(typeof MongoClient).toBe('function');
+    expect(MongoClient).toBeTypeOf('function');
   });
 
   it('documents the repo, every package, and the plugin strategy', () => {
@@ -81,20 +86,19 @@ describe('workspace', () => {
   });
 
   describe('plugin-local', () => {
-    const pkg = (): Record<string, unknown> =>
-      JSON.parse(read('plugins/local/package.json')) as Record<string, unknown>;
+    const pkg = () => parseManifest(read('plugins/local/package.json'));
 
     it('depends on no workspace package', () => {
       // A `workspace:*` dependency makes the published tarball uninstallable
       // with npm, which fails with EUNSUPPORTEDPROTOCOL.
-      for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
-        const deps = (pkg()[field] as Record<string, string>) ?? {};
+      for (const field of DEPENDENCY_FIELDS.filter(field => field !== 'devDependencies')) {
+        const deps = pkg()[field] ?? {};
         expect(Object.values(deps).filter(v => v.startsWith('workspace:')), field).toEqual([]);
       }
     });
 
     it('declares no plugin package as a dependency', () => {
-      const deps = (pkg()['dependencies'] as Record<string, string>) ?? {};
+      const deps = pkg().dependencies ?? {};
 
       expect(Object.keys(deps).filter(n => n.includes('plugin-'))).toEqual([]);
     });

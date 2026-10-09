@@ -1,13 +1,13 @@
+import type { BulkOperationBase, FindOperators } from 'mongodb';
+import { callMethod } from './method.js';
+import { isStringProperty } from './property.js';
 import { ServerlessDriverError } from './errors.js';
 
 /** Creates the real builder, once the write client is known. */
-export type BulkSource = () => Promise<unknown>;
+export type BulkSource = () => Promise<BulkOperationBase>;
 
 /** Calls on the builder that return it for chaining. */
 const CHAINABLE = new Set(['insert', 'raw']);
-
-/** Calls that need the builder to exist. */
-const TERMINAL = new Set(['execute']);
 
 /** Readable only once the builder exists. */
 const DEFERRED_PROPERTIES = new Set(['length', 'batches', 'isOrdered', 'bsonOptions']);
@@ -25,7 +25,9 @@ const FIND_OPERATIONS = new Set([
   'hint'
 ]);
 
-const FIND_MODIFIERS = new Set(['upsert', 'arrayFilters', 'collation', 'hint']);
+function isFindModifier(method: string): method is 'upsert' | 'arrayFilters' | 'collation' | 'hint' {
+  return method === 'upsert' || method === 'arrayFilters' || method === 'collation' || method === 'hint';
+}
 
 type Recorded = { path: 'self' | 'find'; method: string; args: unknown[] };
 
@@ -39,16 +41,18 @@ type Recorded = { path: 'self' | 'find'; method: string; args: unknown[] };
  * Bulk writes always go to the primary, so there is no routing decision here,
  * only the ordering problem.
  */
-export function createBulkProxy(source: BulkSource, label: string): never {
+export function createBulkProxy(source: BulkSource, label: string) {
   const recorded: Recorded[] = [];
-  let real: Promise<Record<string, unknown>> | undefined;
+  let real: Promise<BulkOperationBase> | undefined;
 
-  const resolve = (): Promise<Record<string, unknown>> => {
+  const resolve = (): Promise<BulkOperationBase> => {
     real ??= (async () => {
-      const builder = (await source()) as Record<string, unknown>;
-      let pendingFind: Record<string, unknown> | undefined;
+      const builder = await source();
+      let pendingFind: FindOperators | undefined;
 
       for (const { path, method, args } of recorded) {
+        const missingMessage = `${label}: the mongodb driver has no ${method}() to replay.`;
+
         if (path === 'find') {
           if (pendingFind == null) {
             throw new ServerlessDriverError(
@@ -56,15 +60,21 @@ export function createBulkProxy(source: BulkSource, label: string): never {
             );
           }
 
-          const result = apply(pendingFind, method, args, label);
-          pendingFind = FIND_MODIFIERS.has(method) ? (result as Record<string, unknown>) : undefined;
+          if (isFindModifier(method)) {
+            pendingFind = callMethod(pendingFind, method, args, missingMessage);
+          } else {
+            callMethod(pendingFind, method, args, missingMessage);
+            pendingFind = undefined;
+          }
+
           continue;
         }
 
-        const result = apply(builder, method, args, label);
-
-        // find() hands back a sub-builder the next recorded call targets.
-        if (method === 'find') pendingFind = result as Record<string, unknown>;
+        if (method === 'find') {
+          pendingFind = callMethod(builder, method, args, missingMessage);
+        } else {
+          callMethod(builder, method, args, missingMessage);
+        }
       }
 
       return builder;
@@ -73,11 +83,11 @@ export function createBulkProxy(source: BulkSource, label: string): never {
     return real;
   };
 
-  const findProxy: object = new Proxy(
+  const findProxy = new Proxy(
     {},
     {
       get(_target, property) {
-        if (typeof property !== 'string') return undefined;
+        if (!isStringProperty(property)) return undefined;
 
         if (!FIND_OPERATIONS.has(property)) {
           throw new ServerlessDriverError(
@@ -88,13 +98,14 @@ export function createBulkProxy(source: BulkSource, label: string): never {
 
         return (...args: unknown[]) => {
           recorded.push({ path: 'find', method: property, args });
-          return FIND_MODIFIERS.has(property) ? findProxy : proxy;
+
+          return isFindModifier(property) ? findProxy : proxy;
         };
       }
     }
   );
 
-  const proxy: object = new Proxy(
+  const proxy = new Proxy(
     {},
     {
       get(_target, property) {
@@ -102,11 +113,12 @@ export function createBulkProxy(source: BulkSource, label: string): never {
           return undefined;
         }
 
-        if (typeof property !== 'string') return undefined;
+        if (!isStringProperty(property)) return undefined;
 
         if (property === 'find') {
           return (...args: unknown[]) => {
             recorded.push({ path: 'self', method: 'find', args });
+
             return findProxy;
           };
         }
@@ -114,14 +126,16 @@ export function createBulkProxy(source: BulkSource, label: string): never {
         if (CHAINABLE.has(property)) {
           return (...args: unknown[]) => {
             recorded.push({ path: 'self', method: property, args });
+
             return proxy;
           };
         }
 
-        if (TERMINAL.has(property)) {
+        if (property === 'execute') {
           return async (...args: unknown[]) => {
             const builder = await resolve();
-            return apply(builder, property, args, label);
+
+            return callMethod(builder, 'execute', args, `${label}: the mongodb driver has no execute() to replay.`);
           };
         }
 
@@ -139,27 +153,12 @@ export function createBulkProxy(source: BulkSource, label: string): never {
 
       has(_target, property) {
         return (
-          typeof property === 'string' &&
-          (property === 'find' || CHAINABLE.has(property) || TERMINAL.has(property))
+          isStringProperty(property) &&
+          (property === 'find' || CHAINABLE.has(property) || property === 'execute')
         );
       }
     }
   );
 
-  return proxy as never;
-}
-
-function apply(
-  target: Record<string, unknown>,
-  method: string,
-  args: unknown[],
-  label: string
-): unknown {
-  const fn = target[method];
-
-  if (typeof fn !== 'function') {
-    throw new ServerlessDriverError(`${label}: the mongodb driver has no ${method}() to replay.`);
-  }
-
-  return (fn as (...a: unknown[]) => unknown).apply(target, args);
+  return proxy;
 }

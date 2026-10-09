@@ -74,13 +74,19 @@ describe('ServerlessPlugin', () => {
   it('rejects an unknown key on set', () => {
     const plugin = new StubPlugin();
 
-    expect(() => plugin.set('nope' as keyof PluginConfig, 1 as never)).toThrow(/nope/);
+    expect(() => {
+      // @ts-expect-error Exercise an invalid key supplied by a JavaScript caller.
+      plugin.set('nope', 1);
+    }).toThrow(/nope/);
   });
 
   it('rejects an unknown key on get', () => {
     const plugin = new StubPlugin();
 
-    expect(() => plugin.get('nope' as keyof PluginConfig)).toThrow(/nope/);
+    expect(() => {
+      // @ts-expect-error Exercise an invalid key supplied by a JavaScript caller.
+      plugin.get('nope');
+    }).toThrow(/nope/);
   });
 
   it('keeps base defaults when a subclass extends the config', () => {

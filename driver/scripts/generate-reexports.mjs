@@ -8,7 +8,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+
 const mongodb = require('mongodb');
+
 const { version } = require('mongodb/package.json');
 
 const OVERRIDDEN = new Set(['MongoClient']);
@@ -17,6 +19,7 @@ const OVERRIDDEN = new Set(['MongoClient']);
 // type" in mongodb.d.ts, meaning the driver considers them internal.
 // Re-exporting those would not typecheck, so skip them.
 const types = readFileSync(require.resolve('mongodb/mongodb.d.ts'), 'utf8');
+
 const excluded = new Set(
   [...types.matchAll(/\/\* Excluded from this release type: (\w+) \*\//g)].map(m => m[1])
 );
@@ -51,6 +54,7 @@ ${skipped
 `;
 
 const target = new URL('../src/generated/reexports.ts', import.meta.url);
+
 writeFileSync(target, output);
 
 console.log(

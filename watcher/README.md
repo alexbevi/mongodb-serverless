@@ -47,6 +47,10 @@ new Watcher({ uri, plugin, onError: error => console.error(error) });
 `plugin` takes an instance or a package name, the same two forms the driver
 accepts.
 
+For tests, `createClient` can return a `ClusterClient` with `connect()`,
+`db(name).command()`, and `close()`. The watcher awaits `connect()` before
+sending commands. An ordinary `MongoClient` also satisfies this contract.
+
 ## Errors
 
 | Error | Cause |

@@ -7,10 +7,16 @@ import {
   type Route
 } from '../src/routing.js';
 
-const publicMethods = (prototype: object): string[] =>
+function isMethodDescriptor(
+  descriptor: PropertyDescriptor | undefined
+): descriptor is PropertyDescriptor & { value: Function } {
+  return typeof descriptor?.value === 'function';
+}
+
+const publicMethods = (prototype: Collection | Db): string[] =>
   Object.getOwnPropertyNames(prototype)
     .filter(name => name !== 'constructor' && !name.startsWith('_'))
-    .filter(name => typeof Object.getOwnPropertyDescriptor(prototype, name)?.value === 'function')
+    .filter(name => isMethodDescriptor(Object.getOwnPropertyDescriptor(prototype, name)))
     .sort();
 
 const route = (method: string, args: unknown[] = []): Route =>

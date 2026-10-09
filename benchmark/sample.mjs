@@ -30,5 +30,5 @@ try {
   assert.ok(command, 'The operation must produce a measured wire command');
   assert.ok(command.socket.authorized, 'TLS must verify the certificate');
   const timings = breakdown(start, end, command.socket, command);
-  console.log(JSON.stringify({ variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, timings, connectCallMs: connectReturned - start, trace: { start, end, command, sockets: telemetry.traces } }));
+  console.log(JSON.stringify({ variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, connections: telemetry.connections(), timings, connectCallMs: connectReturned - start, trace: { start, end, command, sockets: telemetry.traces } }));
 } finally { await client.close(); }

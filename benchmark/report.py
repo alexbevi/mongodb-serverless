@@ -121,7 +121,8 @@ def render(data, source, destination):
               '| --- | --- | ---: | ---: |']
     for network in data['network']:
         lines.append(f"| {network['source']} | {network['target']} | {network['configuredRttMs']:.2f} | {network['measuredRttMs']:.2f} |")
-    lines += ['', '- Both clients use all three seeds, verified TLS, SCRAM-SHA-256, a one-connection pool and no retries.',
+    lines += ['', '- MongoClient uses the three-member seed URI. The wrapper rewrites it to one selected host with `directConnection=true` and removes `replicaSet`.',
+              '- Both use verified TLS, SCRAM-SHA-256, a one-connection pool and no retries.',
               '- Read: indexed `findOne` of an existing document on the primary. Write: one small `insertOne`, with majority acknowledgement.',
               '- Every result is checked. Driver order alternates within read/write pairs. No failures are discarded.',
               '- Topology is populated before timing; LocalPlugin reads its JSON from the process environment.',

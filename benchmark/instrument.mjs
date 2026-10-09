@@ -1,9 +1,30 @@
 import { createRequire } from 'node:module';
+import { ConnectionString } from 'mongodb-connection-string-url';
 const require = createRequire(import.meta.url);
 
 export function instrument() {
   const version = require('mongodb/package.json').version;
   if (version !== '7.7.0') throw new Error(`Re-verify benchmark instrumentation for mongodb ${version}`);
+  const { MongoClient } = require('mongodb');
+  const clients = new Set();
+  const originalConnect = MongoClient.prototype.connect;
+  MongoClient.prototype.connect = function (...args) {
+    clients.add(this);
+    return originalConnect.apply(this, args);
+  };
+  const connections = () => [...clients].map(client => {
+    const uri = new ConnectionString(client.s.url);
+    uri.username = '';
+    uri.password = '';
+    return {
+      uri: uri.toString(),
+      directConnection: client.options.directConnection,
+      hosts: client.options.hosts.map(host => host.toString()),
+      replicaSet: client.options.replicaSet ?? null,
+      topologyType: client.topology.description.type,
+      servers: [...client.topology.description.servers.keys()]
+    };
+  });
   const tls = require('node:tls');
   const { Connection } = require('mongodb/lib/cmap/connection.js');
   const { ScramSHA256 } = require('mongodb/lib/cmap/auth/scram.js');
@@ -55,5 +76,5 @@ export function instrument() {
       return result;
     } finally { if (active.get(this) === command) active.delete(this); }
   };
-  return { traces, commands, version };
+  return { traces, commands, version, connections };
 }

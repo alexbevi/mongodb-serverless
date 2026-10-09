@@ -59,11 +59,17 @@ values; AWS describes [single-digit millisecond AZ networking](https://docs.aws.
 | mongo-c | mongo-a | 2.00 | 4.00 |
 | mongo-c | mongo-b | 2.00 | 3.87 |
 
-- Both clients use all three seeds, verified TLS, SCRAM-SHA-256, a one-connection pool and no retries.
+- MongoClient uses the three-member seed URI. The wrapper rewrites it to one selected host with `directConnection=true` and removes `replicaSet`.
+- Both use verified TLS, SCRAM-SHA-256, a one-connection pool and no retries.
 - Read: indexed `findOne` of an existing document on the primary. Write: one small `insertOne`, with majority acknowledgement.
 - Every result is checked. Driver order alternates within read/write pairs. No failures are discarded.
 - Topology is populated before timing; LocalPlugin reads its JSON from the process environment.
 - CPU scheduling, filesystem caches, database caches and the Docker VM remain warm.
+
+A [follow-up live connection check](benchmark/baseline/connection-check.json) records the
+effective URIs, resolved options, topology types and socket destinations for both
+operations. The wrapper used `Single` topology and contacted only `mongo-a`; the
+normal client used `ReplicaSetWithPrimary` and contacted all three members.
 
 ## Measurement limits
 

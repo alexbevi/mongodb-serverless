@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "../tsconfig.benchmark.tsbuildinfo",
+    "noEmitOnError": true
+  },
+  "include": [
+    "*.ts",
+    "test/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../driver"
+    },
+    {
+      "path": "../plugins/local"
+    }
+  ]
+}

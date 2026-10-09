@@ -5,3 +5,6 @@ dist/
 
 # May hold an auth token in CI; never commit it.
 .npmrc
+
+benchmark/results/
+__pycache__/

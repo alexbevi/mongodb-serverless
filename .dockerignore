@@ -1,0 +1,5 @@
+.git
+.idea
+node_modules
+benchmark/results
+benchmark/baseline

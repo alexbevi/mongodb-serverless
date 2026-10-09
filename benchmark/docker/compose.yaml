@@ -1,0 +1,41 @@
+name: mongodb-latency-benchmark
+x-mongo: &mongo
+  build:
+    context: ../..
+    dockerfile: benchmark/docker/mongo.Dockerfile
+  cap_add: [NET_ADMIN]
+  volumes: [certs:/certs:ro]
+  command: [mongod, --replSet, benchmark, --bind_ip_all, --keyFile, /certs/keyfile, --tlsMode, requireTLS, --tlsCertificateKeyFile, /certs/server.pem, --tlsCAFile, /certs/ca.crt, --tlsAllowConnectionsWithoutCertificates]
+services:
+  certificates:
+    build:
+      context: ../..
+      dockerfile: benchmark/docker/mongo.Dockerfile
+    entrypoint: [sh, /scripts/certificates.sh]
+    volumes: [certs:/certs, ./certificates.sh:/scripts/certificates.sh:ro]
+  mongo-a:
+    <<: *mongo
+    networks:
+      bench: {ipv4_address: 172.30.91.11}
+  mongo-b:
+    <<: *mongo
+    networks:
+      bench: {ipv4_address: 172.30.91.12}
+  mongo-c:
+    <<: *mongo
+    networks:
+      bench: {ipv4_address: 172.30.91.13}
+  client:
+    build:
+      context: ../..
+      dockerfile: benchmark/docker/client.Dockerfile
+    cap_add: [NET_ADMIN]
+    volumes: [certs:/certs:ro]
+    networks:
+      bench: {ipv4_address: 172.30.91.10}
+networks:
+  bench:
+    ipam:
+      config: [{subnet: 172.30.91.0/24}]
+volumes:
+  certs:

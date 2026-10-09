@@ -1,0 +1,106 @@
+{
+  "verifiedAt": "2026-10-09T15:40:42.533Z",
+  "driverVersion": "7.7.0",
+  "samples": [
+    {
+      "variant": "native",
+      "operation": "read",
+      "connections": [
+        {
+          "uri": "mongodb://mongo-a:27017,mongo-b:27017,mongo-c:27017/bench?replicaSet=benchmark&authSource=admin&authMechanism=SCRAM-SHA-256&tls=true",
+          "directConnection": false,
+          "hosts": [
+            "mongo-a:27017",
+            "mongo-b:27017",
+            "mongo-c:27017"
+          ],
+          "replicaSet": "benchmark",
+          "topologyType": "ReplicaSetWithPrimary",
+          "servers": [
+            "mongo-a:27017",
+            "mongo-b:27017",
+            "mongo-c:27017"
+          ]
+        }
+      ],
+      "socketHosts": [
+        "mongo-a",
+        "mongo-b",
+        "mongo-c",
+        "mongo-a"
+      ]
+    },
+    {
+      "variant": "serverless",
+      "operation": "read",
+      "connections": [
+        {
+          "uri": "mongodb://mongo-a:27017/bench?authSource=admin&authMechanism=SCRAM-SHA-256&tls=true&directConnection=true",
+          "directConnection": true,
+          "hosts": [
+            "mongo-a:27017"
+          ],
+          "replicaSet": null,
+          "topologyType": "Single",
+          "servers": [
+            "mongo-a:27017"
+          ]
+        }
+      ],
+      "socketHosts": [
+        "mongo-a",
+        "mongo-a"
+      ]
+    },
+    {
+      "variant": "native",
+      "operation": "write",
+      "connections": [
+        {
+          "uri": "mongodb://mongo-a:27017,mongo-b:27017,mongo-c:27017/bench?replicaSet=benchmark&authSource=admin&authMechanism=SCRAM-SHA-256&tls=true",
+          "directConnection": false,
+          "hosts": [
+            "mongo-a:27017",
+            "mongo-b:27017",
+            "mongo-c:27017"
+          ],
+          "replicaSet": "benchmark",
+          "topologyType": "ReplicaSetWithPrimary",
+          "servers": [
+            "mongo-a:27017",
+            "mongo-b:27017",
+            "mongo-c:27017"
+          ]
+        }
+      ],
+      "socketHosts": [
+        "mongo-a",
+        "mongo-b",
+        "mongo-c",
+        "mongo-a"
+      ]
+    },
+    {
+      "variant": "serverless",
+      "operation": "write",
+      "connections": [
+        {
+          "uri": "mongodb://mongo-a:27017/bench?authSource=admin&authMechanism=SCRAM-SHA-256&tls=true&directConnection=true",
+          "directConnection": true,
+          "hosts": [
+            "mongo-a:27017"
+          ],
+          "replicaSet": null,
+          "topologyType": "Single",
+          "servers": [
+            "mongo-a:27017"
+          ]
+        }
+      ],
+      "socketHosts": [
+        "mongo-a",
+        "mongo-a"
+      ]
+    }
+  ]
+}

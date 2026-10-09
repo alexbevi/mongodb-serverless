@@ -83,6 +83,10 @@ The integration suite runs against a real 3-node replica set that
 runs. Without Docker it skips. `pnpm cluster:stop` removes the container; the
 next run rebuilds it in about 30 seconds.
 
+Run `npm run benchmark` for cold connection timings against a TLS replica set with
+simulated availability-zone latency. See the [benchmark usage](benchmark/README.md)
+and the recorded [benchmark](BENCHMARK.md).
+
 Requires Node 20.19 or later. See `AGENTS.md` for the working agreement and
 [`.github/RELEASING.md`](.github/RELEASING.md) for how releases work.
 

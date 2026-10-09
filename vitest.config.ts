@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 const src = (pkg: string): string => fileURLToPath(new URL(`./${pkg}/src/index.ts`, import.meta.url));
@@ -11,7 +11,8 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['{driver,watcher,plugins/*}/test/**/*.test.ts'],
+    include: ['{driver,watcher,plugins/*,benchmark}/test/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, 'benchmark/test/live.test.ts'],
     environment: 'node',
     // The driver and watcher integration suites share one replica set, and the
     // watcher's failover test steps down its primary. In parallel that happens

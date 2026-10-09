@@ -18,6 +18,9 @@
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
+    "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
+    "benchmark:test": "npm run benchmark:build && vitest run --config vitest.benchmark.config.ts",
+    "benchmark:build": "tsc --build benchmark",
     "lint": "oxlint ."
   },
   "devDependencies": {
@@ -25,6 +28,7 @@
     "@oxlint/plugins": "1.87.0",
     "@types/node": "^22.10.2",
     "mongodb": "7.7.0",
+    "mongodb-connection-string-url": "^7.0.2",
     "oxlint": "1.87.0",
     "tsx": "4.23.15",
     "typescript": "^5.7.2",

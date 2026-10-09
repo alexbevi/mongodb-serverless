@@ -8,6 +8,27 @@ const REQUIRED_METHODS = ['setup', 'verify', 'read', 'write'] as const;
 
 const REQUIRED_DETAILS = ['name', 'version', 'author'] as const;
 
+interface PluginFields {
+  setup?: unknown;
+  verify?: unknown;
+  read?: unknown;
+  write?: unknown;
+  name?: unknown;
+  version?: unknown;
+  author?: unknown;
+}
+
+interface ModuleExports {
+  default?: unknown;
+  plugin?: unknown;
+  Plugin?: unknown;
+}
+
+interface ResolutionError {
+  code?: unknown;
+  message?: unknown;
+}
+
 let defaultPlugin: PluginSource | undefined;
 
 /** Sets the plugin used by clients that pass none. */
@@ -30,23 +51,22 @@ export async function resolvePlugin(source?: PluginSource): Promise<TopologyPlug
     );
   }
 
-  if (typeof chosen !== 'string') {
+  if (!isSpecifier(chosen)) {
     validatePlugin(chosen, 'the supplied plugin');
 
     return chosen;
   }
 
-  return validatePlugin(instantiate(await load(chosen), chosen), chosen);
+  return load(chosen);
 }
 
-async function load(specifier: string): Promise<unknown> {
+async function load(specifier: string): Promise<TopologyPlugin> {
+  let module: ModuleExports;
+
   try {
-    return await import(/* @vite-ignore */ specifier);
+    module = await import(/* @vite-ignore */ specifier);
   } catch (cause) {
-    // A plugin whose own dependency is missing fails the same way, so the
-    // deciding question is which package the error names. Blaming the
-    // specifier for someone else's missing dependency would send the user
-    // hunting the wrong bug.
+    // Only blame the requested package, not a missing dependency inside it.
     if (isResolutionFailure(cause) && namesPackage(cause, specifier)) {
       throw new PluginNotInstalledError(
         `Cannot resolve plugin "${specifier}". Install it with: npm install ${specifier}`,
@@ -56,75 +76,75 @@ async function load(specifier: string): Promise<unknown> {
 
     throw cause;
   }
-}
 
-/**
- * Finds the plugin in a module.
- *
- * Checks the conventional names first, then every other export, since a plugin
- * may be exported only under its own name with no default. `plugin-local`
- * exports just `LocalPlugin`.
- */
-function instantiate(module: unknown, specifier: string): unknown {
-  const preferred = isRecord(module)
-    ? [module['default'], module['plugin'], module['Plugin']]
-    : [module];
+  const preferred = [module.default, module.plugin, module.Plugin];
 
-  const named = isRecord(module)
-    ? Object.keys(module)
-        .filter(key => !['default', 'plugin', 'Plugin'].includes(key))
-        .map(key => module[key])
-    : [];
+  const named = Object.entries(module).flatMap(([name, value]) =>
+    ['default', 'plugin', 'Plugin'].includes(name) ? [] : [value]
+  );
 
   for (const candidate of [...preferred, ...named, module]) {
-    if (candidate == null) continue;
+    let value: unknown = candidate;
 
-    const value =
-      typeof candidate === 'function'
-        ? buildsAPlugin(candidate)
-          ? construct(candidate, specifier)
-          : undefined
-        : candidate;
+    if (isFunction(candidate)) {
+      // Inspect the prototype before constructing an unrelated named export.
+      if (!buildsAPlugin(candidate)) continue;
 
-    if (value != null && looksLikePlugin(value)) return value;
+      try {
+        value = Reflect.construct(candidate, []);
+      } catch (cause) {
+        throw constructionError(cause, specifier);
+      }
+    }
+
+    if (hasPluginMethods(value)) {
+      validatePlugin(value, specifier);
+
+      return value;
+    }
   }
 
-  // Nothing matched. Hand back the most likely candidate, constructed if it is
-  // a class, so validation names the missing members instead of reporting the
-  // export as a function.
-  const fallback = isRecord(module) ? (module['default'] ?? module['plugin'] ?? module) : module;
+  const fallback = module.default ?? module.plugin ?? module;
 
-  return typeof fallback === 'function' ? construct(fallback, specifier) : fallback;
+  if (isFunction(fallback)) return construct(fallback, specifier);
+
+  validatePlugin(fallback, specifier);
+
+  return fallback;
 }
 
-function construct(candidate: Function, specifier: string): unknown {
+function construct(candidate: Function, specifier: string): TopologyPlugin {
+  let value: unknown;
+
   try {
-    return new (candidate as new () => unknown)();
+    value = Reflect.construct(candidate, []);
   } catch (cause) {
-    throw new InvalidPluginError(
-      `Plugin "${specifier}" exports a function that could not be constructed with no arguments.`,
-      { cause }
-    );
+    throw constructionError(cause, specifier);
   }
+
+  validatePlugin(value, specifier);
+
+  return value;
 }
 
-/**
- * Checks the plugin by shape, never with `instanceof`.
- *
- * `instanceof` returns false across two copies of the same class, which is
- * what a dependency tree holding two copies of a shared base produces. A valid
- * plugin would be rejected for where it was installed.
- */
-export function validatePlugin(value: unknown, source: string): TopologyPlugin {
-  if (!isRecord(value)) {
+function constructionError(cause: unknown, specifier: string): InvalidPluginError {
+  return new InvalidPluginError(
+    `Plugin "${specifier}" exports a function that could not be constructed with no arguments.`,
+    { cause }
+  );
+}
+
+/** Checks methods structurally because duplicate package copies break instanceof. */
+export function validatePlugin(value: unknown, source: string): asserts value is TopologyPlugin {
+  if (!isPluginFields(value)) {
     throw new InvalidPluginError(
       `Plugin from ${source} is ${value === null ? 'null' : typeof value}, not an object.`
     );
   }
 
   const missing = [
-    ...REQUIRED_METHODS.filter(m => typeof (value as Record<string, unknown>)[m] !== 'function'),
-    ...REQUIRED_DETAILS.filter(d => typeof (value as Record<string, unknown>)[d] !== 'string')
+    ...REQUIRED_METHODS.filter(method => !isFunction(value[method])),
+    ...REQUIRED_DETAILS.filter(detail => !isString(value[detail]))
   ];
 
   if (missing.length > 0) {
@@ -133,63 +153,55 @@ export function validatePlugin(value: unknown, source: string): TopologyPlugin {
         `A plugin needs methods ${REQUIRED_METHODS.join('/')} and string ${REQUIRED_DETAILS.join('/')}.`
     );
   }
-
-  return value as unknown as TopologyPlugin;
 }
 
-function looksLikePlugin(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    REQUIRED_METHODS.every(m => typeof (value as Record<string, unknown>)[m] === 'function')
-  );
+function hasPluginMethods(value: unknown): value is Pick<TopologyPlugin, typeof REQUIRED_METHODS[number]> {
+  return isPluginFields(value) && REQUIRED_METHODS.every(method => isFunction(value[method]));
 }
 
-/**
- * True when a function is a class whose prototype carries the plugin methods.
- *
- * Checked before constructing, so an unrelated exported function is never
- * called for its side effects.
- */
 function buildsAPlugin(candidate: Function): boolean {
-  const prototype = candidate.prototype as Record<string, unknown> | undefined;
+  const prototype: unknown = candidate.prototype;
 
-  if (prototype == null) return false;
-
-  return REQUIRED_METHODS.every(method => typeof prototype[method] === 'function');
+  return hasPluginMethods(prototype);
 }
 
-/**
- * Node reports ERR_MODULE_NOT_FOUND. Bundlers and test runners resolve imports
- * themselves and report their own wording with no code, so match both.
- */
-function isResolutionFailure(error: unknown): boolean {
-  if (!isRecord(error)) return false;
+/** Node, bundlers, and test runners use different resolution error formats. */
+function isResolutionFailure(error: unknown): error is ResolutionError {
+  if (typeof error !== 'object' || error === null) return false;
 
-  if (error['code'] === 'ERR_MODULE_NOT_FOUND' || error['code'] === 'MODULE_NOT_FOUND') return true;
+  if ('code' in error && (error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'MODULE_NOT_FOUND')) {
+    return true;
+  }
 
-  const message = messageOf(error);
-
-  return /cannot find (?:package|module)|failed to (?:load|resolve)/i.test(message);
+  return 'message' in error && isString(error.message) &&
+    /cannot find (?:package|module)|failed to (?:load|resolve)/i.test(error.message);
 }
 
 /** True when the error blames this specifier rather than one of its imports. */
-function namesPackage(error: unknown, specifier: string): boolean {
-  const message = messageOf(error);
+function namesPackage(error: ResolutionError, specifier: string): boolean {
+  const message = isString(error.message) ? error.message : '';
   const quoted = [`'${specifier}'`, `"${specifier}"`].some(form => message.includes(form));
 
-  // Bundlers report the specifier unquoted, e.g. "Failed to load url <spec>".
+  // Bundlers can report the specifier without quotes.
   return quoted || new RegExp(`(?:^|\\s)${escapeRegExp(specifier)}(?:\\s|$|\\.|,|\\))`).test(message);
-}
-
-function messageOf(error: unknown): string {
-  return isRecord(error) && typeof error['message'] === 'string' ? error['message'] : '';
 }
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Objects and class instances both pass; functions do not. */
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isPluginFields(value: unknown): value is PluginFields {
   return typeof value === 'object' && value !== null;
+}
+
+function isFunction(value: unknown): value is Function {
+  return typeof value === 'function';
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isSpecifier(value: PluginSource): value is string {
+  return typeof value === 'string';
 }

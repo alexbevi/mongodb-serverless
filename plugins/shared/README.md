@@ -71,3 +71,7 @@ class MyPlugin extends ServerlessPlugin<MyConfig> {
 
 The driver checks a plugin by shape, so any object with the right members
 works. This class only supplies the config plumbing and the defaults.
+
+Structural validation checks that the required methods are functions and the
+metadata fields are strings. It cannot establish what those methods return
+without calling them.

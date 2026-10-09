@@ -60,6 +60,7 @@ const fakeClients = () => {
       }
     });
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: vi.fn(db),
       connect: vi.fn(async function (this: MongoClient) {

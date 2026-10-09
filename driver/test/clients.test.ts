@@ -24,7 +24,8 @@ const pluginFor = (status: ReplSetGetStatus | null): TopologyPlugin => ({
   author: 'test',
   setup: vi.fn(async () => {}),
   verify: vi.fn(async () => {}),
-  read: vi.fn(async () => status as ReplSetGetStatus),
+  // @ts-expect-error The null fixture exercises an invalid response from an external plugin.
+  read: vi.fn(async () => status),
   write: vi.fn(async () => {})
 });
 
@@ -37,6 +38,7 @@ const factory = () => {
   const create = vi.fn((uri: string) => {
     built.push(uri);
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       uri,
       connect: vi.fn(async function (this: MongoClient) {

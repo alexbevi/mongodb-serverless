@@ -90,6 +90,7 @@ const setup = (docs: CursorDocument[] = [{ a: 1 }, { a: 2 }]) => {
       return cursor;
     };
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: () => ({
         collection: () => ({

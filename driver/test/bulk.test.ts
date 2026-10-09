@@ -70,6 +70,7 @@ const setup = () => {
       return builder;
     };
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: () => ({
         collection: () => ({

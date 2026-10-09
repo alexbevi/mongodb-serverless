@@ -66,6 +66,7 @@ def render(data, source, destination):
         samples_ax.scatter(xs, values, alpha=.4, s=22, color='#2563eb' if key[0] == 'native' else '#0d9488')
         samples_ax.plot([index - .22, index + .22], [summaries[key]['median']] * 2, color='#0f172a', linewidth=2.5)
         samples_ax.annotate(f"p50 {summaries[key]['median']:.1f}", (index, summaries[key]['median']), xytext=(0, 12), textcoords='offset points', ha='center', fontsize=9)
+    samples_ax.set_ylim(0, max(summaries[key]['max'] for key in keys) * 1.2)
     samples_ax.set_title('Every cold connection sample · line = median', loc='left', fontweight='bold')
     config = data['configuration']
     fig.suptitle('Cold MongoDB connections across three simulated availability zones', fontsize=17, fontweight='bold', x=.06, ha='left')
@@ -141,7 +142,7 @@ def render(data, source, destination):
               '/tmp/mongodb-benchmark-plot/bin/pip install -r benchmark/requirements-report.txt',
               '/tmp/mongodb-benchmark-plot/bin/python benchmark/report.py benchmark/results/repeat.json --output benchmark/results/BASELINE.md',
               '```', '',
-              f"[Raw samples]({link(source)}) · [SVG plot]({link(asset_dir / 'latency.svg')}) · [Harness and phase definitions](benchmark/README.md)", '',
+              f"[Raw samples]({link(source)}) · [SVG plot]({link(asset_dir / 'latency.svg')}) · [Harness and phase definitions]({link(Path(__file__).resolve().with_name('README.md'))})", '',
               '## Environment', '',
               f"- Node: `{first['nodeVersion']}`; MongoDB driver: `{first['driverVersion']}`.",
               f"- MongoDB: `{env['mongo'].splitlines()[0]}`.",

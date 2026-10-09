@@ -1,6 +1,6 @@
-import type { MongoClient } from 'mongodb';
+import type { Document, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
-import { ClusterConnection, type ClientFactory } from '../src/cluster.js';
+import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from '../src/cluster.js';
 import {
   AuthenticationFailedError,
   ClusterUnreachableError,
@@ -16,7 +16,7 @@ const helloReplicaSet = {
 };
 
 /** A fake client whose `command` behaviour each test chooses. */
-const fakeClient = (command: (doc: Record<string, unknown>) => Promise<unknown>) => {
+const fakeClient = (command: (doc: Document) => Promise<Document>) => {
   const closed = { count: 0 };
 
   const client = {
@@ -33,8 +33,8 @@ const fakeClient = (command: (doc: Record<string, unknown>) => Promise<unknown>)
 };
 
 const connectionFor = (
-  command: (doc: Record<string, unknown>) => Promise<unknown>,
-  options: Record<string, unknown> = {}
+  command: (doc: Document) => Promise<Document>,
+  options: Partial<ClusterConnectionOptions> = {}
 ) => {
   const fake = fakeClient(command);
 
@@ -74,7 +74,7 @@ describe('ClusterConnection.hello', () => {
   });
 
   it('sends the hello command', async () => {
-    const seen: Record<string, unknown>[] = [];
+    const seen: Document[] = [];
 
     const { connection } = connectionFor(async doc => {
       seen.push(doc);

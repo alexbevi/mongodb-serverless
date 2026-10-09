@@ -1,4 +1,4 @@
-import type { MongoClient } from 'mongodb';
+import type { Document, MongoClient } from 'mongodb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Watcher } from '../src/watcher.js';
 import { ServerlessPlugin } from '../../plugins/shared/src/index.js';
@@ -40,7 +40,7 @@ const setup = (intervalMS?: number) => {
       return this;
     }),
     db: vi.fn(() => ({
-      command: vi.fn(async (doc: Record<string, unknown>) => ('hello' in doc ? hello : status))
+      command: vi.fn(async (doc: Document) => ('hello' in doc ? hello : status))
     })),
     close: vi.fn(async () => {})
   };
@@ -172,7 +172,7 @@ describe('Watcher polling', () => {
         return this;
       }),
       db: vi.fn(() => ({
-        command: vi.fn(async (doc: Record<string, unknown>) => {
+        command: vi.fn(async (doc: Document) => {
           if ('hello' in doc) {
             calls += 1;
 

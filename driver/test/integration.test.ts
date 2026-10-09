@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MongoClient as RealMongoClient, type CommandStartedEvent } from 'mongodb';
-import { ServerlessMongoClient } from '../src/client.js';
+import { ServerlessMongoClient, type ServerlessClientOptions } from '../src/client.js';
 import { NoPrimaryError, SessionRoutingError } from '../src/errors.js';
 import {
   describeCluster,
@@ -42,8 +42,8 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   const connect = (
     status = cluster.status,
     uri = cluster.uri,
-    options: Record<string, unknown> = {}
-  ): { client: ServerlessMongoClient; commands: CommandStartedEvent[]; plugin: TestPlugin } => {
+    options: ServerlessClientOptions = {}
+  ) => {
     const commands: CommandStartedEvent[] = [];
     const plugin = new TestPlugin(status as never);
 

@@ -1,6 +1,6 @@
-import type { MongoClient } from 'mongodb';
+import type { Document, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
-import { Watcher } from '../src/watcher.js';
+import { Watcher, type WatcherOptions } from '../src/watcher.js';
 import { MissingPluginError, NotAReplicaSetError, PluginReadOnlyError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../../plugins/shared/src/index.js';
 
@@ -41,7 +41,7 @@ const fakeClient = () => {
       return this;
     }),
     db: vi.fn(() => ({
-      command: vi.fn(async (doc: Record<string, unknown>) =>
+      command: vi.fn(async (doc: Document) =>
         'hello' in doc ? hello : status
       )
     })),
@@ -51,7 +51,7 @@ const fakeClient = () => {
   return client;
 };
 
-const watcherFor = (options: Record<string, unknown> = {}) => {
+const watcherFor = (options: Partial<WatcherOptions> = {}) => {
   const { plugin, writes } = recordingPlugin();
   const client = fakeClient();
 
@@ -90,7 +90,7 @@ describe('Watcher.check', () => {
         return this;
       }),
       db: vi.fn(() => ({
-        command: vi.fn(async (doc: Record<string, unknown>) => {
+        command: vi.fn(async (doc: Document) => {
           seen.push('hello' in doc ? 'hello' : 'status');
 
           return 'hello' in doc ? hello : status;

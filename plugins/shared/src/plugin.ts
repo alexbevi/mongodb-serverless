@@ -91,6 +91,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   get<K extends keyof C>(key: K): C[K] {
     this.#assertKnown(key);
+
     return this.#config[key];
   }
 

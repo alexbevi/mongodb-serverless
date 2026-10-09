@@ -5,6 +5,7 @@ import type { TopologyPlugin } from './plugin.js';
 export type PluginSource = TopologyPlugin | string;
 
 const REQUIRED_METHODS = ['setup', 'verify', 'read', 'write'] as const;
+
 const REQUIRED_DETAILS = ['name', 'version', 'author'] as const;
 
 let defaultPlugin: PluginSource | undefined;
@@ -31,6 +32,7 @@ export async function resolvePlugin(source?: PluginSource): Promise<TopologyPlug
 
   if (typeof chosen !== 'string') {
     validatePlugin(chosen, 'the supplied plugin');
+
     return chosen;
   }
 

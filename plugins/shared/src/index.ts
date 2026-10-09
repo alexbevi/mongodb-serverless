@@ -4,7 +4,9 @@ export {
   type PluginConfig,
   type TopologyPlugin
 } from './plugin.js';
+
 export type { ReplSetGetStatus, ReplSetGetStatusMember } from './status.js';
+
 export {
   resolvePlugin,
   setDefaultPlugin,
@@ -12,6 +14,7 @@ export {
   validatePlugin,
   type PluginSource
 } from './resolver.js';
+
 export {
   ServerlessError,
   MissingPluginError,

@@ -19,7 +19,7 @@
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
     "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
-    "benchmark:test": "npm run benchmark:build && node --test --test-concurrency=1 benchmark/dist/test/*.test.js",
+    "benchmark:test": "npm run benchmark:build && vitest run --config vitest.benchmark.config.ts",
     "benchmark:build": "tsc --build benchmark",
     "lint": "oxlint ."
   },

@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync } from 'node:fs';
@@ -25,7 +25,7 @@ interface BenchmarkResult {
   network: { measuredRttMs: number; configuredRttMs: number }[];
 }
 
-test('compares fresh clients against a delayed TLS replica set with SCRAM authentication', { timeout: 600_000 }, () => {
+test('compares fresh clients against a delayed TLS replica set with SCRAM authentication', () => {
   const output = join(mkdtempSync(join(tmpdir(), 'mongo-benchmark-')), 'results.json');
   execFileSync('npm', ['run', 'benchmark', '--', '--samples', '12', '--output', output], { stdio: 'inherit', timeout: 580_000 });
   const result: BenchmarkResult = JSON.parse(readFileSync(output, 'utf8'));
@@ -89,4 +89,4 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
     assert.equal(execFileSync('docker', [...args, '--filter', ownership], { encoding: 'utf8' }).trim(), '',
       `Benchmark left Docker resources behind: ${args.join(' ')}`);
   }
-});
+}, 600_000);

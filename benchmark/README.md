@@ -20,6 +20,7 @@ inside Docker, so Docker Desktop's host forwarding is outside the measured path.
 ```sh
 npm run benchmark
 npm run benchmark -- --samples 48 --local-rtt 0.5 --cross-rtt 2 --output benchmark/results/run.json
+pnpm test:unit
 npm run benchmark:test
 ```
 
@@ -27,6 +28,10 @@ npm run benchmark:test
 and its driver/plugin dependencies before execution. `npm run benchmark:build`
 only compiles them. The emitted files live in `benchmark/dist`; Docker copies
 and runs those JavaScript files, with compilation outside the measured interval.
+
+The benchmark tests use Vitest. `pnpm test:unit` includes the benchmark unit tests.
+The live Docker test runs only through `npm run benchmark:test`, which also runs
+the benchmark unit tests.
 
 Each run builds two images, creates an isolated replica set,
 checks all twelve directed network paths with ping, and alternates the driver

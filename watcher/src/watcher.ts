@@ -6,7 +6,7 @@ import {
   type ReplSetGetStatus,
   type TopologyPlugin
 } from '../../plugins/shared/src/index.js';
-import { ClusterConnection, type ClientFactory } from './cluster.js';
+import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from './cluster.js';
 
 export interface WatcherOptions {
   /** Connection string for the cluster to watch. */
@@ -46,11 +46,12 @@ export class Watcher {
 
   constructor(options: WatcherOptions) {
     this.#options = options;
-    this.#connection = new ClusterConnection({
-      uri: options.uri,
-      ...(options.createClient ? { createClient: options.createClient } : {}),
-      ...(options.driverOptions ? { driverOptions: options.driverOptions } : {})
-    });
+    const connectionOptions: ClusterConnectionOptions = { uri: options.uri };
+
+    if (options.createClient) connectionOptions.createClient = options.createClient;
+    if (options.driverOptions) connectionOptions.driverOptions = options.driverOptions;
+
+    this.#connection = new ClusterConnection(connectionOptions);
   }
 
   /**

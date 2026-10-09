@@ -1,6 +1,6 @@
 import { callMethod } from './method.js';
 import { isStringProperty } from './property.js';
-import type { AbstractCursor, Collection, Db, MongoClient } from 'mongodb';
+import type { AbstractCursor, BulkOperationBase, Collection, Db, MongoClient } from 'mongodb';
 import {
   ServerlessDriverError,
   SessionRoutingError,
@@ -135,7 +135,12 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
     }
 
     if (BULK_METHODS.has(method)) {
-      return createBulkProxy(() => invoke(client(), owner, method, args), method);
+      return createBulkProxy(async () => {
+        const builder = await invoke(client(), owner, method, args);
+
+        // SAFETY: Both methods in BULK_METHODS return a BulkOperationBase in the pinned driver.
+        return builder as BulkOperationBase;
+      }, method);
     }
 
     return invoke(client(), owner, method, args);

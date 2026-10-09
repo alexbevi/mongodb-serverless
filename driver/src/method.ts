@@ -8,6 +8,18 @@ function isCallable<T>(value: T): value is T & Function {
   return typeof value === 'function';
 }
 
+export function callMethod<T extends object, K extends keyof T & string>(
+  target: T,
+  method: K,
+  args: unknown[],
+  missingMessage: string
+): MethodResult<Pick<T, K>>;
+export function callMethod<T extends object>(
+  target: T,
+  method: string,
+  args: unknown[],
+  missingMessage: string
+): MethodResult<T>;
 export function callMethod<T extends object>(
   target: T,
   method: string,

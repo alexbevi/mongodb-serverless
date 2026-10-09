@@ -49,7 +49,7 @@ describe('LocalPlugin', () => {
     const plugin = new LocalPlugin({ writable: true });
     await plugin.write(status);
 
-    expect(JSON.parse(process.env[VAR] as string)).toEqual(status);
+    expect(process.env[VAR]).toBe(JSON.stringify(status));
   });
 
   it('round-trips a write through a read', async () => {
@@ -117,14 +117,14 @@ describe('LocalPlugin', () => {
       process.env[VAR] = JSON.stringify({ set: 'original', members: [] });
 
       await expect(new LocalPlugin().write(status)).rejects.toThrow();
-      expect(JSON.parse(process.env[VAR] as string).set).toBe('original');
+      expect(process.env[VAR]).toBe(JSON.stringify({ set: 'original', members: [] }));
     });
 
     it('writes when constructed writable', async () => {
       const plugin = new LocalPlugin({ writable: true });
       await plugin.write(status);
 
-      expect(JSON.parse(process.env[VAR] as string)).toEqual(status);
+      expect(process.env[VAR]).toBe(JSON.stringify(status));
     });
 
     it('reads and verifies while read-only', async () => {

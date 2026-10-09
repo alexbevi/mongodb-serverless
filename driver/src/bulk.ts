@@ -40,7 +40,7 @@ type Recorded = { path: 'self' | 'find'; method: string; args: unknown[] };
  * Bulk writes always go to the primary, so there is no routing decision here,
  * only the ordering problem.
  */
-export function createBulkProxy(source: BulkSource, label: string): never {
+export function createBulkProxy(source: BulkSource, label: string) {
   const recorded: Recorded[] = [];
   let real: Promise<Record<string, unknown>> | undefined;
 
@@ -74,7 +74,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
     return real;
   };
 
-  const findProxy: object = new Proxy(
+  const findProxy = new Proxy(
     {},
     {
       get(_target, property) {
@@ -96,7 +96,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
     }
   );
 
-  const proxy: object = new Proxy(
+  const proxy = new Proxy(
     {},
     {
       get(_target, property) {
@@ -151,7 +151,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
     }
   );
 
-  return proxy as never;
+  return proxy;
 }
 
 function apply(

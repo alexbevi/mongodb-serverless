@@ -74,7 +74,7 @@ const DEFERRED_PROPERTIES = new Set([
  * synchronously. Configuration calls are buffered and replayed against the
  * real cursor when something finally awaits it.
  */
-export function createCursorProxy(source: CursorSource, label: string): never {
+export function createCursorProxy(source: CursorSource, label: string) {
   const buffered: Array<{ method: string; args: unknown[] }> = [];
   let real: Promise<Record<string, unknown>> | undefined;
   let resolved: Record<string, unknown> | undefined;
@@ -112,7 +112,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
     return (fn as (...a: unknown[]) => unknown).apply(cursor, args);
   };
 
-  const proxy: object = new Proxy(
+  const proxy = new Proxy(
     {},
     {
       get(_target, property) {
@@ -174,5 +174,5 @@ export function createCursorProxy(source: CursorSource, label: string): never {
     }
   );
 
-  return proxy as never;
+  return proxy;
 }

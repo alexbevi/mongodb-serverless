@@ -1,3 +1,4 @@
+import type { MongoClient } from 'mongodb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Watcher } from '../src/watcher.js';
 import { ServerlessPlugin } from '../../plugins/shared/src/index.js';
@@ -35,7 +36,7 @@ const setup = (intervalMS?: number) => {
   if (intervalMS != null) plugin.set('refreshIntervalMS', intervalMS);
 
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: MongoClient) {
       return this;
     }),
     db: vi.fn(() => ({
@@ -167,7 +168,7 @@ describe('Watcher polling', () => {
     let calls = 0;
 
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       db: vi.fn(() => ({
@@ -209,7 +210,7 @@ describe('Watcher polling', () => {
     plugin.set('refreshIntervalMS', 1000);
 
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       db: vi.fn(() => ({

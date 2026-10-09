@@ -1,3 +1,4 @@
+import type { Document, FindOperators, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -28,17 +29,17 @@ class FakeBulkOp {
     readonly ordered: boolean
   ) {}
 
-  insert(doc: unknown): this {
+  insert(doc: Document): this {
     this.ops.push(`insert:${JSON.stringify(doc)}`);
 
     return this;
   }
 
-  find(filter: unknown): { updateOne: (u: unknown) => FakeBulkOp; delete: () => FakeBulkOp } {
+  find(filter: Document) {
     this.ops.push(`find:${JSON.stringify(filter)}`);
 
     return {
-      updateOne: (update: unknown) => {
+      updateOne: (update: Parameters<FindOperators['updateOne']>[0]) => {
         this.ops.push(`updateOne:${JSON.stringify(update)}`);
 
         return this;
@@ -76,7 +77,7 @@ const setup = () => {
           initializeUnorderedBulkOp: vi.fn(build(false))
         })
       }),
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       close: vi.fn(async () => {})

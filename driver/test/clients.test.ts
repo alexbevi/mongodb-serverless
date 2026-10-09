@@ -1,3 +1,4 @@
+import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
 import { NoPrimaryError, NoTopologyError } from '../src/errors.js';
@@ -38,7 +39,7 @@ const factory = () => {
 
     return {
       uri,
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         connected.push(uri);
 
         return this;

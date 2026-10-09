@@ -1,5 +1,6 @@
+import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
-import { ClusterConnection } from '../src/cluster.js';
+import { ClusterConnection, type ClientFactory } from '../src/cluster.js';
 import {
   AuthenticationFailedError,
   ClusterUnreachableError,
@@ -19,7 +20,7 @@ const fakeClient = (command: (doc: Record<string, unknown>) => Promise<unknown>)
   const closed = { count: 0 };
 
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: MongoClient) {
       return this;
     }),
     db: vi.fn(() => ({ command: vi.fn(command) })),
@@ -89,7 +90,7 @@ describe('ClusterConnection.hello', () => {
   it('sets no pool options', async () => {
     // minPoolSize turns an auth failure into an opaque PoolClearedError, with
     // the real cause buried on .cause.
-    const create = vi.fn(() => fakeClient(async () => helloReplicaSet).client as never);
+    const create = vi.fn<ClientFactory>(() => fakeClient(async () => helloReplicaSet).client as never);
 
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',

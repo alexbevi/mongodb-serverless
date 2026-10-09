@@ -1,3 +1,4 @@
+import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import { SessionRoutingError, UnsupportedOperationError } from '../src/errors.js';
@@ -32,7 +33,7 @@ const fakeClients = () => {
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
 
-    const collection = (dbName: string, name: string): unknown =>
+    const collection = (dbName: string, name: string) =>
       new Proxy(
         {},
         {
@@ -44,7 +45,7 @@ const fakeClients = () => {
         }
       );
 
-    const db = (dbName: string): unknown => ({
+    const db = (dbName: string) => ({
       databaseName: dbName,
       collection: (name: string) => collection(dbName, name),
       command: (...args: unknown[]) => {
@@ -61,7 +62,7 @@ const fakeClients = () => {
 
     return {
       db: vi.fn(db),
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       close: vi.fn(async () => void closed.push(host))

@@ -1,3 +1,4 @@
+import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { Watcher } from '../src/watcher.js';
 import { MissingPluginError, NotAReplicaSetError, PluginReadOnlyError } from '../src/errors.js';
@@ -36,7 +37,7 @@ const recordingPlugin = (writable = true) => {
 
 const fakeClient = () => {
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: MongoClient) {
       return this;
     }),
     db: vi.fn(() => ({
@@ -85,7 +86,7 @@ describe('Watcher.check', () => {
     const seen: string[] = [];
 
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       db: vi.fn(() => ({

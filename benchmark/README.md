@@ -1,52 +1,13 @@
 # Mini Benchmark
 
-Compare the stock MongoClient and the serverless wrapper against a three-member
-Docker replica set with TLS, SCRAM-SHA-256 and network delay. Driver source files
-are unchanged. This measures fresh database connections, not AWS Lambda startup.
+A small docker based benchmark which attempts to replicate a realistic cloud environment to run cold connections to the cluster. It measures the time to complete a read operation, and the time for a write operation including all phases of the connection assuming a completely new client environment similar to a serverless cold start.   
+
+Compares the stock MongoClient and the ServerlessMongoClient against a three-member
+Docker replica set with TLS, SCRAM-SHA-256 and network delay for zones within a single cloud region.
 
 ![Local Docker benchmark: both clients operate on mongo-a; the native client also monitors mongo-b and mongo-c](assets/architecture.png)
 
-<details>
-<summary>Editable architecture diagram</summary>
-
-```mermaid
-flowchart LR
-    subgraph docker["Local Docker network · simulated AZs"]
-        subgraph azA["AZ A"]
-            subgraph client["Client · one driver per fresh Node process"]
-                native["Native MongoClient"]
-                serverless["Serverless wrapper"]
-            end
-            topology["Prepared topology<br/>via LocalPlugin"]
-            primary[("mongo-a<br/>Primary")]
-        end
-        subgraph azB["AZ B"]
-            secondaryB[("mongo-b<br/>Secondary")]
-        end
-        subgraph azC["AZ C"]
-            secondaryC[("mongo-c<br/>Secondary")]
-        end
-        topology -.-> serverless
-        native -->|"Operation + monitoring"| primary
-        serverless -->|"Operation + monitoring"| primary
-        native -. Monitoring .-> secondaryB
-        native -. Monitoring .-> secondaryC
-        primary -->|Replication| secondaryB
-        primary -->|Replication| secondaryC
-    end
-    classDef nativeStyle fill:#eff6ff,stroke:#3972b8,color:#17324d
-    classDef serverlessStyle fill:#eaf8f3,stroke:#28836c,color:#164e40
-    classDef databaseStyle fill:#f5f7fa,stroke:#9aa9b8,color:#25384b
-    classDef topologyStyle fill:#ffffff,stroke:#9aa9b8,color:#526174
-    class native nativeStyle
-    class serverless serverlessStyle
-    class primary,secondaryB,secondaryC databaseStyle
-    class topology topologyStyle
-```
-
 Default injected RTT: 0.5 ms within AZ A and 2 ms across AZs.
-
-</details>
 
 ## Install
 

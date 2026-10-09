@@ -14,18 +14,18 @@ export interface Topology {
  *
  * @see https://www.mongodb.com/docs/manual/reference/replica-states/
  */
-const STATE_NAMES: Record<number, string> = {
-  0: 'STARTUP',
-  1: 'PRIMARY',
-  2: 'SECONDARY',
-  3: 'RECOVERING',
-  5: 'STARTUP2',
-  6: 'UNKNOWN',
-  7: 'ARBITER',
-  8: 'DOWN',
-  9: 'ROLLBACK',
-  10: 'REMOVED'
-};
+const STATE_NAMES = new Map<number, string>([
+  [0, 'STARTUP'],
+  [1, 'PRIMARY'],
+  [2, 'SECONDARY'],
+  [3, 'RECOVERING'],
+  [5, 'STARTUP2'],
+  [6, 'UNKNOWN'],
+  [7, 'ARBITER'],
+  [8, 'DOWN'],
+  [9, 'ROLLBACK'],
+  [10, 'REMOVED']
+]);
 
 const HOST_PORT = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d{1,5})$/;
 
@@ -74,15 +74,15 @@ export function parseTopology(status: ReplSetGetStatus | null | undefined): Topo
     );
   }
 
-  return { setName: typeof status.set === 'string' ? status.set : undefined, primary, secondaries };
+  return { setName: isString(status.set) ? status.set : undefined, primary, secondaries };
 }
 
 function hostPortOf(member: ReplSetGetStatusMember): string {
-  const { name } = member;
-
-  if (typeof name !== 'string' || name === '') {
+  if (!hasMemberName(member) || member.name === '') {
     throw new InvalidTopologyError('Topology member has no name; each needs a "host:port" name');
   }
+
+  const { name } = member;
 
   if (!HOST_PORT.test(name)) {
     throw new InvalidTopologyError(`Topology member name "${name}" is not "host:port"`);
@@ -92,9 +92,9 @@ function hostPortOf(member: ReplSetGetStatusMember): string {
 }
 
 function stateOf(member: ReplSetGetStatusMember): string | undefined {
-  if (typeof member.stateStr === 'string') return member.stateStr;
+  if (isString(member.stateStr)) return member.stateStr;
 
-  if (typeof member.state === 'number') return STATE_NAMES[member.state];
+  if (isNumber(member.state)) return STATE_NAMES.get(member.state);
 
   return undefined;
 }
@@ -102,4 +102,16 @@ function stateOf(member: ReplSetGetStatusMember): string | undefined {
 /** `health` is absent in hand-written topologies, so only 0 means unhealthy. */
 function isHealthy(member: ReplSetGetStatusMember): boolean {
   return member.health == null || member.health === 1;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number';
+}
+
+function hasMemberName(value: ReplSetGetStatusMember): value is { name: string } {
+  return value !== null && typeof value === 'object' && 'name' in value && isString(value.name);
 }

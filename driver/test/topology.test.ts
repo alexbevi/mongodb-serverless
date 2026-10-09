@@ -128,6 +128,13 @@ describe('parseTopology', () => {
     ).toThrow(/a:nope/);
   });
 
+  it('reports a null member as invalid topology', () => {
+    expect(() => {
+      // @ts-expect-error External plugins can return malformed members.
+      return parseTopology({ members: [null] });
+    }).toThrow(InvalidTopologyError);
+  });
+
   it('throws InvalidTopologyError when a member has no name', () => {
     expect(() => {
       // @ts-expect-error Exercise a malformed member with no name.

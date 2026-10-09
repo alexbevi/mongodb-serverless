@@ -85,7 +85,7 @@ next run rebuilds it in about 30 seconds.
 
 Run `npm run benchmark` for cold connection timings against a TLS replica set with
 simulated availability-zone latency. See the [benchmark usage](benchmark/README.md)
-and the recorded [baseline](BASELINE.md).
+and the recorded [benchmark](BENCHMARK.md).
 
 Requires Node 20.19 or later. See `AGENTS.md` for the working agreement and
 [`.github/RELEASING.md`](.github/RELEASING.md) for how releases work.

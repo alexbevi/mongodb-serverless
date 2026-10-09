@@ -1,6 +1,6 @@
 import { callMethod } from './method.js';
 import { isStringProperty } from './property.js';
-import type { Collection, Db, MongoClient } from 'mongodb';
+import type { AbstractCursor, Collection, Db, MongoClient } from 'mongodb';
 import {
   ServerlessDriverError,
   SessionRoutingError,
@@ -126,7 +126,12 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
     const client = () => (route === 'read' ? router.read() : router.write());
 
     if (CURSOR_METHODS.has(method)) {
-      return createCursorProxy(() => invoke(client(), owner, method, args), method);
+      return createCursorProxy(async () => {
+        const cursor = await invoke(client(), owner, method, args);
+
+        // SAFETY: Every method in CURSOR_METHODS returns an AbstractCursor in the pinned driver.
+        return cursor as AbstractCursor<unknown>;
+      }, method);
     }
 
     if (BULK_METHODS.has(method)) {

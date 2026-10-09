@@ -1,8 +1,17 @@
-import { isStringProperty } from './property.js';
+import type { AbstractCursor, ClientSession, MongoClient } from 'mongodb';
+import { callMethod } from './method.js';
+import { hasProperty, isStringProperty } from './property.js';
 import { ServerlessDriverError } from './errors.js';
 
 /** Creates the real cursor, once the routed client is known. */
-export type CursorSource = () => Promise<unknown>;
+export type CursorSource<T> = () => Promise<AbstractCursor<T>>;
+
+// The driver exposes these accessors at runtime but omits them from its declarations.
+type RuntimeCursor<T> = AbstractCursor<T> & {
+  readonly client?: MongoClient;
+  readonly session?: ClientSession;
+  readonly server?: unknown;
+};
 
 /**
  * Calls that configure a cursor and return it for chaining.
@@ -74,23 +83,17 @@ const DEFERRED_PROPERTIES = new Set([
  * synchronously. Configuration calls are buffered and replayed against the
  * real cursor when something finally awaits it.
  */
-export function createCursorProxy(source: CursorSource, label: string) {
+export function createCursorProxy<T>(source: CursorSource<T>, label: string) {
   const buffered: Array<{ method: string; args: unknown[] }> = [];
-  let real: Promise<Record<string, unknown>> | undefined;
-  let resolved: Record<string, unknown> | undefined;
+  let real: Promise<RuntimeCursor<T>> | undefined;
+  let resolved: RuntimeCursor<T> | undefined;
 
-  const resolve = (): Promise<Record<string, unknown>> => {
+  const resolve = (): Promise<RuntimeCursor<T>> => {
     real ??= (async () => {
-      const cursor = (await source()) as Record<string, unknown>;
+      const cursor = await source();
 
       for (const { method, args } of buffered) {
-        const fn = cursor[method];
-
-        if (typeof fn !== 'function') {
-          throw new ServerlessDriverError(`${label} cursor has no ${method}() to replay.`);
-        }
-
-        (fn as (...a: unknown[]) => unknown).apply(cursor, args);
+        callMethod(cursor, method, args, `${label} cursor has no ${method}() to replay.`);
       }
 
       resolved = cursor;
@@ -101,15 +104,10 @@ export function createCursorProxy(source: CursorSource, label: string) {
     return real;
   };
 
-  const call = async (method: string, args: unknown[]): Promise<unknown> => {
+  const call = async (method: string, args: unknown[]) => {
     const cursor = await resolve();
-    const fn = cursor[method];
 
-    if (typeof fn !== 'function') {
-      throw new ServerlessDriverError(`${label} cursor has no ${method}().`);
-    }
-
-    return (fn as (...a: unknown[]) => unknown).apply(cursor, args);
+    return callMethod(cursor, method, args, `${label} cursor has no ${method}().`);
   };
 
   const proxy = new Proxy(
@@ -118,7 +116,7 @@ export function createCursorProxy(source: CursorSource, label: string) {
       get(_target, property) {
         if (property === Symbol.asyncIterator) {
           return async function* () {
-            yield* (await resolve()) as unknown as AsyncIterable<unknown>;
+            yield* await resolve();
           };
         }
 
@@ -150,7 +148,9 @@ export function createCursorProxy(source: CursorSource, label: string) {
         }
 
         if (DEFERRED_PROPERTIES.has(property)) {
-          if (resolved != null) return resolved[property];
+          if (resolved != null) {
+            return hasProperty(resolved, property) ? resolved[property] : undefined;
+          }
 
           throw new ServerlessDriverError(
             `"${property}" is only readable once the ${label} cursor exists. ` +

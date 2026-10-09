@@ -152,11 +152,9 @@ async function invoke(
 }
 
 function hasSession(args: unknown[]): boolean {
-  return args.some(
-    arg =>
-      typeof arg === 'object' &&
-      arg !== null &&
-      'session' in arg &&
-      (arg as { session?: unknown }).session != null
-  );
+  return args.some(hasSessionArgument);
+}
+
+function hasSessionArgument(arg: unknown): arg is { session: unknown } {
+  return typeof arg === 'object' && arg !== null && 'session' in arg && arg.session != null;
 }

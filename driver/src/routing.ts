@@ -105,28 +105,28 @@ export function routeFor(routes: Record<string, Rule>, method: string, args: unk
  * shortcut.
  */
 function pipelineRoute(args: unknown[]): Route {
-  const [pipeline, options] = args;
+  const pipeline = args[0];
 
-  if (isRecord(options) && options['out'] != null) return 'write';
+  if (isRoutingFields(args[1]) && args[1].out != null) return 'write';
 
   if (!Array.isArray(pipeline) || pipeline.length === 0) return 'read';
 
   const last = pipeline.at(-1);
 
-  if (isRecord(last) && (last['$out'] != null || last['$merge'] != null)) return 'write';
+  if (isRoutingFields(last) && (last['$out'] != null || last['$merge'] != null)) return 'write';
 
   return 'read';
 }
 
 function wantsPrimary(args: unknown[]): boolean {
   for (const arg of args) {
-    if (!isRecord(arg)) continue;
+    if (!isRoutingFields(arg)) continue;
 
     const preference = arg['readPreference'];
 
-    if (typeof preference === 'string') return PRIMARY_MODES.has(preference);
+    if (isReadPreferenceString(preference)) return PRIMARY_MODES.has(preference);
 
-    if (isRecord(preference) && typeof preference['mode'] === 'string') {
+    if (isReadPreferenceObject(preference)) {
       return PRIMARY_MODES.has(preference['mode']);
     }
   }
@@ -134,6 +134,21 @@ function wantsPrimary(args: unknown[]): boolean {
   return false;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface RoutingFields {
+  out?: unknown;
+  $out?: unknown;
+  $merge?: unknown;
+  readPreference?: unknown;
+}
+
+function isRoutingFields(value: unknown): value is RoutingFields {
   return typeof value === 'object' && value !== null;
+}
+
+function isReadPreferenceString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isReadPreferenceObject(value: unknown): value is { mode: string } {
+  return typeof value === 'object' && value !== null && 'mode' in value && typeof value.mode === 'string';
 }

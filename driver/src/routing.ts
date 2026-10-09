@@ -12,7 +12,7 @@ export type Route = 'read' | 'write' | 'unsupported';
  */
 type Rule = Route | 'pipeline';
 
-export const COLLECTION_ROUTES: Record<string, Rule> = {
+export const COLLECTION_ROUTES = {
   aggregate: 'pipeline',
   bulkWrite: 'write',
   count: 'read',
@@ -51,9 +51,9 @@ export const COLLECTION_ROUTES: Record<string, Rule> = {
   updateOne: 'write',
   updateSearchIndex: 'write',
   watch: 'unsupported'
-};
+} satisfies Record<string, Rule>;
 
-export const DB_ROUTES: Record<string, Rule> = {
+export const DB_ROUTES = {
   admin: 'write',
   aggregate: 'pipeline',
   collection: 'read',
@@ -73,7 +73,7 @@ export const DB_ROUTES: Record<string, Rule> = {
   setProfilingLevel: 'write',
   stats: 'read',
   watch: 'unsupported'
-};
+} satisfies Record<string, Rule>;
 
 /** Read preference modes that still require the primary. */
 const PRIMARY_MODES = new Set(['primary', 'primaryPreferred']);

@@ -56,6 +56,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
     const { writable = false, ...defaults } = options ?? {};
 
     this.#writable = writable;
+    // SAFETY: Subclasses supply C's added keys in options; the base keys come from DEFAULT_PLUGIN_CONFIG.
     this.#config = { ...DEFAULT_PLUGIN_CONFIG, ...defaults } as C;
   }
 

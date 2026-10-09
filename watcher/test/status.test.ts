@@ -60,9 +60,11 @@ describe('ClusterConnection.status', () => {
 
   it('keeps every member', async () => {
     const connection = connectionFor(async () => healthy);
-    const status = (await connection.status()) as typeof healthy;
+    const status = await connection.status();
 
-    expect(status.members.map(m => m.name)).toEqual(['a:27017', 'b:27017']);
+    expect(status).toMatchObject({
+      members: [{ name: 'a:27017' }, { name: 'b:27017' }]
+    });
   });
 
   it('returns a document with no primary rather than rejecting it', async () => {

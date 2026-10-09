@@ -267,11 +267,11 @@ describe('cursor routing', () => {
   it('rejects an unknown cursor member', () => {
     const { client } = setup();
 
-    const cursor = client.db('app').collection('users').find({}) as unknown as Record<
-      string,
-      unknown
-    >;
+    const cursor = client.db('app').collection('users').find({});
 
-    expect(() => cursor['nonsense']).toThrow(/nonsense/);
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return cursor.nonsense;
+    }).toThrow(/nonsense/);
   });
 });

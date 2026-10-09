@@ -21,7 +21,7 @@ class IntervalPlugin extends ServerlessPlugin {
   async setup(): Promise<void> {}
   async verify(): Promise<void> {}
   async read(): Promise<ReplSetGetStatus> {
-    return status as ReplSetGetStatus;
+    return status;
   }
   async write(doc: ReplSetGetStatus): Promise<void> {
     this.assertWritable();
@@ -231,7 +231,7 @@ describe('Watcher polling', () => {
     await flush();
 
     expect(errors).toHaveLength(1);
-    expect((errors[0] as Error).message).toBe('cluster gone');
+    expect(errors[0]).toMatchObject({ message: 'cluster gone' });
     await watcher.stop();
   });
 

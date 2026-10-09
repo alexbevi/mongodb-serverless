@@ -106,7 +106,10 @@ describe('parseTopology', () => {
   });
 
   it('throws InvalidTopologyError when members is not an array', () => {
-    expect(() => parseTopology({ set: 'rs0' } as never)).toThrow(InvalidTopologyError);
+    expect(() => {
+      // @ts-expect-error Exercise a malformed document with no members array.
+      return parseTopology({ set: 'rs0' });
+    }).toThrow(InvalidTopologyError);
   });
 
   it('throws InvalidTopologyError on an empty members array', () => {
@@ -126,9 +129,10 @@ describe('parseTopology', () => {
   });
 
   it('throws InvalidTopologyError when a member has no name', () => {
-    expect(() => parseTopology({ members: [{ stateStr: 'PRIMARY', health: 1 } as never] })).toThrow(
-      InvalidTopologyError
-    );
+    expect(() => {
+      // @ts-expect-error Exercise a malformed member with no name.
+      return parseTopology({ members: [{ stateStr: 'PRIMARY', health: 1 }] });
+    }).toThrow(InvalidTopologyError);
   });
 
   it('throws InvalidTopologyError when two members report primary', () => {

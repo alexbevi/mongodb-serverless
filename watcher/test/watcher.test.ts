@@ -24,7 +24,7 @@ const recordingPlugin = (writable = true) => {
     author: 'test',
     setup: vi.fn(async () => {}),
     verify: vi.fn(async () => {}),
-    read: vi.fn(async () => status as ReplSetGetStatus),
+    read: vi.fn(async () => status),
     write: vi.fn(async (doc: ReplSetGetStatus) => {
       if (!writable) throw new PluginReadOnlyError('Plugin "recording" is read-only.');
       writes.push(doc);

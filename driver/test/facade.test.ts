@@ -102,12 +102,12 @@ describe('ServerlessMongoClient', () => {
     const filter = { a: 1 };
     const options = { upsert: true };
 
-    const result = (await client
+    const result = await client
       .db('app')
       .collection('users')
-      .updateOne(filter, { $set: { b: 2 } }, options)) as { args: unknown[] };
+      .updateOne(filter, { $set: { b: 2 } }, options);
 
-    expect(result.args).toEqual([filter, { $set: { b: 2 } }, options]);
+    expect(result).toHaveProperty('args', [filter, { $set: { b: 2 } }, options]);
   });
 
   it('routes each operation independently', async () => {
@@ -262,9 +262,12 @@ describe('ServerlessMongoClient', () => {
 
   it('throws on an unknown collection member', () => {
     const { client } = clientFor();
-    const users = client.db('app').collection('users') as unknown as Record<string, unknown>;
+    const users = client.db('app').collection('users');
 
-    expect(() => users['somethingNew']).toThrow(/somethingNew/);
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return users.somethingNew;
+    }).toThrow(/somethingNew/);
   });
 
   it('surfaces a topology failure on first use', async () => {

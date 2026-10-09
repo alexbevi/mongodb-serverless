@@ -205,11 +205,11 @@ describe('bulk write builders', () => {
   it('rejects an unknown builder member', () => {
     const { client } = setup();
 
-    const bulk = client.db('app').collection('users').initializeOrderedBulkOp() as unknown as Record<
-      string,
-      unknown
-    >;
+    const bulk = client.db('app').collection('users').initializeOrderedBulkOp();
 
-    expect(() => bulk['nonsense']).toThrow(/nonsense/);
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return bulk.nonsense;
+    }).toThrow(/nonsense/);
   });
 });

@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+
+test('declares the connection string parser imported by benchmark instrumentation', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+
+  expect(manifest.devDependencies['mongodb-connection-string-url']).toBeDefined();
+});
 
 test('npm benchmark compiles the harness before validating arguments', () => {
   const result = spawnSync('npm', ['run', 'benchmark', '--', '--samples', '0'], { encoding: 'utf8' });

@@ -6,6 +6,7 @@ import {
   type ReplSetGetStatus,
   type TopologyPlugin
 } from '../../plugins/shared/src/index.js';
+import { refreshIntervalMS } from './interval.js';
 import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from './cluster.js';
 
 export interface WatcherOptions {
@@ -139,12 +140,8 @@ export class Watcher {
   async #intervalMS(): Promise<number> {
     try {
       const plugin = await this.#resolvePlugin();
-      const get = (plugin as { get?: (key: string) => unknown }).get;
-      const value = typeof get === 'function' ? get.call(plugin, 'refreshIntervalMS') : undefined;
 
-      return typeof value === 'number' && value > 0
-        ? value
-        : DEFAULT_PLUGIN_CONFIG.refreshIntervalMS;
+      return refreshIntervalMS(plugin);
     } catch {
       // A plugin that cannot be resolved still fails loudly in the cycle.
       return DEFAULT_PLUGIN_CONFIG.refreshIntervalMS;

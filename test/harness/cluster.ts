@@ -4,8 +4,11 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 
 const CONTAINER = 'mongodb-serverless-driver-test-rs';
+
 const IMAGE = 'mongodb/mongodb-atlas-local:8.0';
+
 const PORTS = [28017, 28018, 28019] as const;
+
 const REPLICA_SET = 'rstest';
 
 export interface TestCluster {
@@ -21,6 +24,7 @@ export interface TestCluster {
 
 const docker = async (args: string[]): Promise<string> => {
   const { stdout } = await exec('docker', args, { maxBuffer: 1 << 24 });
+
   return stdout.trim();
 };
 
@@ -30,6 +34,7 @@ const mongosh = async (port: number, script: string): Promise<string> =>
 export async function dockerAvailable(): Promise<boolean> {
   try {
     await docker(['info', '--format', '{{.ServerVersion}}']);
+
     return true;
   } catch {
     return false;
@@ -38,6 +43,7 @@ export async function dockerAvailable(): Promise<boolean> {
 
 const running = async (): Promise<boolean> => {
   const out = await docker(['ps', '--filter', `name=^${CONTAINER}$`, '--format', '{{.Names}}']);
+
   return out === CONTAINER;
 };
 
@@ -89,6 +95,7 @@ export async function startCluster(): Promise<void> {
 
   await waitFor(async () => {
     await mongosh(PORTS[0], 'db.version()');
+
     return true;
   }, 'mongod to accept connections');
 
@@ -123,6 +130,7 @@ export async function startCluster(): Promise<void> {
       PORTS[0],
       'print(rs.status().members.map(m => m.stateStr).sort().join(","))'
     );
+
     return states === 'PRIMARY,SECONDARY,SECONDARY';
   }, 'the replica set to elect a primary and sync both secondaries');
 }
@@ -134,6 +142,7 @@ export async function stopCluster(): Promise<void> {
 /** Reads the live topology, for a plugin to serve to the driver. */
 export async function describeCluster(): Promise<TestCluster> {
   const raw = await mongosh(PORTS[0], 'print(JSON.stringify(rs.status()))');
+
   const status = JSON.parse(raw) as {
     members: Array<{ name: string; stateStr: string }>;
   };
@@ -159,6 +168,7 @@ export async function stepDownPrimary(): Promise<void> {
 
   await waitFor(async () => {
     const current = await describeCluster();
+
     return current.primary !== primary;
   }, 'a new primary to be elected');
 }
@@ -224,6 +234,7 @@ export async function startStandalone(): Promise<void> {
 
   await waitFor(async () => {
     await docker(['exec', STANDALONE, 'mongosh', '--quiet', '--eval', 'db.version()']);
+
     return true;
   }, 'the standalone mongod to accept connections');
 }

@@ -1,3 +1,4 @@
+import { callMethod } from './method.js';
 import { isStringProperty } from './property.js';
 import type { Collection, Db, MongoClient } from 'mongodb';
 import {
@@ -34,17 +35,18 @@ export interface Router {
 type Routes = Record<string, Route | 'pipeline'>;
 
 /** Resolves the real object a call delegates to, once its client is known. */
-type Owner = (client: MongoClient) => unknown;
+type Owner = (client: MongoClient) => Db | Collection;
 
 export function createDbFacade(router: Router, dbName: string): Db {
-  const local: Record<string, unknown> = { databaseName: dbName, namespace: dbName };
+  const local = new Map([['databaseName', dbName], ['namespace', dbName]]);
   const owner: Owner = client => client.db(dbName);
 
+  // SAFETY: The proxy implements classified Db operations and rejects unsupported members.
   return new Proxy({} as Db, {
     get(_target, property) {
       if (!isStringProperty(property)) return undefined;
 
-      if (property in local) return local[property];
+      if (local.has(property)) return local.get(property);
 
       if (property === 'collection') {
         return (name: string) => createCollectionFacade(router, dbName, name);
@@ -54,44 +56,44 @@ export function createDbFacade(router: Router, dbName: string): Db {
     },
 
     has(_target, property) {
-      return isStringProperty(property) && (property in local || property in DB_ROUTES);
+      return isStringProperty(property) && (local.has(property) || property in DB_ROUTES);
     }
   });
 }
 
 export function createCollectionFacade(router: Router, dbName: string, name: string): Collection {
-  const local: Record<string, unknown> = {
-    collectionName: name,
-    dbName,
-    namespace: `${dbName}.${name}`
-  };
+  const local = new Map([
+    ['collectionName', name],
+    ['dbName', dbName],
+    ['namespace', `${dbName}.${name}`]
+  ]);
 
   const owner: Owner = client => client.db(dbName).collection(name);
 
+  // SAFETY: The proxy implements classified Collection operations and rejects unsupported members.
   return new Proxy({} as Collection, {
     get(_target, property) {
       if (!isStringProperty(property)) return undefined;
 
-      if (property in local) return local[property];
+      if (local.has(property)) return local.get(property);
 
       return routedMethod(router, COLLECTION_ROUTES, property, owner);
     },
 
     has(_target, property) {
-      return isStringProperty(property) && (property in local || property in COLLECTION_ROUTES);
+      return isStringProperty(property) && (local.has(property) || property in COLLECTION_ROUTES);
     }
   });
 }
 
 /**
- * Stands in for one method on the real object.
+ * Delegates one classified method to the routed client.
  *
  * Routing needs the topology, which means awaiting it, so every routed call
  * returns a promise. Methods that hand back a cursor or a bulk builder
- * synchronously cannot work this way; they are classified but not yet
- * delegated.
+ * synchronously use deferred proxies instead.
  */
-function routedMethod(router: Router, routes: Routes, method: string, owner: Owner): unknown {
+function routedMethod(router: Router, routes: Routes, method: string, owner: Owner) {
   if (!(method in routes)) {
     throw new ServerlessDriverError(
       `"${method}" is not a routable operation on this proxy. ` +
@@ -100,7 +102,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
   }
 
   return (...args: unknown[]) => {
-    const route = routeFor(routes, method, args);
+    const route: Route = routeFor(routes, method, args);
 
     if (route === 'unsupported') {
       throw new UnsupportedOperationError(
@@ -140,15 +142,10 @@ async function invoke(
   owner: Owner,
   method: string,
   args: unknown[]
-): Promise<unknown> {
-  const target = owner(await client) as Record<string, unknown>;
-  const fn = target[method];
+) {
+  const target = owner(await client);
 
-  if (typeof fn !== 'function') {
-    throw new ServerlessDriverError(`The mongodb driver has no ${method}() to delegate to.`);
-  }
-
-  return (fn as (...a: unknown[]) => unknown).apply(target, args);
+  return callMethod(target, method, args, `The mongodb driver has no ${method}() to delegate to.`);
 }
 
 function hasSession(args: unknown[]): boolean {

@@ -17,10 +17,11 @@ export interface WatcherOptions {
   createClient?: ClientFactory;
   driverOptions?: MongoClientOptions;
   /**
-   * Called when a polled cycle fails. Without it a failure is swallowed, since
-   * throwing from a timer would be an unhandled rejection.
+   * Receives the original thrown value when a polled cycle fails, including
+   * non-Error values. Without it failures are swallowed to avoid an unhandled
+   * rejection from the timer.
    */
-  onError?: (error: unknown) => void;
+  onError?: (cause: unknown) => void;
 }
 
 /** What one cycle recorded. */
@@ -125,8 +126,8 @@ export class Watcher {
   async #cycle(): Promise<void> {
     try {
       await this.check();
-    } catch (error) {
-      this.#options.onError?.(error);
+    } catch (cause) {
+      this.#options.onError?.(cause);
     }
   }
 

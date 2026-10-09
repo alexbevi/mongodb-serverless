@@ -19,8 +19,15 @@ Run `pnpm lint` from the repository root. All generic anti-slop rules and
 plugin, and generated `dist` directories are excluded. Existing source findings
 require review. This installation does not migrate application code.
 
+The repository enables `allowInTypeGuards` for `no-runtime-typeof` so plugin
+boundaries can validate methods structurally. The rule remains an error outside
+functions with explicit type predicates, including ordinary callbacks nested
+inside a guard. A predicate annotation does not prove its implementation is
+correct; boundary tests must cover malformed input.
+
 Keep `oxlint` and `@oxlint/plugins` pinned to the same version when upgrading.
 
 Run `node --test tools/oxlint/anti-slop.test.mjs` to verify the configured plugin
 rejects an unknown parameter and accepts a concrete parameter. The test runs
 Oxlint with the current Node executable so it also checks loader compatibility.
+It also verifies the type-guard exception and rejection of checks outside it.

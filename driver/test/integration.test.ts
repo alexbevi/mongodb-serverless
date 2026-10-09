@@ -306,11 +306,17 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   describe('session handling', () => {
     it('rejects a session on a read', async () => {
       const { client } = connect();
-      const session = {} as never;
+      const sessionOwner = new RealMongoClient(cluster.uri);
+      const session = sessionOwner.startSession();
 
-      await expect(
-        client.db('itest').collection('writes').findOne({}, { session })
-      ).rejects.toThrow(SessionRoutingError);
+      try {
+        await expect(
+          client.db('itest').collection('writes').findOne({}, { session })
+        ).rejects.toThrow(SessionRoutingError);
+      } finally {
+        await session.endSession();
+        await sessionOwner.close();
+      }
     });
   });
 

@@ -1,5 +1,5 @@
-import type { MongoClient } from 'mongodb';
-import { describe, expect, it, vi } from 'vitest';
+import { MongoClient } from 'mongodb';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import { SessionRoutingError, UnsupportedOperationError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -193,11 +193,26 @@ describe('ServerlessMongoClient', () => {
   });
 
   describe('sessions', () => {
+    const sessionOwner = new MongoClient('mongodb://seed:27017/');
+    const sessions: ReturnType<MongoClient['startSession']>[] = [];
+
+    const newSession = () => {
+      const session = sessionOwner.startSession();
+      sessions.push(session);
+
+      return session;
+    };
+
+    afterEach(async () => {
+      await Promise.all(sessions.splice(0).map(session => session.endSession()));
+      await sessionOwner.close();
+    });
+
     it('rejects a session on a read-routed operation', async () => {
       // The driver rejects a session used with a different client, so a read
       // cannot borrow one created by the write client.
       const { client } = clientFor();
-      const session = { id: 1 } as never;
+      const session = newSession();
 
       await expect(
         client.db('app').collection('users').findOne({}, { session })
@@ -208,13 +223,13 @@ describe('ServerlessMongoClient', () => {
       const { client } = clientFor();
 
       await expect(
-        client.db('app').collection('users').findOne({}, { session: {} as never })
+        client.db('app').collection('users').findOne({}, { session: newSession() })
       ).rejects.toThrow(/same MongoClient|primary/i);
     });
 
     it('allows a session on a write', async () => {
       const { client, calls } = clientFor();
-      await client.db('app').collection('users').insertOne({}, { session: {} as never });
+      await client.db('app').collection('users').insertOne({}, { session: newSession() });
 
       expect(calls).toEqual(['primary:27017 app.users.insertOne']);
     });

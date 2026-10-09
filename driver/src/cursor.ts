@@ -1,3 +1,4 @@
+import { isStringProperty } from './property.js';
 import { ServerlessDriverError } from './errors.js';
 
 /** Creates the real cursor, once the routed client is known. */
@@ -127,7 +128,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
           return undefined;
         }
 
-        if (typeof property !== 'string') return undefined;
+        if (!isStringProperty(property)) return undefined;
 
         if (CHAINABLE.has(property)) {
           return (...args: unknown[]) => {
@@ -166,7 +167,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
       has(_target, property) {
         return (
           property === Symbol.asyncIterator ||
-          (typeof property === 'string' &&
+          (isStringProperty(property) &&
             (CHAINABLE.has(property) || TERMINAL.has(property) || property === 'close'))
         );
       }

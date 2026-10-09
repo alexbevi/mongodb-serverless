@@ -1,3 +1,4 @@
+import { isStringProperty } from './property.js';
 import { ServerlessDriverError } from './errors.js';
 
 /** Creates the real builder, once the write client is known. */
@@ -77,7 +78,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
     {},
     {
       get(_target, property) {
-        if (typeof property !== 'string') return undefined;
+        if (!isStringProperty(property)) return undefined;
 
         if (!FIND_OPERATIONS.has(property)) {
           throw new ServerlessDriverError(
@@ -103,7 +104,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
           return undefined;
         }
 
-        if (typeof property !== 'string') return undefined;
+        if (!isStringProperty(property)) return undefined;
 
         if (property === 'find') {
           return (...args: unknown[]) => {
@@ -143,7 +144,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
 
       has(_target, property) {
         return (
-          typeof property === 'string' &&
+          isStringProperty(property) &&
           (property === 'find' || CHAINABLE.has(property) || TERMINAL.has(property))
         );
       }

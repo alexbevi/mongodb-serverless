@@ -1,3 +1,4 @@
+import { isStringProperty } from './property.js';
 import type { Collection, Db, MongoClient } from 'mongodb';
 import {
   ServerlessDriverError,
@@ -41,7 +42,7 @@ export function createDbFacade(router: Router, dbName: string): Db {
 
   return new Proxy({} as Db, {
     get(_target, property) {
-      if (typeof property !== 'string') return undefined;
+      if (!isStringProperty(property)) return undefined;
 
       if (property in local) return local[property];
 
@@ -53,7 +54,7 @@ export function createDbFacade(router: Router, dbName: string): Db {
     },
 
     has(_target, property) {
-      return typeof property === 'string' && (property in local || property in DB_ROUTES);
+      return isStringProperty(property) && (property in local || property in DB_ROUTES);
     }
   });
 }
@@ -69,7 +70,7 @@ export function createCollectionFacade(router: Router, dbName: string, name: str
 
   return new Proxy({} as Collection, {
     get(_target, property) {
-      if (typeof property !== 'string') return undefined;
+      if (!isStringProperty(property)) return undefined;
 
       if (property in local) return local[property];
 
@@ -77,7 +78,7 @@ export function createCollectionFacade(router: Router, dbName: string, name: str
     },
 
     has(_target, property) {
-      return typeof property === 'string' && (property in local || property in COLLECTION_ROUTES);
+      return isStringProperty(property) && (property in local || property in COLLECTION_ROUTES);
     }
   });
 }

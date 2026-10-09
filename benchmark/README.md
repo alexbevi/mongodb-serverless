@@ -52,7 +52,9 @@ AZ networking as [single-digit millisecond latency](https://docs.aws.amazon.com/
 Both clients perform the same indexed `findOne` on the primary, or an `insertOne`
 with majority acknowledgement. Reads explicitly request the primary because the
 wrapper otherwise selects a secondary. Data and topology are prepared before
-sampling; the serverless client reads topology through LocalPlugin. TLS verifies
+sampling; the serverless client reads topology prepared by `replSetGetStatus`
+through LocalPlugin from the process environment. Both clients use a one-connection
+pool with retries disabled. Every result is checked; no failures are discarded. TLS verifies
 a generated CA and hostname. Certificates and benchmark-only credentials are
 confined to the disposable Docker network; no database ports are published.
 
@@ -61,6 +63,11 @@ wrapper rewrites that URI to the selected host with `directConnection=true` and
 removes `replicaSet` before constructing its underlying MongoClient. The live test
 checks the effective URI, resolved options, `Single` topology and socket targets
 for both reads and writes. Connection records remove URI credentials.
+
+A [historical live connection check](baseline/connection-check.json) records the
+effective URIs, resolved options, topology types and socket destinations from the
+earlier fixed-order run. The wrapper used `Single` topology and contacted only
+`mongo-a`; the normal client used `ReplicaSetWithPrimary` and contacted all three members.
 
 The JSON contains effective connection URIs and topologies, individual samples,
 timestamps, selected addresses, TLS status,
@@ -87,7 +94,10 @@ timing and direct mode does not expand its one-host topology from hello replies.
 The native driver learns the primary’s role from its own hello reply, not from
 seed position. The Primary confirmed marker is at the end of that reply; only
 then can application connection setup begin. It need not wait for secondary
-replies.
+replies. A pool exists for each known server, but with `minPoolSize=0` this run
+opens no application connections to the unused secondaries.
+
+See the [MongoDB discovery specification](https://specifications.readthedocs.io/en/latest/server-discovery-and-monitoring/server-discovery-and-monitoring/).
 
 The horizontal graph has read and write columns on the same elapsed-time scale.
 Each client has one bar, with outlined monitoring and application intervals.
@@ -138,6 +148,38 @@ and the remaining intervals. Before monitoring includes configuration, CA-file
 reading, topology setup and, for the wrapper, routing setup. The existing traces
 do not separate those costs. Gaps within each connection include the transitions
 between TLS, hello and authentication.
+
+### Local results breakdown
+
+[Latest results](../BENCHMARK.md) · [Raw samples](baseline/samples.json) · [Connection timings](baseline/connection-timings.json)
+
+The following charts use the timing boundaries above. Connection start and ready
+times are means relative to client construction. Remaining gaps are measured
+intervals, not CPU profiles.
+
+![Connection start and ready times](baseline/connection-times.png)
+
+![Breakdown of former Other time](baseline/other-times.png)
+
+The seed-order chart applies only to the native client; the serverless client
+uses one host from the supplied topology.
+
+![Native client by seed order](baseline/seed-orders.png)
+
+Means keep the connection phases and timeline segments additive; medians do not.
+
+![Mean connection phases](baseline/connection-phases.png)
+
+![Mean timeline segments](baseline/timeline-segments.png)
+
+Measured RTTs include Docker VM scheduling overhead in addition to the configured delay.
+
+![Configured and measured network latency](baseline/network.png)
+
+![Run and environment](baseline/environment.png)
+
+Image identities and complete version metadata are included in the raw samples.
+Database credentials and generated certificate keys are excluded.
 
 ## Limitations
 

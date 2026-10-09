@@ -73,9 +73,9 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
    * resolves.
    */
   const portsFor = (commands: CommandStartedEvent[], name: string): number[] =>
-    commands
-      .filter(event => event.commandName === name)
-      .map(event => Number(event.address.split(':').at(-1)));
+    commands.flatMap(event =>
+      event.commandName === name ? [Number(event.address.split(':').at(-1))] : []
+    );
 
   const portOf = (hostPort: string): number => Number(hostPort.split(':').at(-1));
 

@@ -139,9 +139,9 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
       await collection.findOne({});
 
       const portsFor = (name: string): number[] =>
-        commands
-          .filter(event => event.commandName === name)
-          .map(event => Number(event.address.split(':').at(-1)));
+        commands.flatMap(event =>
+          event.commandName === name ? [Number(event.address.split(':').at(-1))] : []
+        );
 
       expect(portsFor('insert')).toEqual([portOf(cluster.primary)]);
       expect(cluster.secondaries.map(portOf)).toContain(portsFor('find')[0]);

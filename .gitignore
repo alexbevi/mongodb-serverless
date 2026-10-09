@@ -7,3 +7,4 @@ dist/
 .npmrc
 
 benchmark/results/
+__pycache__/

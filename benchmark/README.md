@@ -83,3 +83,13 @@ store, jitter, loss or bandwidth cap. This is a repeatable connection-latency
 experiment rather than an AWS performance prediction. Default driver discovery
 is allowed to complete as soon as it finds a suitable server; it is not forced to
 wait for every replica member.
+
+To render a run as Markdown, PNG and SVG, install the optional plotting dependency
+in a virtual environment and pass the JSON to the report script:
+
+```sh
+python3 -m venv /tmp/mongodb-benchmark-plot
+/tmp/mongodb-benchmark-plot/bin/pip install -r benchmark/requirements-report.txt
+/tmp/mongodb-benchmark-plot/bin/python benchmark/report.py benchmark/results/latest.json --output benchmark/results/BASELINE.md
+/tmp/mongodb-benchmark-plot/bin/python benchmark/test/report_test.py
+```

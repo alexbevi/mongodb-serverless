@@ -56,7 +56,7 @@ describe('workspace', () => {
   it('resolves the peer mongodb driver the wrapper is built against', async () => {
     const { MongoClient } = await import('mongodb');
 
-    expect(typeof MongoClient).toBe('function');
+    expect(MongoClient).toBeTypeOf('function');
   });
 
   it('documents the repo, every package, and the plugin strategy', () => {

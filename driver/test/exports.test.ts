@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import * as wrapper from '../src/index.js';
+import { parseManifest } from './harness/package-manifest.js';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 
-const mongodb = require('mongodb') as Record<string, unknown>;
+const mongodb: typeof import('mongodb') = require('mongodb');
 
-const { version } = require('mongodb/package.json') as { version: string };
+const { version } = parseManifest(readFileSync(require.resolve('mongodb/package.json'), 'utf8'));
 
 /** The version the generated re-exports were built against. */
 const PINNED = '7.7.0';

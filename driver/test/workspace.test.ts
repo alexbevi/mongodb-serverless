@@ -1,3 +1,4 @@
+import { DEPENDENCY_FIELDS, parseManifest } from './harness/package-manifest.js';
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -85,20 +86,19 @@ describe('workspace', () => {
   });
 
   describe('plugin-local', () => {
-    const pkg = (): Record<string, unknown> =>
-      JSON.parse(read('plugins/local/package.json')) as Record<string, unknown>;
+    const pkg = () => parseManifest(read('plugins/local/package.json'));
 
     it('depends on no workspace package', () => {
       // A `workspace:*` dependency makes the published tarball uninstallable
       // with npm, which fails with EUNSUPPORTEDPROTOCOL.
-      for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
-        const deps = (pkg()[field] as Record<string, string>) ?? {};
+      for (const field of DEPENDENCY_FIELDS.filter(field => field !== 'devDependencies')) {
+        const deps = pkg()[field] ?? {};
         expect(Object.values(deps).filter(v => v.startsWith('workspace:')), field).toEqual([]);
       }
     });
 
     it('declares no plugin package as a dependency', () => {
-      const deps = (pkg()['dependencies'] as Record<string, string>) ?? {};
+      const deps = pkg().dependencies ?? {};
 
       expect(Object.keys(deps).filter(n => n.includes('plugin-'))).toEqual([]);
     });

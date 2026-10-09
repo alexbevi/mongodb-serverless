@@ -39,7 +39,14 @@ sampling; the serverless client reads topology through LocalPlugin. TLS verifies
 a generated CA and hostname. Certificates and benchmark-only credentials are
 confined to the disposable Docker network; no database ports are published.
 
-The JSON contains individual samples, timestamps, selected addresses, TLS status,
+The normal MongoClient uses the full three-host replica-set URI. The serverless
+wrapper rewrites that URI to the selected host with `directConnection=true` and
+removes `replicaSet` before constructing its underlying MongoClient. The live test
+checks the effective URI, resolved options, `Single` topology and socket targets
+for both reads and writes. Connection records remove URI credentials.
+
+The JSON contains effective connection URIs and topologies, individual samples,
+timestamps, selected addresses, TLS status,
 connection traces, configured and measured RTTs, versions and image identities.
 
 ## Timing boundaries

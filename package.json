@@ -28,6 +28,7 @@
     "@oxlint/plugins": "1.87.0",
     "@types/node": "^22.10.2",
     "mongodb": "7.7.0",
+    "mongodb-connection-string-url": "^7.0.2",
     "oxlint": "1.87.0",
     "tsx": "4.23.15",
     "typescript": "^5.7.2",

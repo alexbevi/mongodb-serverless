@@ -58,7 +58,14 @@ rules, but verify a real install with `npm pack` before releasing.
 
 ## Writing
 
-Apply the `unslop` skill to all prose: READMEs, commit messages, comments, docs.
+Read `~/.codex/skills/unslop/SKILL.md` at the start of each conversation.
+Apply it to all prose you write or edit in this project, including replies,
+progress updates, plans, READMEs, documentation, code comments, commit messages,
+and pull request descriptions. Do not wait for an explicit invocation.
+
+Before sending or saving prose, check it against the skill and revise any
+remaining patterns. Preserve meaning, technical accuracy, literal quotations,
+and required syntax.
 
 READMEs state purpose, install, usage, and limitations. Nothing else. Do not
 restate what the code already says, and do not explain a decision in a comment

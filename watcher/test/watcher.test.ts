@@ -17,6 +17,7 @@ const hello = { setName: 'rs0', hosts: ['a:27017', 'b:27017'], me: 'a:27017', ok
 /** Records what was written, so a test can assert the stored document. */
 const recordingPlugin = (writable = true) => {
   const writes: ReplSetGetStatus[] = [];
+
   const plugin: TopologyPlugin = {
     name: 'recording',
     version: '1.0.0',
@@ -29,6 +30,7 @@ const recordingPlugin = (writable = true) => {
       writes.push(doc);
     })
   };
+
   return { plugin, writes };
 };
 
@@ -44,18 +46,21 @@ const fakeClient = () => {
     })),
     close: vi.fn(async () => {})
   };
+
   return client;
 };
 
 const watcherFor = (options: Record<string, unknown> = {}) => {
   const { plugin, writes } = recordingPlugin();
   const client = fakeClient();
+
   const watcher = new Watcher({
     uri: 'mongodb://a:27017/?replicaSet=rs0',
     plugin,
     createClient: vi.fn(() => client as never),
     ...options
   });
+
   return { watcher, plugin, writes, client };
 };
 
@@ -78,6 +83,7 @@ describe('Watcher.check', () => {
 
   it('verifies the cluster before reading its topology', async () => {
     const seen: string[] = [];
+
     const client = {
       connect: vi.fn(async function (this: unknown) {
         return this;
@@ -85,17 +91,21 @@ describe('Watcher.check', () => {
       db: vi.fn(() => ({
         command: vi.fn(async (doc: Record<string, unknown>) => {
           seen.push('hello' in doc ? 'hello' : 'status');
+
           return 'hello' in doc ? hello : status;
         })
       })),
       close: vi.fn(async () => {})
     };
+
     const { plugin } = recordingPlugin();
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
       createClient: vi.fn(() => client as never)
     });
+
     await watcher.check();
     await watcher.close();
 
@@ -106,6 +116,7 @@ describe('Watcher.check', () => {
     const client = fakeClient();
     client.db = vi.fn(() => ({ command: vi.fn(async () => ({ ok: 1 })) })) as never;
     const { plugin, writes } = recordingPlugin();
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
@@ -119,6 +130,7 @@ describe('Watcher.check', () => {
 
   it('surfaces PluginReadOnlyError from a read-only plugin', async () => {
     const { plugin } = recordingPlugin(false);
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,

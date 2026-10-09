@@ -21,6 +21,7 @@ const connectionFor = (command: (doc: Record<string, unknown>) => Promise<unknow
     db: vi.fn(() => ({ command: vi.fn(command) })),
     close: vi.fn(async () => {})
   };
+
   return new ClusterConnection({
     uri: 'mongodb://host:27017/',
     createClient: vi.fn(() => client as never)
@@ -30,16 +31,20 @@ const connectionFor = (command: (doc: Record<string, unknown>) => Promise<unknow
 const serverError = (code: number, message: string): Error => {
   const error = new Error(message);
   Object.assign(error, { code, name: 'MongoServerError' });
+
   return error;
 };
 
 describe('ClusterConnection.status', () => {
   it('sends the replSetGetStatus command', async () => {
     const seen: Record<string, unknown>[] = [];
+
     const connection = connectionFor(async doc => {
       seen.push(doc);
+
       return healthy;
     });
+
     await connection.status();
 
     expect(seen).toEqual([{ replSetGetStatus: 1 }]);
@@ -71,6 +76,7 @@ describe('ClusterConnection.status', () => {
       ],
       ok: 1
     };
+
     const connection = connectionFor(async () => electing);
 
     await expect(connection.status()).resolves.toEqual(electing);
@@ -82,6 +88,7 @@ describe('ClusterConnection.status', () => {
       members: [{ name: 'a:27017', stateStr: '(not reachable/healthy)', health: 0 }],
       ok: 1
     };
+
     const connection = connectionFor(async () => degraded);
 
     await expect(connection.status()).resolves.toEqual(degraded);
@@ -115,6 +122,7 @@ describe('ClusterConnection.status', () => {
       })),
       close: vi.fn(async () => {})
     };
+
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
       createClient: vi.fn(() => client as never)

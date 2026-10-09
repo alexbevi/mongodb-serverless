@@ -165,6 +165,7 @@ describe('Watcher polling', () => {
     const plugin = new IntervalPlugin({ writable: true });
     plugin.set('refreshIntervalMS', 1000);
     let calls = 0;
+
     const client = {
       connect: vi.fn(async function (this: unknown) {
         return this;
@@ -173,14 +174,18 @@ describe('Watcher polling', () => {
         command: vi.fn(async (doc: Record<string, unknown>) => {
           if ('hello' in doc) {
             calls += 1;
+
             if (calls === 1) throw new Error('transient blip');
+
             return hello;
           }
+
           return status;
         })
       })),
       close: vi.fn(async () => {})
     };
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
@@ -202,6 +207,7 @@ describe('Watcher polling', () => {
     const errors: unknown[] = [];
     const plugin = new IntervalPlugin({ writable: true });
     plugin.set('refreshIntervalMS', 1000);
+
     const client = {
       connect: vi.fn(async function (this: unknown) {
         return this;
@@ -213,6 +219,7 @@ describe('Watcher polling', () => {
       })),
       close: vi.fn(async () => {})
     };
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,

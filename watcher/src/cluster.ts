@@ -98,6 +98,7 @@ export class ClusterConnection {
   async #command(document: Record<string, unknown>): Promise<unknown> {
     try {
       const client = await this.#connect();
+
       return await client.db('admin').command(document);
     } catch (error) {
       throw this.#classify(error);
@@ -109,6 +110,7 @@ export class ClusterConnection {
       const create = this.#options.createClient ?? defaultFactory;
       const client = create(this.#options.uri, this.#options.driverOptions);
       await client.connect();
+
       return client;
     })().catch(error => {
       // Not cached, so a transient failure does not disable this connection.
@@ -154,6 +156,7 @@ export class ClusterConnection {
     try {
       const url = new ConnectionString(this.#options.uri);
       url.password = '';
+
       return url.hosts.join(',');
     } catch {
       return 'the cluster';

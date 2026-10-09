@@ -1,10 +1,12 @@
 export { Watcher, type WatcherOptions, type CheckResult } from './watcher.js';
+
 export {
   ClusterConnection,
   type ClusterConnectionOptions,
   type ClusterIdentity,
   type ClientFactory
 } from './cluster.js';
+
 export {
   WatcherError,
   ClusterUnreachableError,
@@ -13,6 +15,7 @@ export {
   PluginReadOnlyError,
   MissingPluginError
 } from './errors.js';
+
 export {
   setDefaultPlugin,
   clearDefaultPlugin,

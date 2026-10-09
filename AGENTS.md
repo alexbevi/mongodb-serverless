@@ -9,6 +9,15 @@ thing you thought.
 When a slice introduces several failing tests, make them pass one at a time,
 one commit each. Do not batch them.
 
+## Lint
+
+Run `pnpm lint` to check project source with the vendored anti-slop Oxlint
+rules. Configuration lives in `.oxlintrc.json`; source provenance and upgrade
+notes live in `tools/oxlint/anti-slop/UPSTREAM.md`.
+
+Report existing findings separately from new ones. Do not disable rules or
+rewrite unrelated code to make an installation pass.
+
 ## Commits
 
 Conventional commit format, imperative mood, no trailing period.

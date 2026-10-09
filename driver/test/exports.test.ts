@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import * as wrapper from '../src/index.js';
+import { parseManifest } from './harness/package-manifest.js';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const mongodb = require('mongodb') as Record<string, unknown>;
-const { version } = require('mongodb/package.json') as { version: string };
+
+const mongodb: typeof import('mongodb') = require('mongodb');
+
+const { version } = parseManifest(readFileSync(require.resolve('mongodb/package.json'), 'utf8'));
 
 /** The version the generated re-exports were built against. */
 const PINNED = '7.7.0';
@@ -20,6 +24,7 @@ describe('export surface', () => {
     // Nine names are exported at runtime but marked "Excluded from this
     // release type" in mongodb.d.ts, so re-exporting them would not typecheck.
     const internal = new Set(wrapper.INTERNAL_MONGODB_EXPORTS);
+
     const missing = Object.keys(mongodb).filter(
       name => !internal.has(name) && !(name in wrapper)
     );

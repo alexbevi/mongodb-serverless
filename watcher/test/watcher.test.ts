@@ -1,5 +1,7 @@
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Watcher } from '../src/watcher.js';
+import { Watcher, type WatcherOptions } from '../src/watcher.js';
 import { MissingPluginError, NotAReplicaSetError, PluginReadOnlyError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../../plugins/shared/src/index.js';
 
@@ -17,45 +19,50 @@ const hello = { setName: 'rs0', hosts: ['a:27017', 'b:27017'], me: 'a:27017', ok
 /** Records what was written, so a test can assert the stored document. */
 const recordingPlugin = (writable = true) => {
   const writes: ReplSetGetStatus[] = [];
+
   const plugin: TopologyPlugin = {
     name: 'recording',
     version: '1.0.0',
     author: 'test',
     setup: vi.fn(async () => {}),
     verify: vi.fn(async () => {}),
-    read: vi.fn(async () => status as ReplSetGetStatus),
+    read: vi.fn(async () => status),
     write: vi.fn(async (doc: ReplSetGetStatus) => {
       if (!writable) throw new PluginReadOnlyError('Plugin "recording" is read-only.');
       writes.push(doc);
     })
   };
+
   return { plugin, writes };
 };
 
-const fakeClient = () => {
+const fakeClient = (command: (doc: Document) => Promise<Document> = async doc =>
+  'hello' in doc ? hello : status
+) => {
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({
-      command: vi.fn(async (doc: Record<string, unknown>) =>
-        'hello' in doc ? hello : status
-      )
+      command: vi.fn(command)
     })),
     close: vi.fn(async () => {})
   };
+
   return client;
 };
 
-const watcherFor = (options: Record<string, unknown> = {}) => {
+const watcherFor = (options: Partial<WatcherOptions> = {}) => {
   const { plugin, writes } = recordingPlugin();
   const client = fakeClient();
+
   const watcher = new Watcher({
     uri: 'mongodb://a:27017/?replicaSet=rs0',
     plugin,
-    createClient: vi.fn(() => client as never),
+    createClient: vi.fn(() => client),
     ...options
   });
+
   return { watcher, plugin, writes, client };
 };
 
@@ -78,24 +85,29 @@ describe('Watcher.check', () => {
 
   it('verifies the cluster before reading its topology', async () => {
     const seen: string[] = [];
+
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
-        command: vi.fn(async (doc: Record<string, unknown>) => {
+        command: vi.fn(async (doc: Document) => {
           seen.push('hello' in doc ? 'hello' : 'status');
+
           return 'hello' in doc ? hello : status;
         })
       })),
       close: vi.fn(async () => {})
     };
+
     const { plugin } = recordingPlugin();
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
+
     await watcher.check();
     await watcher.close();
 
@@ -103,13 +115,13 @@ describe('Watcher.check', () => {
   });
 
   it('does not write when the cluster is not a replica set', async () => {
-    const client = fakeClient();
-    client.db = vi.fn(() => ({ command: vi.fn(async () => ({ ok: 1 })) })) as never;
+    const client = fakeClient(async () => ({ ok: 1 }));
     const { plugin, writes } = recordingPlugin();
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
 
     await expect(watcher.check()).rejects.toThrow(NotAReplicaSetError);
@@ -119,10 +131,11 @@ describe('Watcher.check', () => {
 
   it('surfaces PluginReadOnlyError from a read-only plugin', async () => {
     const { plugin } = recordingPlugin(false);
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => fakeClient() as never)
+      createClient: vi.fn(() => fakeClient())
     });
 
     await expect(watcher.check()).rejects.toThrow(PluginReadOnlyError);
@@ -132,7 +145,7 @@ describe('Watcher.check', () => {
   it('surfaces MissingPluginError when no plugin is configured', async () => {
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
-      createClient: vi.fn(() => fakeClient() as never)
+      createClient: vi.fn(() => fakeClient())
     });
 
     await expect(watcher.check()).rejects.toThrow(MissingPluginError);

@@ -3,10 +3,10 @@ import {
   DEFAULT_PLUGIN_CONFIG,
   resolvePlugin,
   type PluginSource,
-  type ReplSetGetStatus,
   type TopologyPlugin
 } from '../../plugins/shared/src/index.js';
-import { ClusterConnection, type ClientFactory } from './cluster.js';
+import { refreshIntervalMS } from './interval.js';
+import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from './cluster.js';
 
 export interface WatcherOptions {
   /** Connection string for the cluster to watch. */
@@ -17,10 +17,11 @@ export interface WatcherOptions {
   createClient?: ClientFactory;
   driverOptions?: MongoClientOptions;
   /**
-   * Called when a polled cycle fails. Without it a failure is swallowed, since
-   * throwing from a timer would be an unhandled rejection.
+   * Receives the original thrown value when a polled cycle fails, including
+   * non-Error values. Without it failures are swallowed to avoid an unhandled
+   * rejection from the timer.
    */
-  onError?: (error: unknown) => void;
+  onError?: (cause: unknown) => void;
 }
 
 /** What one cycle recorded. */
@@ -46,11 +47,14 @@ export class Watcher {
 
   constructor(options: WatcherOptions) {
     this.#options = options;
-    this.#connection = new ClusterConnection({
-      uri: options.uri,
-      ...(options.createClient ? { createClient: options.createClient } : {}),
-      ...(options.driverOptions ? { driverOptions: options.driverOptions } : {})
-    });
+
+    const connectionOptions: ClusterConnectionOptions = { uri: options.uri };
+
+    if (options.createClient) connectionOptions.createClient = options.createClient;
+
+    if (options.driverOptions) connectionOptions.driverOptions = options.driverOptions;
+
+    this.#connection = new ClusterConnection(connectionOptions);
   }
 
   /**
@@ -68,7 +72,7 @@ export class Watcher {
     // hello first, so a bad connection string or a non-replica-set fails
     // before anything is written.
     const identity = await this.#connection.hello();
-    const status = (await this.#connection.status()) as unknown as ReplSetGetStatus;
+    const status = await this.#connection.status();
 
     await plugin.write(status);
 
@@ -122,8 +126,8 @@ export class Watcher {
   async #cycle(): Promise<void> {
     try {
       await this.check();
-    } catch (error) {
-      this.#options.onError?.(error);
+    } catch (cause) {
+      this.#options.onError?.(cause);
     }
   }
 
@@ -136,12 +140,8 @@ export class Watcher {
   async #intervalMS(): Promise<number> {
     try {
       const plugin = await this.#resolvePlugin();
-      const get = (plugin as { get?: (key: string) => unknown }).get;
-      const value = typeof get === 'function' ? get.call(plugin, 'refreshIntervalMS') : undefined;
 
-      return typeof value === 'number' && value > 0
-        ? value
-        : DEFAULT_PLUGIN_CONFIG.refreshIntervalMS;
+      return refreshIntervalMS(plugin);
     } catch {
       // A plugin that cannot be resolved still fails loudly in the cycle.
       return DEFAULT_PLUGIN_CONFIG.refreshIntervalMS;

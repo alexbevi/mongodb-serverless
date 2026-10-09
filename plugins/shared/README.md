@@ -36,7 +36,10 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
 `setup()` prepares the store. `verify()` throws if it is unusable, with a
 message saying what is wrong. `read()` returns the stored `replSetGetStatus`
-document and `write()` replaces it.
+document and `write()` replaces it. Status extension fields accept BSON values
+and their JSON representations. The local plugin and watcher validate
+member names and routing field types before returning a status. Validation preserves extra fields,
+including dates and BSON scalars, and does not require a healthy primary.
 
 `get()` and `set()` throw `RangeError` on an unknown key, listing the keys that
 do exist. Config is per instance, so two plugins never share state.
@@ -71,3 +74,7 @@ class MyPlugin extends ServerlessPlugin<MyConfig> {
 
 The driver checks a plugin by shape, so any object with the right members
 works. This class only supplies the config plumbing and the defaults.
+
+Structural validation checks that the required methods are functions and the
+metadata fields are strings. It cannot establish what those methods return
+without calling them.

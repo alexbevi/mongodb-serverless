@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MongoClient as RealMongoClient, type CommandStartedEvent } from 'mongodb';
-import { ServerlessMongoClient } from '../src/client.js';
+import { ServerlessMongoClient, type ServerlessClientOptions } from '../src/client.js';
 import { NoPrimaryError, SessionRoutingError } from '../src/errors.js';
 import {
   describeCluster,
@@ -42,10 +42,10 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   const connect = (
     status = cluster.status,
     uri = cluster.uri,
-    options: Record<string, unknown> = {}
-  ): { client: ServerlessMongoClient; commands: CommandStartedEvent[]; plugin: TestPlugin } => {
+    options: ServerlessClientOptions = {}
+  ) => {
     const commands: CommandStartedEvent[] = [];
-    const plugin = new TestPlugin(status as never);
+    const plugin = new TestPlugin(status);
 
     const client = new ServerlessMongoClient(uri, {
       plugin,
@@ -54,11 +54,13 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       createClient: (target, options) => {
         const real = new RealMongoClient(target, options);
         real.on('commandStarted', event => commands.push(event));
+
         return real;
       }
     });
 
     clients.push(client);
+
     return { client, commands, plugin };
   };
 
@@ -71,9 +73,9 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
    * resolves.
    */
   const portsFor = (commands: CommandStartedEvent[], name: string): number[] =>
-    commands
-      .filter(event => event.commandName === name)
-      .map(event => Number(event.address.split(':').at(-1)));
+    commands.flatMap(event =>
+      event.commandName === name ? [Number(event.address.split(':').at(-1))] : []
+    );
 
   const portOf = (hostPort: string): number => Number(hostPort.split(':').at(-1));
 
@@ -213,6 +215,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       await seed(client, name, 4);
 
       const seen: unknown[] = [];
+
       for await (const doc of client.db('itest').collection(name).find({}).sort({ n: 1 })) {
         seen.push(doc['n']);
       }
@@ -244,6 +247,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
         const bulk = ordered
           ? collection.initializeOrderedBulkOp()
           : collection.initializeUnorderedBulkOp();
+
         bulk
           .find({ ordered, values: [1, 2] })
           .upsert()
@@ -302,11 +306,17 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   describe('session handling', () => {
     it('rejects a session on a read', async () => {
       const { client } = connect();
-      const session = {} as never;
+      const sessionOwner = new RealMongoClient(cluster.uri);
+      const session = sessionOwner.startSession();
 
-      await expect(
-        client.db('itest').collection('writes').findOne({}, { session })
-      ).rejects.toThrow(SessionRoutingError);
+      try {
+        await expect(
+          client.db('itest').collection('writes').findOne({}, { session })
+        ).rejects.toThrow(SessionRoutingError);
+      } finally {
+        await session.endSession();
+        await sessionOwner.close();
+      }
     });
   });
 
@@ -314,12 +324,13 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     it('fails with NoPrimaryError when no member claims primary', async () => {
       const stale = {
         ...cluster.status,
-        members: (cluster.status['members'] as Array<Record<string, unknown>>).map(member => ({
+        members: cluster.status.members.map(member => ({
           ...member,
           stateStr: 'SECONDARY'
         }))
       };
-      const { client } = connect(stale as never);
+
+      const { client } = connect(stale);
 
       await expect(
         client.db('itest').collection('writes').insertOne({ at: Date.now() })
@@ -333,7 +344,8 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
         ...cluster.status,
         members: [{ name: 'localhost:29999', stateStr: 'PRIMARY', health: 1 }]
       };
-      const { client } = connect(stale as never, cluster.uri, {
+
+      const { client } = connect(stale, cluster.uri, {
         serverSelectionTimeoutMS: 2000
       });
 
@@ -345,11 +357,12 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     it('falls back to the primary when every secondary is unhealthy', async () => {
       const degraded = {
         ...cluster.status,
-        members: (cluster.status['members'] as Array<Record<string, unknown>>).map(member =>
+        members: cluster.status.members.map(member =>
           member['stateStr'] === 'SECONDARY' ? { ...member, health: 0 } : member
         )
       };
-      const { client, commands } = connect(degraded as never);
+
+      const { client, commands } = connect(degraded);
       await client.db('itest').collection('writes').findOne({});
 
       expect(portsFor(commands, 'find')).toEqual([portOf(cluster.primary)]);

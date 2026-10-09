@@ -1,3 +1,4 @@
+import type { Document, MongoClient, Sort } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import { UnsupportedOperationError } from '../src/errors.js';
@@ -21,6 +22,10 @@ const plugin: TopologyPlugin = {
   write: async () => {}
 };
 
+interface CursorDocument {
+  a: number;
+}
+
 /**
  * A fake cursor that records the chain applied to it, so a test can assert
  * which calls were replayed and in what order.
@@ -29,56 +34,63 @@ class FakeCursor {
   readonly chain: string[] = [];
   constructor(
     readonly host: string,
-    readonly docs: unknown[]
+    readonly docs: CursorDocument[]
   ) {}
 
-  sort(spec: unknown): this {
+  sort(spec: Sort): this {
     this.chain.push(`sort:${JSON.stringify(spec)}`);
+
     return this;
   }
   limit(n: number): this {
     this.chain.push(`limit:${n}`);
+
     return this;
   }
   skip(n: number): this {
     this.chain.push(`skip:${n}`);
+
     return this;
   }
-  project(spec: unknown): this {
+  project(spec: Document): this {
     this.chain.push(`project:${JSON.stringify(spec)}`);
+
     return this;
   }
-  async toArray(): Promise<unknown[]> {
+  async toArray(): Promise<CursorDocument[]> {
     return this.docs;
   }
-  async next(): Promise<unknown> {
+  async next(): Promise<CursorDocument | undefined> {
     return this.docs[0];
   }
   async hasNext(): Promise<boolean> {
     return this.docs.length > 0;
   }
-  async forEach(fn: (doc: unknown) => void): Promise<void> {
+  async forEach(fn: (doc: CursorDocument) => void): Promise<void> {
     this.docs.forEach(fn);
   }
   async close(): Promise<void> {
     this.chain.push('close');
   }
-  async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+  async *[Symbol.asyncIterator](): AsyncGenerator<CursorDocument> {
     yield* this.docs;
   }
 }
 
-const setup = (docs: unknown[] = [{ a: 1 }, { a: 2 }]) => {
+const setup = (docs: CursorDocument[] = [{ a: 1 }, { a: 2 }]) => {
   const cursors: FakeCursor[] = [];
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+
     const makeCursor = () => {
       const cursor = new FakeCursor(host, docs);
       cursors.push(cursor);
+
       return cursor;
     };
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: () => ({
         collection: () => ({
@@ -90,7 +102,7 @@ const setup = (docs: unknown[] = [{ a: 1 }, { a: 2 }]) => {
         listCollections: vi.fn(makeCursor),
         aggregate: vi.fn(makeCursor)
       }),
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       close: vi.fn(async () => {})
@@ -260,11 +272,12 @@ describe('cursor routing', () => {
 
   it('rejects an unknown cursor member', () => {
     const { client } = setup();
-    const cursor = client.db('app').collection('users').find({}) as unknown as Record<
-      string,
-      unknown
-    >;
 
-    expect(() => cursor['nonsense']).toThrow(/nonsense/);
+    const cursor = client.db('app').collection('users').find({});
+
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return cursor.nonsense;
+    }).toThrow(/nonsense/);
   });
 });

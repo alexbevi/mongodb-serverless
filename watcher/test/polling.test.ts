@@ -1,3 +1,5 @@
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Watcher } from '../src/watcher.js';
 import { ServerlessPlugin } from '../../plugins/shared/src/index.js';
@@ -21,7 +23,7 @@ class IntervalPlugin extends ServerlessPlugin {
   async setup(): Promise<void> {}
   async verify(): Promise<void> {}
   async read(): Promise<ReplSetGetStatus> {
-    return status as ReplSetGetStatus;
+    return status;
   }
   async write(doc: ReplSetGetStatus): Promise<void> {
     this.assertWritable();
@@ -35,11 +37,11 @@ const setup = (intervalMS?: number) => {
   if (intervalMS != null) plugin.set('refreshIntervalMS', intervalMS);
 
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({
-      command: vi.fn(async (doc: Record<string, unknown>) => ('hello' in doc ? hello : status))
+      command: vi.fn(async (doc: Document) => ('hello' in doc ? hello : status))
     })),
     close: vi.fn(async () => {})
   };
@@ -47,7 +49,7 @@ const setup = (intervalMS?: number) => {
   const watcher = new Watcher({
     uri: 'mongodb://a:27017/',
     plugin,
-    createClient: vi.fn(() => client as never)
+    createClient: vi.fn(() => client)
   });
 
   return { watcher, plugin, client };
@@ -165,26 +167,31 @@ describe('Watcher polling', () => {
     const plugin = new IntervalPlugin({ writable: true });
     plugin.set('refreshIntervalMS', 1000);
     let calls = 0;
+
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
-        command: vi.fn(async (doc: Record<string, unknown>) => {
+        command: vi.fn(async (doc: Document) => {
           if ('hello' in doc) {
             calls += 1;
+
             if (calls === 1) throw new Error('transient blip');
+
             return hello;
           }
+
           return status;
         })
       })),
       close: vi.fn(async () => {})
     };
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
 
     watcher.start();
@@ -202,8 +209,9 @@ describe('Watcher polling', () => {
     const errors: unknown[] = [];
     const plugin = new IntervalPlugin({ writable: true });
     plugin.set('refreshIntervalMS', 1000);
+
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
@@ -213,10 +221,11 @@ describe('Watcher polling', () => {
       })),
       close: vi.fn(async () => {})
     };
+
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never),
+      createClient: vi.fn(() => client),
       onError: error => void errors.push(error)
     });
 
@@ -224,7 +233,7 @@ describe('Watcher polling', () => {
     await flush();
 
     expect(errors).toHaveLength(1);
-    expect((errors[0] as Error).message).toBe('cluster gone');
+    expect(errors[0]).toMatchObject({ message: 'cluster gone' });
     await watcher.stop();
   });
 

@@ -1,3 +1,4 @@
+import type { Document, FindOperators, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -28,20 +29,24 @@ class FakeBulkOp {
     readonly ordered: boolean
   ) {}
 
-  insert(doc: unknown): this {
+  insert(doc: Document): this {
     this.ops.push(`insert:${JSON.stringify(doc)}`);
+
     return this;
   }
 
-  find(filter: unknown): { updateOne: (u: unknown) => FakeBulkOp; delete: () => FakeBulkOp } {
+  find(filter: Document) {
     this.ops.push(`find:${JSON.stringify(filter)}`);
+
     return {
-      updateOne: (update: unknown) => {
+      updateOne: (update: Parameters<FindOperators['updateOne']>[0]) => {
         this.ops.push(`updateOne:${JSON.stringify(update)}`);
+
         return this;
       },
       delete: () => {
         this.ops.push('delete');
+
         return this;
       }
     };
@@ -57,12 +62,15 @@ const setup = () => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+
     const build = (ordered: boolean) => () => {
       const builder = new FakeBulkOp(host, ordered);
       builders.push(builder);
+
       return builder;
     };
 
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       db: () => ({
         collection: () => ({
@@ -70,7 +78,7 @@ const setup = () => {
           initializeUnorderedBulkOp: vi.fn(build(false))
         })
       }),
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         return this;
       }),
       close: vi.fn(async () => {})
@@ -142,6 +150,7 @@ describe('bulk write builders', () => {
 
   it('returns the result of execute', async () => {
     const { client } = setup();
+
     const result = await client
       .db('app')
       .collection('users')
@@ -197,11 +206,12 @@ describe('bulk write builders', () => {
 
   it('rejects an unknown builder member', () => {
     const { client } = setup();
-    const bulk = client.db('app').collection('users').initializeOrderedBulkOp() as unknown as Record<
-      string,
-      unknown
-    >;
 
-    expect(() => bulk['nonsense']).toThrow(/nonsense/);
+    const bulk = client.db('app').collection('users').initializeOrderedBulkOp();
+
+    expect(() => {
+      // @ts-expect-error Probe an unsupported member from a JavaScript caller.
+      return bulk.nonsense;
+    }).toThrow(/nonsense/);
   });
 });

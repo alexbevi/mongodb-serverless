@@ -1,3 +1,4 @@
+import { DEPENDENCY_FIELDS, parseManifest } from './harness/package-manifest.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -8,24 +9,19 @@ const pkgRoot = fileURLToPath(new URL('../', import.meta.url));
 const sourceFiles = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = join(dir, entry.name);
+
     if (entry.isDirectory()) return sourceFiles(path);
+
     return entry.name.endsWith('.ts') ? [path] : [];
   });
 
 describe('plugin independence', () => {
   it('declares no plugin package as a dependency', () => {
-    const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as Record<
-      string,
-      Record<string, string> | unknown
-    >;
+    const pkg = parseManifest(readFileSync(join(pkgRoot, 'package.json'), 'utf8'));
 
-    for (const field of [
-      'dependencies',
-      'devDependencies',
-      'peerDependencies',
-      'optionalDependencies'
-    ]) {
-      const names = Object.keys((pkg[field] as Record<string, string>) ?? {});
+    for (const field of DEPENDENCY_FIELDS) {
+      const names = Object.keys(pkg[field] ?? {});
+
       expect(names.filter(n => n.startsWith('@mongodb-serverless/plugin')), field).toEqual([]);
     }
   });

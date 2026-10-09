@@ -1,3 +1,4 @@
+import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
 import { NoPrimaryError, NoTopologyError } from '../src/errors.js';
@@ -23,7 +24,8 @@ const pluginFor = (status: ReplSetGetStatus | null): TopologyPlugin => ({
   author: 'test',
   setup: vi.fn(async () => {}),
   verify: vi.fn(async () => {}),
-  read: vi.fn(async () => status as ReplSetGetStatus),
+  // @ts-expect-error The null fixture exercises an invalid response from an external plugin.
+  read: vi.fn(async () => status),
   write: vi.fn(async () => {})
 });
 
@@ -32,23 +34,29 @@ const factory = () => {
   const built: string[] = [];
   const closed: string[] = [];
   const connected: string[] = [];
+
   const create = vi.fn((uri: string) => {
     built.push(uri);
+
+    // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
       uri,
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: MongoClient) {
         connected.push(uri);
+
         return this;
       }),
       close: vi.fn(async () => void closed.push(uri))
     } as never;
   });
+
   return { built, closed, connected, create };
 };
 
 const pairFor = (status: ReplSetGetStatus | null, uri = 'mongodb://seed:27017/') => {
   const f = factory();
   const pair = new ClientPair({ uri, plugin: pluginFor(status), createClient: f.create });
+
   return { ...f, pair };
 };
 
@@ -83,6 +91,7 @@ describe('ClientPair', () => {
         { name: 'c:27017', stateStr: 'SECONDARY', health: 1 }
       ]
     };
+
     const { pair, built } = pairFor(status);
     await pair.read();
 
@@ -156,11 +165,13 @@ describe('ClientPair', () => {
   it('reads the plugin once for both clients', async () => {
     const plugin = pluginFor(threeNode);
     const f = factory();
+
     const pair = new ClientPair({
       uri: 'mongodb://seed:27017/',
       plugin,
       createClient: f.create
     });
+
     await pair.read();
     await pair.write();
 

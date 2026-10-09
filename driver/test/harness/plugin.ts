@@ -26,6 +26,7 @@ export class TestPlugin implements TopologyPlugin {
 
   async read(): Promise<ReplSetGetStatus> {
     this.reads += 1;
+
     return this.#status;
   }
 

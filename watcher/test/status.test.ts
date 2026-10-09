@@ -1,3 +1,5 @@
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { describe, expect, it, vi } from 'vitest';
 import { ClusterConnection } from '../src/cluster.js';
 import { NotAReplicaSetError } from '../src/errors.js';
@@ -13,33 +15,38 @@ const healthy = {
   ok: 1
 };
 
-const connectionFor = (command: (doc: Record<string, unknown>) => Promise<unknown>) => {
+const connectionFor = (command: (doc: Document) => Promise<Document>) => {
   const client = {
-    connect: vi.fn(async function (this: unknown) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({ command: vi.fn(command) })),
     close: vi.fn(async () => {})
   };
+
   return new ClusterConnection({
     uri: 'mongodb://host:27017/',
-    createClient: vi.fn(() => client as never)
+    createClient: vi.fn(() => client)
   });
 };
 
 const serverError = (code: number, message: string): Error => {
   const error = new Error(message);
   Object.assign(error, { code, name: 'MongoServerError' });
+
   return error;
 };
 
 describe('ClusterConnection.status', () => {
   it('sends the replSetGetStatus command', async () => {
-    const seen: Record<string, unknown>[] = [];
+    const seen: Document[] = [];
+
     const connection = connectionFor(async doc => {
       seen.push(doc);
+
       return healthy;
     });
+
     await connection.status();
 
     expect(seen).toEqual([{ replSetGetStatus: 1 }]);
@@ -55,9 +62,11 @@ describe('ClusterConnection.status', () => {
 
   it('keeps every member', async () => {
     const connection = connectionFor(async () => healthy);
-    const status = (await connection.status()) as typeof healthy;
+    const status = await connection.status();
 
-    expect(status.members.map(m => m.name)).toEqual(['a:27017', 'b:27017']);
+    expect(status).toMatchObject({
+      members: [{ name: 'a:27017' }, { name: 'b:27017' }]
+    });
   });
 
   it('returns a document with no primary rather than rejecting it', async () => {
@@ -71,6 +80,7 @@ describe('ClusterConnection.status', () => {
       ],
       ok: 1
     };
+
     const connection = connectionFor(async () => electing);
 
     await expect(connection.status()).resolves.toEqual(electing);
@@ -82,6 +92,7 @@ describe('ClusterConnection.status', () => {
       members: [{ name: 'a:27017', stateStr: '(not reachable/healthy)', health: 0 }],
       ok: 1
     };
+
     const connection = connectionFor(async () => degraded);
 
     await expect(connection.status()).resolves.toEqual(degraded);
@@ -105,19 +116,20 @@ describe('ClusterConnection.status', () => {
 
   it('reuses the connection hello opened', async () => {
     const client = {
-      connect: vi.fn(async function (this: unknown) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
-        command: vi.fn(async (doc: Record<string, unknown>) =>
+        command: vi.fn(async (doc: Document) =>
           'hello' in doc ? { setName: 'rs0', hosts: [], me: 'a:27017', ok: 1 } : healthy
         )
       })),
       close: vi.fn(async () => {})
     };
+
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
 
     await connection.hello();

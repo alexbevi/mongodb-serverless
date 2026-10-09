@@ -139,6 +139,7 @@ describe('validatePlugin', () => {
       }
       async write(): Promise<void> {}
     }
+
     class BaseCopyTwo extends BaseCopyOne {}
 
     class Plugin extends BaseCopyTwo {
@@ -162,6 +163,7 @@ describe('validatePlugin', () => {
       }
       async write(): Promise<void> {}
     }
+
     const plugin = Object.assign(new Base(), {
       name: 'inherited',
       version: '1.0.0',

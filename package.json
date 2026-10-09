@@ -20,12 +20,16 @@
     "release": "pnpm build && changeset publish",
     "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
     "benchmark:test": "npm run benchmark:build && node --test --test-concurrency=1 benchmark/dist/test/*.test.js",
-    "benchmark:build": "tsc --build benchmark"
+    "benchmark:build": "tsc --build benchmark",
+    "lint": "oxlint ."
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
+    "@oxlint/plugins": "1.87.0",
     "@types/node": "^22.10.2",
     "mongodb": "7.7.0",
+    "oxlint": "1.87.0",
+    "tsx": "4.23.15",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

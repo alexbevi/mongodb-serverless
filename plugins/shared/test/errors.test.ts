@@ -17,6 +17,7 @@ describe('error identity across duplicate copies', () => {
   it('keeps the name on a separately declared copy of the class', () => {
     // Stands in for the driver's copy and the plugin's copy.
     class PluginReadOnlyErrorCopy extends ServerlessError {}
+
     Object.defineProperty(PluginReadOnlyErrorCopy, 'name', {
       value: 'PluginReadOnlyError'
     });

@@ -93,6 +93,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
       }
 
       resolved = cursor;
+
       return cursor;
     })();
 
@@ -131,6 +132,7 @@ export function createCursorProxy(source: CursorSource, label: string): never {
         if (CHAINABLE.has(property)) {
           return (...args: unknown[]) => {
             buffered.push({ method: property, args });
+
             return proxy;
           };
         }

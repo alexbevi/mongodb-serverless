@@ -17,11 +17,14 @@ describe('workspace', () => {
   it('selects a pnpm version for both CI and trusted publishing', () => {
     const versions = ['ci', 'release'].map(workflow => {
       const config = read(`.github/workflows/${workflow}.yml`);
+
       const version = config.match(
         /uses: pnpm\/action-setup@[^\n]+\n\s+with:\n\s+version: ['"]?(\d+\.\d+\.\d+)/
       )?.[1];
+
       expect(version, `${workflow} must select pnpm explicitly`).toBeDefined();
       expect(Number(version?.split('.')[0])).toBeGreaterThanOrEqual(12);
+
       return version;
     });
 
@@ -31,6 +34,7 @@ describe('workspace', () => {
   it('selects both packages with the integration command', () => {
     const { scripts } = JSON.parse(read('package.json'));
     const args = scripts['test:integration'].split('vitest run ')[1].split(/\s+/);
+
     const files = execFileSync(
       process.execPath,
       [resolve('node_modules/vitest/vitest.mjs'), 'list', ...args, '--filesOnly'],

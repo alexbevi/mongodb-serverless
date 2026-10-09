@@ -3,7 +3,9 @@ import { createRequire } from 'node:module';
 import * as wrapper from '../src/index.js';
 
 const require = createRequire(import.meta.url);
+
 const mongodb = require('mongodb') as Record<string, unknown>;
+
 const { version } = require('mongodb/package.json') as { version: string };
 
 /** The version the generated re-exports were built against. */
@@ -20,6 +22,7 @@ describe('export surface', () => {
     // Nine names are exported at runtime but marked "Excluded from this
     // release type" in mongodb.d.ts, so re-exporting them would not typecheck.
     const internal = new Set(wrapper.INTERNAL_MONGODB_EXPORTS);
+
     const missing = Object.keys(mongodb).filter(
       name => !internal.has(name) && !(name in wrapper)
     );

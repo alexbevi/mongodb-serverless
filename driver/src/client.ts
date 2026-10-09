@@ -61,6 +61,7 @@ export class ServerlessMongoClient {
    */
   async connect(): Promise<this> {
     await this.#plugin;
+
     return this;
   }
 
@@ -116,6 +117,7 @@ export class ServerlessMongoClient {
 function defaultDatabaseOf(uri: string): string | undefined {
   try {
     const path = new ConnectionString(uri).pathname.replace(/^\//, '');
+
     return path === '' ? undefined : decodeURIComponent(path);
   } catch {
     return undefined;

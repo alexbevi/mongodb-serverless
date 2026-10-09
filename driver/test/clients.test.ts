@@ -32,23 +32,28 @@ const factory = () => {
   const built: string[] = [];
   const closed: string[] = [];
   const connected: string[] = [];
+
   const create = vi.fn((uri: string) => {
     built.push(uri);
+
     return {
       uri,
       connect: vi.fn(async function (this: unknown) {
         connected.push(uri);
+
         return this;
       }),
       close: vi.fn(async () => void closed.push(uri))
     } as never;
   });
+
   return { built, closed, connected, create };
 };
 
 const pairFor = (status: ReplSetGetStatus | null, uri = 'mongodb://seed:27017/') => {
   const f = factory();
   const pair = new ClientPair({ uri, plugin: pluginFor(status), createClient: f.create });
+
   return { ...f, pair };
 };
 
@@ -83,6 +88,7 @@ describe('ClientPair', () => {
         { name: 'c:27017', stateStr: 'SECONDARY', health: 1 }
       ]
     };
+
     const { pair, built } = pairFor(status);
     await pair.read();
 
@@ -156,11 +162,13 @@ describe('ClientPair', () => {
   it('reads the plugin once for both clients', async () => {
     const plugin = pluginFor(threeNode);
     const f = factory();
+
     const pair = new ClientPair({
       uri: 'mongodb://seed:27017/',
       plugin,
       createClient: f.create
     });
+
     await pair.read();
     await pair.write();
 

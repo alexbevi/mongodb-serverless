@@ -8,7 +8,9 @@ const pkgRoot = fileURLToPath(new URL('../', import.meta.url));
 const sourceFiles = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = join(dir, entry.name);
+
     if (entry.isDirectory()) return sourceFiles(path);
+
     return entry.name.endsWith('.ts') ? [path] : [];
   });
 

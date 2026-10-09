@@ -38,6 +38,7 @@ const fakeClients = () => {
         {
           get: (_t, method: string) => (...args: unknown[]) => {
             calls.push(`${host} ${dbName}.${name}.${method}`);
+
             return Promise.resolve({ host, method, args });
           }
         }
@@ -48,10 +49,12 @@ const fakeClients = () => {
       collection: (name: string) => collection(dbName, name),
       command: (...args: unknown[]) => {
         calls.push(`${host} ${dbName}.command`);
+
         return Promise.resolve({ host, args });
       },
       dropDatabase: () => {
         calls.push(`${host} ${dbName}.dropDatabase`);
+
         return Promise.resolve(true);
       }
     });
@@ -70,10 +73,12 @@ const fakeClients = () => {
 
 const clientFor = (status: ReplSetGetStatus = topology) => {
   const fake = fakeClients();
+
   const client = new ServerlessMongoClient('mongodb://seed:27017/', {
     plugin: plugin(status),
     createClient: fake.create
   });
+
   return { ...fake, client };
 };
 
@@ -96,6 +101,7 @@ describe('ServerlessMongoClient', () => {
     const { client } = clientFor();
     const filter = { a: 1 };
     const options = { upsert: true };
+
     const result = (await client
       .db('app')
       .collection('users')
@@ -158,10 +164,12 @@ describe('ServerlessMongoClient', () => {
 
   it('uses the default database from the uri', async () => {
     const fake = fakeClients();
+
     const client = new ServerlessMongoClient('mongodb://seed:27017/mydb', {
       plugin: plugin(),
       createClient: fake.create
     });
+
     await client.db().collection('users').insertOne({});
 
     expect(fake.calls).toEqual(['primary:27017 mydb.users.insertOne']);

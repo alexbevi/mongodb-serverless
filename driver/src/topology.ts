@@ -93,7 +93,9 @@ function hostPortOf(member: ReplSetGetStatusMember): string {
 
 function stateOf(member: ReplSetGetStatusMember): string | undefined {
   if (typeof member.stateStr === 'string') return member.stateStr;
+
   if (typeof member.state === 'number') return STATE_NAMES[member.state];
+
   return undefined;
 }
 

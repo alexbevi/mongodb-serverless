@@ -88,6 +88,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
 
         return (...args: unknown[]) => {
           recorded.push({ path: 'find', method: property, args });
+
           return FIND_MODIFIERS.has(property) ? findProxy : proxy;
         };
       }
@@ -107,6 +108,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
         if (property === 'find') {
           return (...args: unknown[]) => {
             recorded.push({ path: 'self', method: 'find', args });
+
             return findProxy;
           };
         }
@@ -114,6 +116,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
         if (CHAINABLE.has(property)) {
           return (...args: unknown[]) => {
             recorded.push({ path: 'self', method: property, args });
+
             return proxy;
           };
         }
@@ -121,6 +124,7 @@ export function createBulkProxy(source: BulkSource, label: string): never {
         if (TERMINAL.has(property)) {
           return async (...args: unknown[]) => {
             const builder = await resolve();
+
             return apply(builder, property, args, label);
           };
         }

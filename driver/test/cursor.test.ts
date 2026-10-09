@@ -34,18 +34,22 @@ class FakeCursor {
 
   sort(spec: unknown): this {
     this.chain.push(`sort:${JSON.stringify(spec)}`);
+
     return this;
   }
   limit(n: number): this {
     this.chain.push(`limit:${n}`);
+
     return this;
   }
   skip(n: number): this {
     this.chain.push(`skip:${n}`);
+
     return this;
   }
   project(spec: unknown): this {
     this.chain.push(`project:${JSON.stringify(spec)}`);
+
     return this;
   }
   async toArray(): Promise<unknown[]> {
@@ -73,9 +77,11 @@ const setup = (docs: unknown[] = [{ a: 1 }, { a: 2 }]) => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+
     const makeCursor = () => {
       const cursor = new FakeCursor(host, docs);
       cursors.push(cursor);
+
       return cursor;
     };
 
@@ -260,6 +266,7 @@ describe('cursor routing', () => {
 
   it('rejects an unknown cursor member', () => {
     const { client } = setup();
+
     const cursor = client.db('app').collection('users').find({}) as unknown as Record<
       string,
       unknown

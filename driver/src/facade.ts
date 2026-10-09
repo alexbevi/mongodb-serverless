@@ -42,6 +42,7 @@ export function createDbFacade(router: Router, dbName: string): Db {
   return new Proxy({} as Db, {
     get(_target, property) {
       if (typeof property !== 'string') return undefined;
+
       if (property in local) return local[property];
 
       if (property === 'collection') {
@@ -63,11 +64,13 @@ export function createCollectionFacade(router: Router, dbName: string, name: str
     dbName,
     namespace: `${dbName}.${name}`
   };
+
   const owner: Owner = client => client.db(dbName).collection(name);
 
   return new Proxy({} as Collection, {
     get(_target, property) {
       if (typeof property !== 'string') return undefined;
+
       if (property in local) return local[property];
 
       return routedMethod(router, COLLECTION_ROUTES, property, owner);

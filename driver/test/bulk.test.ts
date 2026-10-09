@@ -30,18 +30,22 @@ class FakeBulkOp {
 
   insert(doc: unknown): this {
     this.ops.push(`insert:${JSON.stringify(doc)}`);
+
     return this;
   }
 
   find(filter: unknown): { updateOne: (u: unknown) => FakeBulkOp; delete: () => FakeBulkOp } {
     this.ops.push(`find:${JSON.stringify(filter)}`);
+
     return {
       updateOne: (update: unknown) => {
         this.ops.push(`updateOne:${JSON.stringify(update)}`);
+
         return this;
       },
       delete: () => {
         this.ops.push('delete');
+
         return this;
       }
     };
@@ -57,9 +61,11 @@ const setup = () => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+
     const build = (ordered: boolean) => () => {
       const builder = new FakeBulkOp(host, ordered);
       builders.push(builder);
+
       return builder;
     };
 
@@ -142,6 +148,7 @@ describe('bulk write builders', () => {
 
   it('returns the result of execute', async () => {
     const { client } = setup();
+
     const result = await client
       .db('app')
       .collection('users')
@@ -197,6 +204,7 @@ describe('bulk write builders', () => {
 
   it('rejects an unknown builder member', () => {
     const { client } = setup();
+
     const bulk = client.db('app').collection('users').initializeOrderedBulkOp() as unknown as Record<
       string,
       unknown

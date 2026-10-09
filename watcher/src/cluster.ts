@@ -1,4 +1,4 @@
-import { MongoClient, type MongoClientOptions } from 'mongodb';
+import { MongoClient, type Db, type MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import {
   AuthenticationFailedError,
@@ -7,7 +7,13 @@ import {
 } from './errors.js';
 
 /** Builds a real client. Injectable so tests need no server. */
-export type ClientFactory = (uri: string, options?: MongoClientOptions) => MongoClient;
+export type ClientFactory = (uri: string, options?: MongoClientOptions) => ClusterClient;
+
+export interface ClusterClient {
+  connect(): Promise<ClusterClient>;
+  db(name: string): Pick<Db, 'command'>;
+  close(): Promise<void>;
+}
 
 export interface ClusterConnectionOptions {
   uri: string;
@@ -42,7 +48,7 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
  */
 export class ClusterConnection {
   readonly #options: ClusterConnectionOptions;
-  #client: Promise<MongoClient> | undefined;
+  #client: Promise<ClusterClient> | undefined;
 
   constructor(options: ClusterConnectionOptions) {
     this.#options = options;
@@ -105,7 +111,7 @@ export class ClusterConnection {
     }
   }
 
-  #connect(): Promise<MongoClient> {
+  #connect(): Promise<ClusterClient> {
     this.#client ??= (async () => {
       const create = this.#options.createClient ?? defaultFactory;
       const client = create(this.#options.uri, this.#options.driverOptions);

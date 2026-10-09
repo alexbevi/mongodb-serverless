@@ -1,4 +1,5 @@
-import type { Document, MongoClient } from 'mongodb';
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Watcher } from '../src/watcher.js';
 import { ServerlessPlugin } from '../../plugins/shared/src/index.js';
@@ -36,7 +37,7 @@ const setup = (intervalMS?: number) => {
   if (intervalMS != null) plugin.set('refreshIntervalMS', intervalMS);
 
   const client = {
-    connect: vi.fn(async function (this: MongoClient) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({
@@ -48,7 +49,7 @@ const setup = (intervalMS?: number) => {
   const watcher = new Watcher({
     uri: 'mongodb://a:27017/',
     plugin,
-    createClient: vi.fn(() => client as never)
+    createClient: vi.fn(() => client)
   });
 
   return { watcher, plugin, client };
@@ -168,7 +169,7 @@ describe('Watcher polling', () => {
     let calls = 0;
 
     const client = {
-      connect: vi.fn(async function (this: MongoClient) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
@@ -190,7 +191,7 @@ describe('Watcher polling', () => {
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
 
     watcher.start();
@@ -210,7 +211,7 @@ describe('Watcher polling', () => {
     plugin.set('refreshIntervalMS', 1000);
 
     const client = {
-      connect: vi.fn(async function (this: MongoClient) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
@@ -224,7 +225,7 @@ describe('Watcher polling', () => {
     const watcher = new Watcher({
       uri: 'mongodb://a:27017/',
       plugin,
-      createClient: vi.fn(() => client as never),
+      createClient: vi.fn(() => client),
       onError: error => void errors.push(error)
     });
 

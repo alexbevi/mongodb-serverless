@@ -50,6 +50,7 @@ export class Watcher {
     const connectionOptions: ClusterConnectionOptions = { uri: options.uri };
 
     if (options.createClient) connectionOptions.createClient = options.createClient;
+
     if (options.driverOptions) connectionOptions.driverOptions = options.driverOptions;
 
     this.#connection = new ClusterConnection(connectionOptions);

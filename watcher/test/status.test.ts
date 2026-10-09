@@ -1,4 +1,5 @@
-import type { Document, MongoClient } from 'mongodb';
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { describe, expect, it, vi } from 'vitest';
 import { ClusterConnection } from '../src/cluster.js';
 import { NotAReplicaSetError } from '../src/errors.js';
@@ -16,7 +17,7 @@ const healthy = {
 
 const connectionFor = (command: (doc: Document) => Promise<Document>) => {
   const client = {
-    connect: vi.fn(async function (this: MongoClient) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({ command: vi.fn(command) })),
@@ -25,7 +26,7 @@ const connectionFor = (command: (doc: Document) => Promise<Document>) => {
 
   return new ClusterConnection({
     uri: 'mongodb://host:27017/',
-    createClient: vi.fn(() => client as never)
+    createClient: vi.fn(() => client)
   });
 };
 
@@ -115,7 +116,7 @@ describe('ClusterConnection.status', () => {
 
   it('reuses the connection hello opened', async () => {
     const client = {
-      connect: vi.fn(async function (this: MongoClient) {
+      connect: vi.fn(async function (this: ClusterClient) {
         return this;
       }),
       db: vi.fn(() => ({
@@ -128,7 +129,7 @@ describe('ClusterConnection.status', () => {
 
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
-      createClient: vi.fn(() => client as never)
+      createClient: vi.fn(() => client)
     });
 
     await connection.hello();

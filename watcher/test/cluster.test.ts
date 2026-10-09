@@ -1,4 +1,5 @@
-import type { Document, MongoClient } from 'mongodb';
+import type { Document } from 'mongodb';
+import type { ClusterClient } from '../src/cluster.js';
 import { describe, expect, it, vi } from 'vitest';
 import { ClusterConnection, type ClientFactory, type ClusterConnectionOptions } from '../src/cluster.js';
 import {
@@ -20,7 +21,7 @@ const fakeClient = (command: (doc: Document) => Promise<Document>) => {
   const closed = { count: 0 };
 
   const client = {
-    connect: vi.fn(async function (this: MongoClient) {
+    connect: vi.fn(async function (this: ClusterClient) {
       return this;
     }),
     db: vi.fn(() => ({ command: vi.fn(command) })),
@@ -40,7 +41,7 @@ const connectionFor = (
 
   const connection = new ClusterConnection({
     uri: 'mongodb://host:27017/?replicaSet=rs0',
-    createClient: vi.fn(() => fake.client as never),
+    createClient: vi.fn(() => fake.client),
     ...options
   });
 
@@ -90,7 +91,7 @@ describe('ClusterConnection.hello', () => {
   it('sets no pool options', async () => {
     // minPoolSize turns an auth failure into an opaque PoolClearedError, with
     // the real cause buried on .cause.
-    const create = vi.fn<ClientFactory>(() => fakeClient(async () => helloReplicaSet).client as never);
+    const create = vi.fn<ClientFactory>(() => fakeClient(async () => helloReplicaSet).client);
 
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
@@ -146,7 +147,7 @@ describe('ClusterConnection.hello', () => {
 
     const connection = new ClusterConnection({
       uri: 'mongodb://user:secret@host:27017/',
-      createClient: vi.fn(() => fake.client as never)
+      createClient: vi.fn(() => fake.client)
     });
 
     const attempt = connection.hello();
@@ -180,7 +181,7 @@ describe('ClusterConnection.hello', () => {
 
     const connection = new ClusterConnection({
       uri: 'mongodb://host:27017/',
-      createClient: vi.fn(() => fake.client as never)
+      createClient: vi.fn(() => fake.client)
     });
 
     await expect(connection.hello()).rejects.toThrow(ClusterUnreachableError);

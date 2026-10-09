@@ -4,6 +4,7 @@ export {
   ClusterConnection,
   type ClusterConnectionOptions,
   type ClusterIdentity,
+  type ClusterClient,
   type ClientFactory
 } from './cluster.js';
 

@@ -6,7 +6,7 @@ For documentation on the benchmark, see [README.md](benchmark/README.md).
 
 ## Execution
 
-To run the benchmark and refresh the results here:
+To run the benchmark and refresh the local results here:
 ```sh
 npm run benchmark -- --samples 48 --local-rtt 0.5 --cross-rtt 2 --output benchmark/results/repeat.json
 python3 -m venv /tmp/mongodb-benchmark-plot

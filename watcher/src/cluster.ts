@@ -100,8 +100,8 @@ export class ClusterConnection {
       const client = await this.#connect();
 
       return await client.db('admin').command(document);
-    } catch (error) {
-      throw this.#classify(error);
+    } catch (cause) {
+      this.#throwClassified(cause);
     }
   }
 
@@ -121,34 +121,34 @@ export class ClusterConnection {
     return this.#client;
   }
 
-  /** Turns a driver error into one that says what the operator should fix. */
-  #classify(error: unknown): unknown {
-    if (!(error instanceof Error)) return error;
+  /** Throws a driver failure with the context the operator needs to fix it. */
+  #throwClassified(cause: unknown): never {
+    if (!(cause instanceof Error)) throw cause;
 
-    const code = (error as { code?: unknown }).code;
+    const code = 'code' in cause ? cause.code : undefined;
 
     if (code === AUTHENTICATION_FAILED) {
-      return new AuthenticationFailedError(
+      throw new AuthenticationFailedError(
         `Authentication failed for ${this.#safeUri()}. Check the credentials and authSource.`,
-        { cause: error }
+        { cause }
       );
     }
 
     if (code === NO_REPLICATION_ENABLED) {
-      return new NotAReplicaSetError(
+      throw new NotAReplicaSetError(
         `${this.#safeUri()} is not running with --replSet, so it has no topology to watch.`,
-        { cause: error }
+        { cause }
       );
     }
 
-    if (error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError') {
-      return new ClusterUnreachableError(
-        `Cannot reach ${this.#safeUri()}: ${error.message}`,
-        { cause: error }
+    if (cause.name === 'MongoServerSelectionError' || cause.name === 'MongoNetworkError') {
+      throw new ClusterUnreachableError(
+        `Cannot reach ${this.#safeUri()}: ${cause.message}`,
+        { cause }
       );
     }
 
-    return error;
+    throw cause;
   }
 
   /** The uri with any password removed, safe to put in an error message. */

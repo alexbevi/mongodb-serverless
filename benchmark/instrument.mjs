@@ -1,0 +1,59 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+
+export function instrument() {
+  const version = require('mongodb/package.json').version;
+  if (version !== '7.7.0') throw new Error(`Re-verify benchmark instrumentation for mongodb ${version}`);
+  const tls = require('node:tls');
+  const { Connection } = require('mongodb/lib/cmap/connection.js');
+  const { ScramSHA256 } = require('mongodb/lib/cmap/auth/scram.js');
+  const sockets = new WeakMap();
+  const traces = [];
+  const commands = [];
+  const originalTls = tls.connect;
+  tls.connect = function (...args) {
+    const start = performance.now();
+    const socket = originalTls.apply(this, args);
+    const trace = { host: args[0].host, port: args[0].port, start };
+    traces.push(trace);
+    sockets.set(socket, trace);
+    socket.once('connect', () => { trace.tcp = [start, performance.now()]; });
+    socket.once('secureConnect', () => {
+      if (!trace.tcp) throw new Error('Missing TCP connect event');
+      trace.tls = [trace.tcp[1], performance.now()];
+      trace.protocol = socket.getProtocol();
+      trace.authorized = socket.authorized;
+    });
+    return socket;
+  };
+  const originalAuth = ScramSHA256.prototype.auth;
+  ScramSHA256.prototype.auth = async function (context) {
+    const start = performance.now();
+    try { return await originalAuth.call(this, context); }
+    finally { sockets.get(context.connection.socket).auth = [start, performance.now()]; }
+  };
+  const active = new WeakMap();
+  const originalWrite = Connection.prototype.writeCommand;
+  Connection.prototype.writeCommand = async function (...args) {
+    const result = await originalWrite.apply(this, args);
+    const command = active.get(this);
+    if (command) command.sent = performance.now();
+    return result;
+  };
+  const originalCommand = Connection.prototype.command;
+  Connection.prototype.command = async function (ns, document, ...args) {
+    const name = Object.keys(document)[0];
+    const start = performance.now();
+    const trace = sockets.get(this.socket);
+    const command = { name, start, address: this.address };
+    if (name === 'find' || name === 'insert') active.set(this, command);
+    try {
+      const result = await originalCommand.call(this, ns, document, ...args);
+      command.end = performance.now();
+      if (name === 'hello' || name === 'ismaster') trace.hello = [start, command.end];
+      if (active.get(this) === command) commands.push({ ...command, socket: trace });
+      return result;
+    } finally { if (active.get(this) === command) active.delete(this); }
+  };
+  return { traces, commands, version };
+}

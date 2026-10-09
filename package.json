@@ -17,7 +17,9 @@
     "typecheck": "tsc --build",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "benchmark": "node benchmark/run.mjs",
+    "benchmark:test": "node --test benchmark/test/*.test.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

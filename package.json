@@ -18,8 +18,9 @@
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
-    "benchmark": "node benchmark/run.mjs",
-    "benchmark:test": "node --test benchmark/test/*.test.mjs"
+    "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
+    "benchmark:test": "npm run benchmark:build && node --test --test-concurrency=1 benchmark/dist/test/*.test.js",
+    "benchmark:build": "tsc --build benchmark"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

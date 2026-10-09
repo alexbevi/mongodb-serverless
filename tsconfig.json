@@ -3,6 +3,7 @@
   "references": [
     { "path": "./plugins/local" },
     { "path": "./driver" },
-    { "path": "./watcher" }
+    { "path": "./watcher" },
+    { "path": "./benchmark" }
   ]
 }

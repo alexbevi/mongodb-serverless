@@ -46,6 +46,7 @@ export class Watcher {
 
   constructor(options: WatcherOptions) {
     this.#options = options;
+
     const connectionOptions: ClusterConnectionOptions = { uri: options.uri };
 
     if (options.createClient) connectionOptions.createClient = options.createClient;

@@ -1,4 +1,4 @@
-import { MongoClient, type Db, type MongoClientOptions } from 'mongodb';
+import { MongoClient, type Db, type Document, type MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import {
   AuthenticationFailedError,
@@ -62,7 +62,7 @@ export class ClusterConnection {
    * @throws {NotAReplicaSetError} Reachable, but not a replica set.
    */
   async hello(): Promise<ClusterIdentity> {
-    const hello = (await this.#command({ hello: 1 })) as Record<string, unknown>;
+    const hello = await this.#command({ hello: 1 });
 
     if (hello['msg'] === 'isdbgrid') {
       throw new NotAReplicaSetError(
@@ -73,7 +73,7 @@ export class ClusterConnection {
 
     const setName = hello['setName'];
 
-    if (typeof setName !== 'string' || setName === '') {
+    if (!isString(setName) || setName === '') {
       throw new NotAReplicaSetError(
         `${this.#safeUri()} is not a replica set: hello reported no setName. ` +
           'A standalone server has no topology to watch.'
@@ -82,8 +82,8 @@ export class ClusterConnection {
 
     return {
       setName,
-      hosts: Array.isArray(hello['hosts']) ? (hello['hosts'] as string[]) : [],
-      me: typeof hello['me'] === 'string' ? hello['me'] : undefined
+      hosts: isStringArray(hello['hosts']) ? hello['hosts'] : [],
+      me: isString(hello['me']) ? hello['me'] : undefined
     };
   }
 
@@ -101,7 +101,7 @@ export class ClusterConnection {
     await (await pending).close().catch(() => {});
   }
 
-  async #command(document: Record<string, unknown>): Promise<unknown> {
+  async #command(document: Document): Promise<Document> {
     try {
       const client = await this.#connect();
 
@@ -168,4 +168,12 @@ export class ClusterConnection {
       return 'the cluster';
     }
   }
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
 }

@@ -74,6 +74,14 @@ describe('ClusterConnection.hello', () => {
     });
   });
 
+  it('does not expose non-string hosts from a malformed hello response', async () => {
+    const { connection } = connectionFor(async () => ({
+      ...helloReplicaSet, hosts: ['a:27017', 42]
+    }));
+
+    await expect(connection.hello()).resolves.toMatchObject({ hosts: [] });
+  });
+
   it('sends the hello command', async () => {
     const seen: Document[] = [];
 

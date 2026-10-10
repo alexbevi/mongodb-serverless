@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/driver/src/index.d.ts",
       "default": "./dist/driver/src/index.js"
+    },
+    "./no-monitoring": {
+      "types": "./dist/driver/src/no-monitoring/index.d.ts",
+      "default": "./dist/driver/src/no-monitoring/index.js"
     }
   },
   "files": [

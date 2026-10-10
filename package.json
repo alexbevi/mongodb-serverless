@@ -18,7 +18,9 @@
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "test:no-monitoring:package": "tsx tools/verify-no-monitoring-package.ts",
+    "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

@@ -15,3 +15,9 @@ it('rejects unsupported authentication before connecting', () => {
 
   expect(() => disableMonitoring(client)).toThrow(/SCRAM/);
 });
+
+it('rejects unverified driver versions', async () => {
+  const { assertVersion } = await import('../../src/no-monitoring/adapter.js');
+  expect(() => assertVersion('7.7.1')).toThrow(/7.7.0/);
+  expect(() => assertVersion('7.7.0')).not.toThrow();
+});

@@ -61,6 +61,7 @@ export const registryKey = Symbol.for('@mongodb-serverless/no-monitoring/7.7.0')
 
 export interface Registry {
   enabled: WeakSet<MongoClient>;
+  closing: WeakSet<MongoClient>;
   pending: WeakMap<Server, Promise<void>>;
   pools: WeakMap<EventEmitter, Server>;
   installed: boolean;
@@ -87,3 +88,5 @@ export interface ConnectionOptions {
 export const connectModule: {
   connect(options: ConnectionOptions): Promise<ApplicationConnection>;
 } = requireMongo('./cmap/connect.js');
+
+export const clientModule: { MongoClient: typeof import('mongodb').MongoClient } = requireMongo('./mongo_client.js');

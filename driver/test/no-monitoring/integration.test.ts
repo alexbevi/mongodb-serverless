@@ -201,3 +201,22 @@ it('waits for a stale checked-out connection to return before reserving recovery
     await client.close();
   }
 });
+
+it('does not reconnect just to end sessions during close', async () => {
+  const relay = await startRelay(targetPort);
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1
+  }));
+
+  try {
+    await client.db('admin').command({ ping: 1 });
+    relay.interrupt(1);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await client.close();
+    expect(relay.counts.accepted).toBe(1);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});

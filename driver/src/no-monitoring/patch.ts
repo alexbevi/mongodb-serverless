@@ -1,7 +1,7 @@
 import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
-import { connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Pool, type Server } from './adapter.js';
+import { clientModule, connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Pool, type Server } from './adapter.js';
 
 function bootstrap(server: Server, state: Registry): Promise<void> {
   const { pending, pools } = state;
@@ -86,6 +86,7 @@ export function activate(client: MongoClient): void {
 
   const state = monitor[registryKey] ??= {
     enabled: new WeakSet<MongoClient>(),
+    closing: new WeakSet<MongoClient>(),
     pending: new WeakMap<Server, Promise<void>>(),
     pools: new WeakMap(),
     installed: false
@@ -103,10 +104,20 @@ export function activate(client: MongoClient): void {
 
   if (state.installed) return;
   state.installed = true;
+  const originalClose = clientModule.MongoClient.prototype.close;
+  clientModule.MongoClient.prototype.close = function (...args) {
+    if (enabled.has(this)) state.closing.add(this);
+
+    return originalClose.apply(this, args);
+  };
+
   const originalCreate = connectModule.connect;
   connectModule.connect = async function (options) {
-    const connection = await originalCreate(options);
     const server = pools.get(options.cancellationToken);
+
+    if (server && state.closing.has(server.topology.client)) throw new MongoClientClosedError();
+
+    const connection = await originalCreate(options);
 
     if (!server) return connection;
 
@@ -136,6 +147,9 @@ export function activate(client: MongoClient): void {
   const originalSelect = topology.selectServer;
   topology.selectServer = function (selector, options) {
     if (!enabled.has(this.client)) return originalSelect.call(this, selector, options);
+
+    if (state.closing.has(this.client)) return Promise.reject(new MongoClientClosedError());
+
     const server = this.s.servers.values().next().value;
 
     if (server && server.pool.poolState !== 'ready' && server.description.type !== 'Unknown') {

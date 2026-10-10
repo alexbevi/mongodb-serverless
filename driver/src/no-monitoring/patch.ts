@@ -16,7 +16,9 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
   const generation = pool.generation;
   pools.set(pool.cancellationToken, server);
 
-  const operation = waitForCapacity(pool).then(() => new Promise<void>((resolve, reject) => {
+  const cancellation = new AbortController();
+
+  const operation = waitForCapacity(pool, cancellation.signal).then(() => new Promise<void>((resolve, reject) => {
     if (pool.poolState === 'closed' || pool.generation !== generation) {
       reject(new MongoClientClosedError());
 
@@ -52,29 +54,42 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
 
       resolve();
     });
-  })).finally(() => pending.delete(server));
+  })).finally(() => {
+    if (pending.get(server) === operation) pending.delete(server);
+  });
 
   pending.set(server, operation);
+  state.cancel.set(operation, () => {
+    if (pending.get(server) !== operation) return;
+    pending.delete(server);
+    cancellation.abort();
+    pool.clear();
+    pool.cancellationToken.emit('cancel');
+  });
 
   return operation;
 }
 
-function waitForCapacity(pool: Pool): Promise<void> {
+function waitForCapacity(pool: Pool, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const events = ['connectionCheckedIn', 'connectionReady', 'connectionClosed', 'connectionPoolClosed'];
 
     const check = (): void => {
-      if (pool.poolState !== 'closed' &&
+      if (!signal.aborted && pool.poolState !== 'closed' &&
         ((pool.options.maxPoolSize !== 0 && pool.totalConnectionCount >= pool.options.maxPoolSize) ||
           pool.pendingConnectionCount >= pool.options.maxConnecting)) return;
 
       for (const event of events) pool.removeListener(event, schedule);
 
-      if (pool.poolState === 'closed') reject(new MongoClientClosedError());
+      signal.removeEventListener('abort', schedule);
+
+      if (signal.aborted || pool.poolState === 'closed') reject(new MongoClientClosedError());
       else resolve();
     };
 
     const schedule = (): void => queueMicrotask(check);
+
+    signal.addEventListener('abort', schedule);
 
     for (const event of events) pool.on(event, schedule);
     check();
@@ -89,6 +104,8 @@ export function activate(client: MongoClient): void {
     closing: new WeakSet<MongoClient>(),
     pending: new WeakMap<Server, Promise<void>>(),
     pools: new WeakMap(),
+    waiters: new WeakMap(),
+    cancel: new WeakMap(),
     installed: false
   };
 
@@ -117,9 +134,27 @@ export function activate(client: MongoClient): void {
 
     if (server && state.closing.has(server.topology.client)) throw new MongoClientClosedError();
 
-    const connection = await originalCreate(options);
+    if (!server) return originalCreate(options);
 
-    if (!server) return connection;
+    const socket = await connectModule.makeSocket(options);
+
+    if (server.pool.poolState === 'closed' || server.pool.generation !== options.generation) {
+      socket.destroy();
+      throw new MongoClientClosedError();
+    }
+
+    const connection = connectModule.makeConnection(options, socket);
+    const cancel = (): void => connection.destroy();
+    options.cancellationToken.on('cancel', cancel);
+
+    try {
+      await connectModule.performInitialHandshake(connection, options);
+    } catch (cause) {
+      connection.destroy();
+      throw cause;
+    } finally {
+      options.cancellationToken.removeListener('cancel', cancel);
+    }
 
     const description = new descriptionModule.ServerDescription(server.description.address, connection.hello);
 
@@ -162,6 +197,14 @@ export function activate(client: MongoClient): void {
       return selection;
     }
 
-    return Promise.race([selection, bootstrap(server, state).then(() => selection)]);
+    const operation = bootstrap(server, state);
+    state.waiters.set(operation, (state.waiters.get(operation) ?? 0) + 1);
+
+    return Promise.race([selection, operation.then(() => selection)]).finally(() => {
+      const remaining = (state.waiters.get(operation) ?? 1) - 1;
+      state.waiters.set(operation, remaining);
+
+      if (remaining === 0) state.cancel.get(operation)?.();
+    });
   };
 }

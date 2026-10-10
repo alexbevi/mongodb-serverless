@@ -63,6 +63,8 @@ export interface Registry {
   enabled: WeakSet<MongoClient>;
   closing: WeakSet<MongoClient>;
   pending: WeakMap<Server, Promise<void>>;
+  waiters: WeakMap<Promise<void>, number>;
+  cancel: WeakMap<Promise<void>, () => void>;
   pools: WeakMap<EventEmitter, Server>;
   installed: boolean;
 }
@@ -83,10 +85,14 @@ export const descriptionModule: {
 
 export interface ConnectionOptions {
   cancellationToken: EventEmitter;
+  generation: number;
 }
 
 export const connectModule: {
   connect(options: ConnectionOptions): Promise<ApplicationConnection>;
+  makeSocket(options: ConnectionOptions): Promise<import('node:net').Socket>;
+  makeConnection(options: ConnectionOptions, socket: import('node:net').Socket): ApplicationConnection;
+  performInitialHandshake(connection: ApplicationConnection, options: ConnectionOptions): Promise<void>;
 } = requireMongo('./cmap/connect.js');
 
 export const clientModule: { MongoClient: typeof import('mongodb').MongoClient } = requireMongo('./mongo_client.js');

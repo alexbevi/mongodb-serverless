@@ -220,3 +220,31 @@ it('does not reconnect just to end sessions during close', async () => {
     await relay.close();
   }
 });
+
+it('cancels recovery when its last waiting operation times out', async () => {
+  const relay = await startRelay(targetPort);
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1, serverSelectionTimeoutMS: 1000
+  }));
+
+  try {
+    await client.connect();
+    // SAFETY: connect initialized this pinned driver's topology.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    const server = native.topology.s.servers.values().next().value;
+
+    if (!server) throw new Error('Missing server');
+    server.pool.clear();
+    relay.pause();
+    await expect(client.db('admin').command({ ping: 1 }, { timeoutMS: 80 })).rejects.toMatchObject({ name: 'MongoOperationTimeoutError' });
+    relay.resume();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(relay.counts.open).toBe(0);
+    await client.db('admin').command({ ping: 1 });
+    expect(relay.counts.accepted).toBe(3);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});

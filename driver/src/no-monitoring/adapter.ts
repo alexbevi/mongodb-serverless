@@ -119,3 +119,7 @@ const poolModule: { ConnectionPool: { prototype: Pool } } = requireMongo('./cmap
 function isCallable(value: unknown): value is (...args: never[]) => void {
   return typeof value === 'function';
 }
+
+export const poolErrors: {
+  PoolClearedError: new (pool: Pool) => import('mongodb').MongoNetworkError;
+} = requireMongo('./cmap/errors.js');

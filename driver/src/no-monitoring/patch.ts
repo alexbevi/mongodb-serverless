@@ -1,7 +1,7 @@
 import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
-import { clientModule, connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Pool, type Server } from './adapter.js';
+import { clientModule, connectModule, descriptionModule, monitorModule, topologyModule, registryKey, poolErrors, type Registry, type Pool, type Server } from './adapter.js';
 
 function bootstrap(server: Server, state: Registry): Promise<void> {
   const { pending, pools } = state;
@@ -20,7 +20,7 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
 
   const operation = waitForCapacity(pool, cancellation.signal).then(() => new Promise<void>((resolve, reject) => {
     if (pool.poolState === 'closed' || pool.generation !== generation) {
-      reject(new MongoClientClosedError());
+      reject(invalidated(pool, generation));
 
       return;
     }
@@ -35,7 +35,7 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
 
       if (pool.poolState === 'closed' || pool.generation !== generation) {
         pool.destroyConnection(connection, 'stale');
-        reject(new MongoClientClosedError());
+        reject(invalidated(pool, generation));
 
         return;
       }
@@ -140,7 +140,7 @@ export function activate(client: MongoClient): void {
 
     if (server.pool.poolState === 'closed' || server.pool.generation !== options.generation) {
       socket.destroy();
-      throw new MongoClientClosedError();
+      throw invalidated(server.pool, options.generation);
     }
 
     const connection = connectModule.makeConnection(options, socket);
@@ -158,7 +158,7 @@ export function activate(client: MongoClient): void {
 
     if (server.pool.poolState === 'closed' || server.pool.generation !== options.generation) {
       connection.destroy();
-      throw new MongoClientClosedError();
+      throw invalidated(server.pool, options.generation);
     }
 
     const description = new descriptionModule.ServerDescription(server.description.address, connection.hello);
@@ -218,4 +218,12 @@ export function activate(client: MongoClient): void {
       if (remaining === 0) state.cancel.get(operation)?.();
     });
   };
+}
+
+function invalidated(pool: Pool, generation: number): Error {
+  if (pool.poolState === 'closed') return new MongoClientClosedError();
+  const error = new poolErrors.PoolClearedError(pool);
+  error.connectionGeneration = generation;
+
+  return error;
 }

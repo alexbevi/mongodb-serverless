@@ -394,7 +394,10 @@ it('does not report a connection ready after its generation was invalidated duri
   client.on('connectionReady', () => ready++);
 
   try {
-    const connecting = expect(client.connect()).rejects.toThrow();
+    const connecting = expect(client.connect()).rejects.toMatchObject({
+      name: 'MongoPoolClearedError', errorLabels: expect.arrayContaining(['PoolRequestedRetry'])
+    });
+
     await expect.poll(() => relay.counts.accepted).toBe(1);
     // SAFETY: connecting has created the topology and its pool before the relay accepts a socket.
     const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };

@@ -41,6 +41,7 @@ export interface Pool extends EventEmitter {
   cancellationToken: EventEmitter;
   totalConnectionCount: number;
   clear(): void;
+  ready(): void;
   destroyConnectionIfPerished(connection: ApplicationConnection): boolean;
   connections: {
     push(connection: ApplicationConnection): void;

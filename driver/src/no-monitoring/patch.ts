@@ -156,6 +156,11 @@ export function activate(client: MongoClient): void {
       options.cancellationToken.removeListener('cancel', cancel);
     }
 
+    if (server.pool.poolState === 'closed' || server.pool.generation !== options.generation) {
+      connection.destroy();
+      throw new MongoClientClosedError();
+    }
+
     const description = new descriptionModule.ServerDescription(server.description.address, connection.hello);
 
     if (!['RSPrimary', 'RSSecondary'].includes(description.type)) {

@@ -371,3 +371,33 @@ it('stays on the selected host through stepdown and preserves retryable write id
     await relay.close();
   }
 }, 60_000);
+
+it('does not report a connection ready after its generation was invalidated during handshake', async () => {
+  const relay = await startRelay(targetPort);
+  relay.pause();
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, serverSelectionTimeoutMS: 1000
+  }));
+
+  let ready = 0;
+  client.on('connectionReady', () => ready++);
+
+  try {
+    const connecting = expect(client.connect()).rejects.toThrow();
+    await expect.poll(() => relay.counts.accepted).toBe(1);
+    // SAFETY: connecting has created the topology and its pool before the relay accepts a socket.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    const server = native.topology.s.servers.values().next().value;
+
+    if (!server) throw new Error('Missing server');
+    server.pool.clear();
+    server.pool.ready();
+    relay.resume();
+    await connecting;
+    expect(ready).toBe(0);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});

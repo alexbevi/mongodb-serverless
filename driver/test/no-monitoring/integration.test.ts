@@ -401,3 +401,20 @@ it('does not report a connection ready after its generation was invalidated duri
     await relay.close();
   }
 });
+
+it('ends sessions on an existing healthy connection during close', async () => {
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${targetPort}`, {
+    directConnection: true, monitorCommands: true
+  }));
+
+  const commands: string[] = [];
+  client.on('commandStarted', event => commands.push(event.commandName));
+
+  try {
+    await client.db('admin').command({ ping: 1 });
+  } finally {
+    await client.close();
+  }
+
+  expect(commands).toContain('endSessions');
+});

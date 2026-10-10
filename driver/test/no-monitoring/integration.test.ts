@@ -248,3 +248,98 @@ it('cancels recovery when its last waiting operation times out', async () => {
     await relay.close();
   }
 });
+
+it('keeps shared recovery alive when one caller aborts', async () => {
+  const relay = await startRelay(targetPort);
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1, serverSelectionTimeoutMS: 1000
+  }));
+
+  try {
+    await client.connect();
+    // SAFETY: connect initialized this pinned driver's topology.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    native.topology.s.servers.values().next().value?.pool.clear();
+    relay.pause();
+    const controller = new AbortController();
+    const cancelled = expect(client.db('admin').command({ ping: 1 }, { signal: controller.signal })).rejects.toThrow('cancel caller');
+    const survivor = client.db('admin').command({ ping: 1 });
+    await expect.poll(() => relay.counts.accepted).toBe(2);
+    controller.abort(new Error('cancel caller'));
+    await cancelled;
+    relay.resume();
+    await survivor;
+    expect(relay.counts.accepted).toBe(2);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});
+
+it('closes an in-flight bootstrap without adopting a late reply', async () => {
+  const relay = await startRelay(targetPort);
+  relay.pause();
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, serverSelectionTimeoutMS: 1000
+  }));
+
+  let ready = 0;
+  client.on('connectionReady', () => ready++);
+
+  try {
+    const connecting = expect(client.connect()).rejects.toThrow();
+    await expect.poll(() => relay.counts.accepted).toBe(1);
+    await client.close();
+    relay.resume();
+    await connecting;
+    await expect.poll(() => relay.counts.open).toBe(0);
+    expect(ready).toBe(0);
+    await expect(client.db('admin').command({ ping: 1 })).rejects.toThrow();
+    expect(relay.counts.accepted).toBe(1);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});
+
+it('shares concurrent bootstrap and preserves minimum and maximum pool settings', async () => {
+  for (const size of [1, 3]) {
+    const relay = await startRelay(targetPort);
+
+    const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+      directConnection: true, minPoolSize: size === 1 ? 0 : size, maxPoolSize: size
+    }));
+
+    try {
+      await Promise.all(Array.from({ length: 20 }, () => client.db('admin').command({ ping: 1 })));
+      await expect.poll(() => relay.counts.accepted).toBe(size);
+      expect(relay.counts.peak).toBe(size);
+    } finally {
+      await client.close();
+      await relay.close();
+    }
+  }
+});
+
+it('replaces an interrupted socket only when the next operation needs it', async () => {
+  const relay = await startRelay(targetPort);
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1, heartbeatFrequencyMS: 500
+  }));
+
+  try {
+    await client.db('admin').command({ ping: 1 });
+    relay.interrupt(1);
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    expect(relay.counts.accepted).toBe(1);
+    await Promise.all(Array.from({ length: 10 }, () => client.db('admin').command({ ping: 1 })));
+    expect(relay.counts.accepted).toBe(2);
+    expect(relay.counts.peak).toBe(1);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});

@@ -14,6 +14,10 @@ export function disableMonitoring<T extends MongoClient>(client: T): T {
     throw new UnsupportedOperationError('disableMonitoring supports only SCRAM authentication');
   }
 
+  if (client.options.autoEncryption) {
+    throw new UnsupportedOperationError('disableMonitoring does not support automatic encryption');
+  }
+
   verifyDriver();
   activate(client);
 

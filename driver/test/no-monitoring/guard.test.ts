@@ -21,3 +21,9 @@ it('rejects unverified driver versions', async () => {
   expect(() => assertVersion('7.7.1')).toThrow(/7.7.0/);
   expect(() => assertVersion('7.7.0')).not.toThrow();
 });
+
+it('rejects automatic encryption before the driver loads encryption dependencies', () => {
+  const client = new MongoClient('mongodb://localhost:28017', { directConnection: true });
+  Object.defineProperty(client.options, 'autoEncryption', { value: {} });
+  expect(() => disableMonitoring(client)).toThrow(/encryption/);
+});

@@ -12,6 +12,16 @@ export function assertVersion(version: string): void {
 export function verifyDriver(): void {
   const manifest: { version: string } = requireMongo('../package.json');
   assertVersion(manifest.version);
+
+  const methods = [connectModule.connect, connectModule.makeSocket, connectModule.makeConnection,
+    connectModule.performInitialHandshake, monitorModule.Monitor.prototype.connect,
+    topologyModule.Topology.prototype.selectServer, descriptionModule.ServerDescription,
+    clientModule.MongoClient.prototype.close, poolModule.ConnectionPool.prototype.createConnection,
+    poolModule.ConnectionPool.prototype.destroyConnectionIfPerished];
+
+  if (!methods.every(isCallable)) {
+    throw new UnsupportedOperationError('Unsupported mongodb driver internals');
+  }
 }
 
 import { EventEmitter } from 'node:events';
@@ -96,3 +106,9 @@ export const connectModule: {
 } = requireMongo('./cmap/connect.js');
 
 export const clientModule: { MongoClient: typeof import('mongodb').MongoClient } = requireMongo('./mongo_client.js');
+
+const poolModule: { ConnectionPool: { prototype: Pool } } = requireMongo('./cmap/connection_pool.js');
+
+function isCallable(value: unknown): value is (...args: never[]) => void {
+  return typeof value === 'function';
+}

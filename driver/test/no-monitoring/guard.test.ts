@@ -42,3 +42,18 @@ it('rejects a client whose constructor is not from the patched driver instance',
   Object.setPrototypeOf(client, null);
   expect(() => disableMonitoring(client)).toThrow(/same mongodb module/);
 });
+
+it('rejects an incompatible internal module before installing hooks', async () => {
+  const { connectModule } = await import('../../src/no-monitoring/adapter.js');
+  const original = Object.getOwnPropertyDescriptor(connectModule, 'makeSocket');
+
+  if (!original) throw new Error('Missing makeSocket');
+
+  try {
+    Object.defineProperty(connectModule, 'makeSocket', { value: null, configurable: true });
+    const client = new MongoClient('mongodb://localhost:28017', { directConnection: true });
+    expect(() => disableMonitoring(client)).toThrow(/driver internals/);
+  } finally {
+    Object.defineProperty(connectModule, 'makeSocket', original);
+  }
+});

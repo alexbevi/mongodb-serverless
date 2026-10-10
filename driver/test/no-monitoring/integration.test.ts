@@ -71,3 +71,19 @@ it('leaves ordinary monitoring active and emits no heartbeat in either opted-in 
     }
   }
 });
+
+it('rejects a mismatched replica set before the connection becomes ready', async () => {
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${targetPort}`, {
+    directConnection: true, replicaSet: 'wrong', serverSelectionTimeoutMS: 300
+  }));
+
+  let ready = 0;
+  client.on('connectionReady', () => ready++);
+
+  try {
+    await expect(client.connect()).rejects.toThrow(/replica set/i);
+    expect(ready).toBe(0);
+  } finally {
+    await client.close();
+  }
+});

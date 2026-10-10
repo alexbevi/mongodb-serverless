@@ -1,9 +1,11 @@
 import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
-import { descriptionModule, monitorModule, topologyModule, type Server } from './adapter.js';
+import { connectModule, descriptionModule, monitorModule, topologyModule, type Server } from './adapter.js';
 
 const enabled = new WeakSet<MongoClient>();
+
+const pools = new WeakMap<import('node:events').EventEmitter, Server>();
 
 const pending = new WeakMap<Server, Promise<void>>();
 
@@ -16,6 +18,7 @@ function bootstrap(server: Server): Promise<void> {
 
   const pool = server.pool;
   const generation = pool.generation;
+  pools.set(pool.cancellationToken, server);
 
   const operation = new Promise<void>((resolve, reject) => {
     pool.poolState = 'ready';
@@ -65,6 +68,24 @@ export function activate(client: MongoClient): void {
 
   if (installed) return;
   installed = true;
+  const originalCreate = connectModule.connect;
+  connectModule.connect = async function (options) {
+    const connection = await originalCreate(options);
+    const server = pools.get(options.cancellationToken);
+
+    if (!server) return connection;
+
+    const description = new descriptionModule.ServerDescription(server.description.address, connection.hello);
+    const expectedSet = server.topology.client.options.replicaSet;
+
+    if (expectedSet && description.setName !== expectedSet) {
+      connection.destroy();
+      throw new UnsupportedOperationError(`Expected replica set ${expectedSet}, received ${description.setName}`);
+    }
+
+    return connection;
+  };
+
   const monitor = monitorModule.Monitor.prototype;
   const originalConnect = monitor.connect;
   monitor.connect = function () {

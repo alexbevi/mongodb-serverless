@@ -26,6 +26,7 @@ export interface ApplicationConnection extends EventEmitter {
 export interface Pool {
   poolState: string;
   generation: number;
+  cancellationToken: EventEmitter;
   connections: { push(connection: ApplicationConnection): void };
   createConnection(callback: (error?: Error, connection?: ApplicationConnection) => void): void;
   destroyConnection(connection: ApplicationConnection, reason: string): void;
@@ -34,7 +35,7 @@ export interface Pool {
 export interface Server extends EventEmitter {
   topology: Topology;
   pool: Pool;
-  description: { type: string; address: string };
+  description: { type: string; address: string; setName: string | null };
   s: { state: string };
 }
 
@@ -60,3 +61,11 @@ export const topologyModule: { Topology: { prototype: Topology } } = requireMong
 export const descriptionModule: {
   ServerDescription: new (address: string, hello: Document) => Server['description'];
 } = requireMongo('./sdam/server_description.js');
+
+export interface ConnectionOptions {
+  cancellationToken: EventEmitter;
+}
+
+export const connectModule: {
+  connect(options: ConnectionOptions): Promise<ApplicationConnection>;
+} = requireMongo('./cmap/connect.js');

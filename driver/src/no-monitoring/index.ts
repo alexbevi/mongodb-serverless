@@ -1,3 +1,4 @@
+import { activate } from './patch.js';
 import { verifyDriver } from './adapter.js';
 import { MongoClient } from 'mongodb';
 import { UnsupportedOperationError } from '../errors.js';
@@ -14,6 +15,7 @@ export function disableMonitoring<T extends MongoClient>(client: T): T {
   }
 
   verifyDriver();
+  activate(client);
 
   return client;
 }

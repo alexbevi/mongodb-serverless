@@ -15,6 +15,7 @@ export function tcpPort(server: Server): number {
 
 export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
   const connections = new Map<number, () => void>();
+  const closing = new Set<Promise<void>>();
   const counts = { accepted: 0, open: 0, closed: 0, peak: 0 };
 
   const server = createServer(incoming => {
@@ -31,6 +32,9 @@ export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
     connections.set(id, destroy);
     incoming.on('error', destroy);
     outgoing.on('error', destroy);
+    const closed = new Promise<void>(resolve => incoming.once('close', resolve));
+    closing.add(closed);
+    void closed.then(() => closing.delete(closed));
     incoming.once('close', () => {
       outgoing.destroy();
       connections.delete(id);
@@ -54,9 +58,12 @@ export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
       destroy();
     },
     async close(): Promise<void> {
+      const closed = Promise.all(closing);
+
       for (const destroy of connections.values()) destroy();
 
       if (server.listening) await new Promise<void>(resolve => server.close(() => resolve()));
+      await closed;
     }
   };
 }

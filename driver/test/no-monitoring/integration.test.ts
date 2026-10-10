@@ -343,3 +343,31 @@ it('replaces an interrupted socket only when the next operation needs it', async
     await relay.close();
   }
 });
+
+it('stays on the selected host through stepdown and preserves retryable write identity', async () => {
+  const { stepDownPrimary } = await import('../../../test/harness/cluster.js');
+  const primary = (await describeCluster()).primary;
+  const relay = await startRelay(Number(primary.split(':')[1]));
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1, monitorCommands: true, retryWrites: true,
+    serverSelectionTimeoutMS: 2000
+  }));
+
+  const writes: import('mongodb').CommandStartedEvent[] = [];
+
+  try {
+    await client.connect();
+    client.on('commandStarted', event => { if (event.commandName === 'insert') writes.push(event); });
+    await stepDownPrimary();
+    await expect(client.db('test').collection('stepdown').insertOne({ value: 1 })).rejects.toMatchObject({ code: 10107 });
+    expect(writes).toHaveLength(2);
+    expect(writes[0]?.command.lsid).toEqual(writes[1]?.command.lsid);
+    expect(writes[0]?.command.txnNumber).toEqual(writes[1]?.command.txnNumber);
+    expect(new Set(writes.map(event => event.address))).toEqual(new Set([`127.0.0.1:${relay.port}`]));
+    await client.db('test').collection('stepdown').findOne({});
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+}, 60_000);

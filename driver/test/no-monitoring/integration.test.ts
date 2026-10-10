@@ -61,6 +61,16 @@ it('leaves ordinary monitoring active and emits no heartbeat in either opted-in 
     try {
       await Promise.all([client.connect(), stock.connect()]);
       expect(disableMonitoring(client)).toBe(client);
+      // SAFETY: connect initialized this pinned driver's topology and monitor object.
+      const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+      const monitor = native.topology.s.servers.values().next().value?.monitor;
+
+      if (!monitor) throw new Error('Missing inert monitor');
+      monitor.reset();
+      monitor.requestCheck();
+      expect(monitor.connection).toBeNull();
+      expect(monitor.monitorId).toBeUndefined();
+      expect(monitor.rttPinger).toBeUndefined();
       await new Promise(resolve => setTimeout(resolve, 1200));
       expect(relay.counts.accepted).toBe(1);
       expect(heartbeats).toEqual([]);

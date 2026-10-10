@@ -54,6 +54,7 @@ export interface Pool extends EventEmitter {
 export interface Server extends EventEmitter {
   topology: Topology;
   pool: Pool;
+  monitor: Monitor | null;
   description: { type: string; address: string; setName: string | null };
   s: { state: string };
 }
@@ -84,6 +85,11 @@ export interface Monitor {
   [registryKey]?: Registry;
   server: Server;
   connect(): void;
+  reset(): void;
+  requestCheck(): void;
+  monitorId?: NodeJS.Timeout;
+  rttPinger?: EventEmitter;
+  connection: ApplicationConnection | null;
 }
 
 export const monitorModule: { Monitor: { prototype: Monitor } } = requireMongo('./sdam/monitor.js');

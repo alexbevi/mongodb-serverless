@@ -152,3 +152,22 @@ it('removes stale available connections before reserving a recovery connection',
     await client.close();
   }
 });
+
+it('finishes pool recovery before returning an already known server', async () => {
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${targetPort}`, {
+    directConnection: true, maxPoolSize: 1, waitQueueTimeoutMS: 200, serverSelectionTimeoutMS: 1000
+  }));
+
+  try {
+    await client.connect();
+    // SAFETY: connect initialized the topology of the pinned mongodb 7.7.0 client.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    const server = native.topology.s.servers.values().next().value;
+
+    if (!server) throw new Error('Missing server');
+    server.pool.clear();
+    await expect(client.db('admin').command({ ping: 1 })).resolves.toMatchObject({ ok: 1 });
+  } finally {
+    await client.close();
+  }
+});

@@ -109,6 +109,11 @@ export function activate(client: MongoClient): void {
   topology.selectServer = function (selector, options) {
     if (!enabled.has(this.client)) return originalSelect.call(this, selector, options);
     const server = this.s.servers.values().next().value;
+
+    if (server && server.pool.poolState !== 'ready' && server.description.type !== 'Unknown') {
+      server.emit('descriptionReceived', new descriptionModule.ServerDescription(server.description.address, {}));
+    }
+
     const selection = originalSelect.call(this, selector, options);
 
     if (!server || (server.description.type !== 'Unknown' && server.pool.poolState === 'ready')) {

@@ -171,3 +171,33 @@ it('finishes pool recovery before returning an already known server', async () =
     await client.close();
   }
 });
+
+it('waits for a stale checked-out connection to return before reserving recovery capacity', async () => {
+  const { descriptionModule } = await import('../../src/no-monitoring/adapter.js');
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${targetPort}`, {
+    directConnection: true, maxPoolSize: 1, monitorCommands: true, serverSelectionTimeoutMS: 1000
+  }));
+
+  try {
+    await client.connect();
+    // SAFETY: connect initialized this pinned driver's topology.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    const server = native.topology.s.servers.values().next().value;
+
+    if (!server) throw new Error('Missing server');
+    let recovery: Promise<import('mongodb').Document> | undefined;
+    let maximum = 0;
+    client.on('connectionCreated', () => { maximum = Math.max(maximum, server.pool.totalConnectionCount); });
+    client.once('commandStarted', () => {
+      server.pool.clear();
+      server.emit('descriptionReceived', new descriptionModule.ServerDescription(server.description.address, {}));
+      recovery = client.db('admin').command({ ping: 1 });
+    });
+    await client.db('admin').command({ ping: 1 });
+    await recovery;
+    expect(maximum).toBe(1);
+  } finally {
+    await client.close();
+  }
+});

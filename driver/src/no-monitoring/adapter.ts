@@ -23,7 +23,9 @@ export interface ApplicationConnection extends EventEmitter {
   destroy(): void;
 }
 
-export interface Pool {
+export interface Pool extends EventEmitter {
+  options: { maxPoolSize: number; maxConnecting: number };
+  pendingConnectionCount: number;
   poolState: string;
   generation: number;
   cancellationToken: EventEmitter;

@@ -1,7 +1,7 @@
 import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
-import { connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Server } from './adapter.js';
+import { connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Pool, type Server } from './adapter.js';
 
 function bootstrap(server: Server, state: Registry): Promise<void> {
   const { pending, pools } = state;
@@ -16,7 +16,13 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
   const generation = pool.generation;
   pools.set(pool.cancellationToken, server);
 
-  const operation = new Promise<void>((resolve, reject) => {
+  const operation = waitForCapacity(pool).then(() => new Promise<void>((resolve, reject) => {
+    if (pool.poolState === 'closed' || pool.generation !== generation) {
+      reject(new MongoClientClosedError());
+
+      return;
+    }
+
     pool.poolState = 'ready';
     pool.createConnection((error, connection) => {
       if (error || !connection) {
@@ -46,11 +52,33 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
 
       resolve();
     });
-  }).finally(() => pending.delete(server));
+  })).finally(() => pending.delete(server));
 
   pending.set(server, operation);
 
   return operation;
+}
+
+function waitForCapacity(pool: Pool): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const events = ['connectionCheckedIn', 'connectionReady', 'connectionClosed', 'connectionPoolClosed'];
+
+    const check = (): void => {
+      if (pool.poolState !== 'closed' &&
+        ((pool.options.maxPoolSize !== 0 && pool.totalConnectionCount >= pool.options.maxPoolSize) ||
+          pool.pendingConnectionCount >= pool.options.maxConnecting)) return;
+
+      for (const event of events) pool.removeListener(event, schedule);
+
+      if (pool.poolState === 'closed') reject(new MongoClientClosedError());
+      else resolve();
+    };
+
+    const schedule = (): void => queueMicrotask(check);
+
+    for (const event of events) pool.on(event, schedule);
+    check();
+  });
 }
 
 export function activate(client: MongoClient): void {

@@ -49,7 +49,17 @@ export interface Topology {
   selectServer(selector: never, options: SelectionOptions): Promise<Server>;
 }
 
+export const registryKey = Symbol.for('@mongodb-serverless/no-monitoring/7.7.0');
+
+export interface Registry {
+  enabled: WeakSet<MongoClient>;
+  pending: WeakMap<Server, Promise<void>>;
+  pools: WeakMap<EventEmitter, Server>;
+  installed: boolean;
+}
+
 export interface Monitor {
+  [registryKey]?: Registry;
   server: Server;
   connect(): void;
 }

@@ -1,17 +1,10 @@
 import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
-import { connectModule, descriptionModule, monitorModule, topologyModule, type Server } from './adapter.js';
+import { connectModule, descriptionModule, monitorModule, topologyModule, registryKey, type Registry, type Server } from './adapter.js';
 
-const enabled = new WeakSet<MongoClient>();
-
-const pools = new WeakMap<import('node:events').EventEmitter, Server>();
-
-const pending = new WeakMap<Server, Promise<void>>();
-
-let installed = false;
-
-function bootstrap(server: Server): Promise<void> {
+function bootstrap(server: Server, state: Registry): Promise<void> {
+  const { pending, pools } = state;
   const existing = pending.get(server);
 
   if (existing) return existing;
@@ -58,6 +51,17 @@ function bootstrap(server: Server): Promise<void> {
 }
 
 export function activate(client: MongoClient): void {
+  const monitor = monitorModule.Monitor.prototype;
+
+  const state = monitor[registryKey] ??= {
+    enabled: new WeakSet<MongoClient>(),
+    pending: new WeakMap<Server, Promise<void>>(),
+    pools: new WeakMap(),
+    installed: false
+  };
+
+  const { enabled, pools } = state;
+
   if (enabled.has(client)) return;
 
   if (('topology' in client && client.topology) || ('connectionLock' in client && client.connectionLock)) {
@@ -66,8 +70,8 @@ export function activate(client: MongoClient): void {
 
   enabled.add(client);
 
-  if (installed) return;
-  installed = true;
+  if (state.installed) return;
+  state.installed = true;
   const originalCreate = connectModule.connect;
   connectModule.connect = async function (options) {
     const connection = await originalCreate(options);
@@ -92,7 +96,6 @@ export function activate(client: MongoClient): void {
     return connection;
   };
 
-  const monitor = monitorModule.Monitor.prototype;
   const originalConnect = monitor.connect;
   monitor.connect = function () {
     if (!enabled.has(this.server.topology.client)) originalConnect.call(this);
@@ -109,6 +112,6 @@ export function activate(client: MongoClient): void {
       return selection;
     }
 
-    return Promise.race([selection, bootstrap(server).then(() => selection)]);
+    return Promise.race([selection, bootstrap(server, state).then(() => selection)]);
   };
 }

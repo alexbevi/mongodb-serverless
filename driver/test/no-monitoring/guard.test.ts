@@ -27,3 +27,12 @@ it('rejects automatic encryption before the driver loads encryption dependencies
   Object.defineProperty(client.options, 'autoEncryption', { value: {} });
   expect(() => disableMonitoring(client)).toThrow(/encryption/);
 });
+
+it('installs hooks once when the patch module is loaded again', async () => {
+  const { monitorModule } = await import('../../src/no-monitoring/adapter.js');
+  disableMonitoring(new MongoClient('mongodb://localhost:28017', { directConnection: true }));
+  const installed = monitorModule.Monitor.prototype.connect;
+  const { activate } = await import('../../src/no-monitoring/patch.js?copy');
+  activate(new MongoClient('mongodb://localhost:28017', { directConnection: true }));
+  expect(monitorModule.Monitor.prototype.connect).toBe(installed);
+});

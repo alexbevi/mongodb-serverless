@@ -27,3 +27,30 @@ it('forwards bytes, counts sockets, and closes both ends', async () => {
     await new Promise<void>(resolve => target.close(() => resolve()));
   }
 });
+
+it('holds replies until resumed', async () => {
+  const target = createServer(socket => socket.pipe(socket));
+  target.listen(0, '127.0.0.1');
+  await once(target, 'listening');
+  const relay = await startRelay(tcpPort(target));
+  let client: ReturnType<typeof createConnection> | undefined;
+
+  try {
+    relay.pause();
+    client = createConnection(relay.port, '127.0.0.1');
+    await once(client, 'connect');
+    let received = false;
+    client.on('data', () => { received = true; });
+    client.write('held');
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(received).toBe(false);
+    const data = once(client, 'data');
+    relay.resume();
+    await data;
+    expect(received).toBe(true);
+  } finally {
+    client?.destroy();
+    await relay.close();
+    await new Promise<void>(resolve => target.close(() => resolve()));
+  }
+});

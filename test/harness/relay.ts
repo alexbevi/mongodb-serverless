@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { createConnection, createServer, type AddressInfo, type Server } from 'node:net';
+import { createConnection, createServer, type AddressInfo, type Server, type Socket } from 'node:net';
 
 function isTcpAddress(address: ReturnType<Server['address']>): address is AddressInfo {
   return address !== null && typeof address !== 'string';
@@ -15,6 +15,8 @@ export function tcpPort(server: Server): number {
 
 export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
   const connections = new Map<number, () => void>();
+  const upstreams = new Set<Socket>();
+  let paused = false;
   const closing = new Set<Promise<void>>();
   const counts = { accepted: 0, open: 0, closed: 0, peak: 0 };
 
@@ -23,6 +25,8 @@ export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
     counts.open++;
     counts.peak = Math.max(counts.peak, counts.open);
     const outgoing = createConnection(targetPort, targetHost);
+    upstreams.add(outgoing);
+    outgoing.once('close', () => upstreams.delete(outgoing));
 
     const destroy = (): void => {
       incoming.destroy();
@@ -43,6 +47,8 @@ export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
     });
     outgoing.once('close', () => incoming.destroy());
     incoming.pipe(outgoing).pipe(incoming);
+
+    if (paused) outgoing.pause();
   });
 
   server.listen(0, '127.0.0.1');
@@ -51,6 +57,16 @@ export async function startRelay(targetPort: number, targetHost = '127.0.0.1') {
   return {
     port: tcpPort(server),
     counts,
+    pause(): void {
+      paused = true;
+
+      for (const socket of upstreams) socket.pause();
+    },
+    resume(): void {
+      paused = false;
+
+      for (const socket of upstreams) socket.resume();
+    },
     interrupt(id: number): void {
       const destroy = connections.get(id);
 

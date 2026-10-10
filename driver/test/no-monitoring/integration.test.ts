@@ -87,3 +87,22 @@ it('rejects a mismatched replica set before the connection becomes ready', async
     await client.close();
   }
 });
+
+it('rejects a standalone before connection readiness', async () => {
+  const { startStandalone, STANDALONE_PORT } = await import('../../../test/harness/cluster.js');
+  await startStandalone();
+
+  const client = disableMonitoring(new MongoClient(`mongodb://localhost:${STANDALONE_PORT}`, {
+    directConnection: true, serverSelectionTimeoutMS: 500
+  }));
+
+  let ready = 0;
+  client.on('connectionReady', () => ready++);
+
+  try {
+    await expect(client.connect()).rejects.toThrow(/data-bearing replica set member/);
+    expect(ready).toBe(0);
+  } finally {
+    await client.close();
+  }
+}, 60_000);

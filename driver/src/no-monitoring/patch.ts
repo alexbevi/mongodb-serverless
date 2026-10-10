@@ -76,6 +76,12 @@ export function activate(client: MongoClient): void {
     if (!server) return connection;
 
     const description = new descriptionModule.ServerDescription(server.description.address, connection.hello);
+
+    if (!['RSPrimary', 'RSSecondary'].includes(description.type)) {
+      connection.destroy();
+      throw new UnsupportedOperationError('disableMonitoring requires a data-bearing replica set member');
+    }
+
     const expectedSet = server.topology.client.options.replicaSet;
 
     if (expectedSet && description.setName !== expectedSet) {

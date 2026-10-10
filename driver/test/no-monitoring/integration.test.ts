@@ -47,3 +47,27 @@ it('rejects activation after native connect has started', async () => {
     await client.close();
   }
 });
+
+it('leaves ordinary monitoring active and emits no heartbeat in either opted-in mode', async () => {
+  for (const serverMonitoringMode of ['poll', 'stream'] as const) {
+    const relay = await startRelay(targetPort);
+    const stockRelay = await startRelay(targetPort);
+    const options = { directConnection: true, maxPoolSize: 1, heartbeatFrequencyMS: 500, serverMonitoringMode };
+    const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, options));
+    const stock = new MongoClient(`mongodb://127.0.0.1:${stockRelay.port}`, options);
+    const heartbeats: string[] = [];
+    client.on('serverHeartbeatStarted', () => heartbeats.push('started'));
+
+    try {
+      await Promise.all([client.connect(), stock.connect()]);
+      expect(disableMonitoring(client)).toBe(client);
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      expect(relay.counts.accepted).toBe(1);
+      expect(heartbeats).toEqual([]);
+      expect(stockRelay.counts.accepted).toBe(serverMonitoringMode === 'poll' ? 2 : 3);
+    } finally {
+      await Promise.all([client.close(), stock.close()]);
+      await Promise.all([relay.close(), stockRelay.close()]);
+    }
+  }
+});

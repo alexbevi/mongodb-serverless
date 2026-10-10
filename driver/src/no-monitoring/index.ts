@@ -6,5 +6,11 @@ export function disableMonitoring<T extends MongoClient>(client: T): T {
     throw new UnsupportedOperationError('disableMonitoring requires directConnection: true');
   }
 
+  const mechanism = client.options.credentials?.mechanism;
+
+  if (mechanism && !['DEFAULT', 'SCRAM-SHA-256', 'SCRAM-SHA-1'].includes(mechanism)) {
+    throw new UnsupportedOperationError('disableMonitoring supports only SCRAM authentication');
+  }
+
   return client;
 }

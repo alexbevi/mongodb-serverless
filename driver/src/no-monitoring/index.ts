@@ -1,9 +1,13 @@
 import { activate } from './patch.js';
-import { verifyDriver } from './adapter.js';
+import { clientModule, verifyDriver } from './adapter.js';
 import { MongoClient } from 'mongodb';
 import { UnsupportedOperationError } from '../errors.js';
 
 export function disableMonitoring<T extends MongoClient>(client: T): T {
+  if (!(client instanceof clientModule.MongoClient)) {
+    throw new UnsupportedOperationError('disableMonitoring requires a client from the same mongodb module');
+  }
+
   if (!client.options.directConnection) {
     throw new UnsupportedOperationError('disableMonitoring requires directConnection: true');
   }

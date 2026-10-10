@@ -36,3 +36,9 @@ it('installs hooks once when the patch module is loaded again', async () => {
   activate(new MongoClient('mongodb://localhost:28017', { directConnection: true }));
   expect(monitorModule.Monitor.prototype.connect).toBe(installed);
 });
+
+it('rejects a client whose constructor is not from the patched driver instance', () => {
+  const client = new MongoClient('mongodb://localhost:28017', { directConnection: true });
+  Object.setPrototypeOf(client, null);
+  expect(() => disableMonitoring(client)).toThrow(/same mongodb module/);
+});

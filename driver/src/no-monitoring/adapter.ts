@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+import type { Document, MongoClient } from 'mongodb';
 import { createRequire } from 'node:module';
 import { UnsupportedOperationError } from '../errors.js';
 
@@ -24,8 +26,6 @@ export function verifyDriver(): void {
   }
 }
 
-import { EventEmitter } from 'node:events';
-import type { Document, MongoClient } from 'mongodb';
 
 export interface ApplicationConnection extends EventEmitter {
   hello: Document;
@@ -87,8 +87,8 @@ export interface Monitor {
   connect(): void;
   reset(): void;
   requestCheck(): void;
-  monitorId?: NodeJS.Timeout;
-  rttPinger?: EventEmitter;
+  monitorId?: { stop(): void; wake(): void };
+  rttPinger?: { close(): void };
   connection: ApplicationConnection | null;
 }
 

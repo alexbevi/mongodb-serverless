@@ -9,6 +9,8 @@ import type { TopologyPlugin } from './plugin.js';
 export interface ServerlessClientOptions extends MongoClientOptions {
   /** A plugin, or the name of a package exporting one. */
   plugin?: PluginSource;
+  /** Disable SDAM monitoring for the underlying direct connections. Requires mongodb 7.7.0. */
+  disableMonitoring?: boolean;
   /** Builds the real clients. For tests. */
   createClient?: ClientFactory;
 }
@@ -30,7 +32,7 @@ export class ServerlessMongoClient {
   readonly #pair: Promise<ClientPair>;
 
   constructor(uri: string, options: ServerlessClientOptions = {}) {
-    const { plugin, createClient, ...driverOptions } = options;
+    const { plugin, createClient, disableMonitoring = false, ...driverOptions } = options;
 
     this.#uri = uri;
     this.#defaultDb = defaultDatabaseOf(uri);
@@ -41,7 +43,8 @@ export class ServerlessMongoClient {
           uri,
           plugin: resolved,
           createClient: createClient ?? defaultFactory,
-          driverOptions
+          driverOptions,
+          disableMonitoring
         })
     );
   }

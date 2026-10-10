@@ -76,3 +76,11 @@ it('rejects an untrusted TLS certificate without adopting the socket', async () 
     await relay.close();
   }
 });
+
+it('keeps the reusable TLS fixture valid for future test runs', async () => {
+  const { X509Certificate } = await import('node:crypto');
+  const { readFile } = await import('node:fs/promises');
+  const fixture = await startSecureCluster();
+  const certificate = new X509Certificate(await readFile(fixture.ca));
+  expect(Date.parse(certificate.validTo) - Date.now()).toBeGreaterThan(365 * 24 * 60 * 60 * 1000);
+});

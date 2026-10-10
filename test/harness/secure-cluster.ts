@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, X509Certificate } from 'node:crypto';
 
 const exec = promisify(execFile);
 
@@ -26,11 +26,16 @@ async function start(): Promise<{ uri: string; ca: string }> {
 
   if (stdout.trim() === container) {
     await exec('docker', ['cp', `${container}:/certs/ca.pem`, ca]);
+    const certificate = new X509Certificate(await readFile(ca));
 
-    return { uri, ca };
+    if (Date.parse(certificate.validTo) - Date.now() > 365 * 24 * 60 * 60 * 1000) return { uri, ca };
+    await exec('docker', ['rm', '-f', container]);
+    await rm(directory, { recursive: true, force: true });
+
+    return start();
   }
 
-  await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '2',
+  await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
     '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1',
     '-keyout', join(directory, 'key.pem'), '-out', ca]);
   await writeFile(join(directory, 'server.pem'), (await readFile(join(directory, 'key.pem'))) + '\n' + (await readFile(ca)));

@@ -36,3 +36,14 @@ it('uses the authenticated bootstrap socket for the first application command', 
 
   expect(relay.counts.open).toBe(0);
 });
+
+it('rejects activation after native connect has started', async () => {
+  const client = new MongoClient(`mongodb://127.0.0.1:${targetPort}`, { directConnection: true });
+
+  try {
+    await client.connect();
+    expect(() => disableMonitoring(client)).toThrow(/before/);
+  } finally {
+    await client.close();
+  }
+});

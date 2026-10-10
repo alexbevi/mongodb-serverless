@@ -1,3 +1,4 @@
+import { UnsupportedOperationError } from '../errors.js';
 import type { MongoClient } from 'mongodb';
 import { MongoClientClosedError } from 'mongodb';
 import { descriptionModule, monitorModule, topologyModule, type Server } from './adapter.js';
@@ -54,6 +55,12 @@ function bootstrap(server: Server): Promise<void> {
 }
 
 export function activate(client: MongoClient): void {
+  if (enabled.has(client)) return;
+
+  if (('topology' in client && client.topology) || ('connectionLock' in client && client.connectionLock)) {
+    throw new UnsupportedOperationError('Call disableMonitoring before connecting');
+  }
+
   enabled.add(client);
 
   if (installed) return;

@@ -106,3 +106,49 @@ it('rejects a standalone before connection readiness', async () => {
     await client.close();
   }
 }, 60_000);
+
+it('recovers on the same secondary after a rejected write without exceeding the pool limit', async () => {
+  const secondary = (await describeCluster()).secondaries[0];
+
+  if (!secondary) throw new Error('Missing secondary');
+  const relay = await startRelay(Number(secondary.split(':')[1]));
+
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${relay.port}`, {
+    directConnection: true, maxPoolSize: 1, retryWrites: false, serverSelectionTimeoutMS: 1500
+  }));
+
+  try {
+    await client.connect();
+    await expect(client.db('test').collection('recovery').insertOne({ value: 1 })).rejects.toMatchObject({ code: 10107 });
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(relay.counts.accepted).toBe(1);
+    await client.db('test').collection('recovery').findOne({});
+    expect(relay.counts.peak).toBe(1);
+  } finally {
+    await client.close();
+    await relay.close();
+  }
+});
+
+it('removes stale available connections before reserving a recovery connection', async () => {
+  const client = disableMonitoring(new MongoClient(`mongodb://127.0.0.1:${targetPort}`, {
+    directConnection: true, maxPoolSize: 1, serverSelectionTimeoutMS: 1000
+  }));
+
+  try {
+    await client.connect();
+    // SAFETY: mongodb 7.7.0 exposes topology after connect; this test exercises its real pool.
+    const native = client as MongoClient & { topology: import('../../src/no-monitoring/adapter.js').Topology };
+    const server = native.topology.s.servers.values().next().value;
+
+    if (!server) throw new Error('Missing server');
+    server.pool.clear();
+    server.emit('descriptionReceived', new (await import('../../src/no-monitoring/adapter.js')).descriptionModule.ServerDescription(server.description.address, {}));
+    let maximum = 0;
+    client.on('connectionCreated', () => { maximum = Math.max(maximum, server.pool.totalConnectionCount); });
+    await client.db('admin').command({ ping: 1 });
+    expect(maximum).toBe(1);
+  } finally {
+    await client.close();
+  }
+});

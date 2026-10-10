@@ -27,7 +27,13 @@ export interface Pool {
   poolState: string;
   generation: number;
   cancellationToken: EventEmitter;
-  connections: { push(connection: ApplicationConnection): void };
+  totalConnectionCount: number;
+  clear(): void;
+  destroyConnectionIfPerished(connection: ApplicationConnection): boolean;
+  connections: {
+    push(connection: ApplicationConnection): void;
+    prune(predicate: (connection: ApplicationConnection) => boolean): void;
+  };
   createConnection(callback: (error?: Error, connection?: ApplicationConnection) => void): void;
   destroyConnection(connection: ApplicationConnection, reason: string): void;
 }

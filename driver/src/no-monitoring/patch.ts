@@ -10,6 +10,9 @@ function bootstrap(server: Server, state: Registry): Promise<void> {
   if (existing) return existing;
 
   const pool = server.pool;
+
+  if (pool.poolState === 'ready') pool.clear();
+  pool.connections.prune(connection => pool.destroyConnectionIfPerished(connection));
   const generation = pool.generation;
   pools.set(pool.cancellationToken, server);
 

@@ -1,5 +1,16 @@
 # @mongodb-serverless/driver
 
+## 0.2.0
+
+### Minor changes
+
+- Add an opt-in no-monitoring mode for direct connections. Reuse the authenticated
+  handshake socket in the application pool, suppress heartbeat and RTT connections,
+  and recover on demand against the same host. Expose the native-client helper at
+  `@mongodb-serverless/driver/no-monitoring` and the wrapper's `disableMonitoring`
+  option. Use MongoDB 7.7.0 as the verified baseline and allow stable versions in
+  `>=7.7.0 <8.0.0` when internal API checks pass.
+
 ## 0.1.1
 
 ### Patch Changes

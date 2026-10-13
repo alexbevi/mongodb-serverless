@@ -1,12 +1,14 @@
 # No monitoring
 
 An opt-in patch for short-lived operations against one MongoDB replica set
-member. Requires exactly `mongodb@7.7.0` because it uses private driver APIs.
+member. The verified baseline is `mongodb@7.7.0`. Stable releases in
+`>=7.7.0 <8.0.0` are allowed when the internal API checks pass. Private driver
+behavior can still change within that range.
 
 ## Install
 
 ```sh
-npm install @mongodb-serverless/driver mongodb@7.7.0
+npm install @mongodb-serverless/driver 'mongodb@^7.7.0'
 ```
 
 ## Usage

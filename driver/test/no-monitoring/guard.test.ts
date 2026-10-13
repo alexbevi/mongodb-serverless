@@ -16,10 +16,16 @@ it('rejects unsupported authentication before connecting', () => {
   expect(() => disableMonitoring(client)).toThrow(/SCRAM/);
 });
 
-it('rejects unverified driver versions', async () => {
+it('accepts stable releases from the baseline through major version 7', async () => {
   const { assertVersion } = await import('../../src/no-monitoring/adapter.js');
-  expect(() => assertVersion('7.7.1')).toThrow(/7.7.0/);
-  expect(() => assertVersion('7.7.0')).not.toThrow();
+
+  for (const version of ['7.7.0', '7.7.1', '7.8.0', '7.20.0', '7.7.0+build.1']) {
+    expect(() => assertVersion(version)).not.toThrow();
+  }
+
+  for (const version of ['7.6.99', '6.20.0', '8.0.0', '7.8.0-beta.1', '7.7', 'garbage', '07.7.0', '7.7.0\n', '7.7.0+bad..build']) {
+    expect(() => assertVersion(version)).toThrow(/>=7.7.0 <8.0.0/);
+  }
 });
 
 it('rejects automatic encryption before the driver loads encryption dependencies', () => {

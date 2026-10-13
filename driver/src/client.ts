@@ -9,7 +9,7 @@ import type { TopologyPlugin } from './plugin.js';
 export interface ServerlessClientOptions extends MongoClientOptions {
   /** A plugin, or the name of a package exporting one. */
   plugin?: PluginSource;
-  /** Disable SDAM monitoring for the underlying direct connections. Requires mongodb 7.7.0. */
+  /** Disable SDAM monitoring for the underlying direct connections. Requires mongodb >=7.7.0 <8.0.0. */
   disableMonitoring?: boolean;
   /** Builds the real clients. For tests. */
   createClient?: ClientFactory;

@@ -77,8 +77,8 @@ Opt in with `disableMonitoring: true` on the wrapper. It applies to both lazy
 clients, including clients returned by `createClient`. The default remains
 unchanged.
 
-The same patch works on a native client without a plugin. Install exactly
-`mongodb@7.7.0`, then call the helper before connecting or issuing an operation.
+The same patch works on a native client without a plugin. Install
+`mongodb@^7.7.0`, then call the helper before connecting or issuing an operation.
 In this example, `uri` names one replica set member.
 
 ```js
@@ -109,9 +109,10 @@ It does not discover another primary or refresh the plugin's topology. A write
 to a member that has stepped down can therefore fail. Native retry rules still
 apply. Closing the client never reconnects to end sessions.
 
-This experimental patch depends on private driver APIs and rejects versions
-other than 7.7.0. It supports data-bearing replica set members, no authentication
-or SCRAM, and TLS. It rejects standalone, sharded, load-balanced, and automatically
+This experimental patch uses 7.7.0 as its verified baseline. It accepts stable
+versions in `>=7.7.0 <8.0.0` when the internal API checks pass. Those checks cannot
+guarantee unchanged behavior in private driver APIs. It supports data-bearing
+replica set members, no authentication or SCRAM, and TLS. It rejects standalone, sharded, load-balanced, and automatically
 encrypted clients, along with other authentication mechanisms. It installs
 process-wide hooks that delegate unchanged for clients without the opt-in.
 Importing the helper alone does not install those hooks. Pass a client from the

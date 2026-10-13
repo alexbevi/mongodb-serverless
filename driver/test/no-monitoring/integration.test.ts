@@ -355,7 +355,7 @@ it('replaces an interrupted socket only when the next operation needs it', async
 });
 
 it('stays on the selected host through stepdown and preserves retryable write identity', async () => {
-  const { stepDownPrimary } = await import('../../../test/harness/cluster.js');
+  const { stepDownPrimary, waitForPreferredPrimary } = await import('../../../test/harness/cluster.js');
   const primary = (await describeCluster()).primary;
   const relay = await startRelay(Number(primary.split(':')[1]));
 
@@ -379,6 +379,7 @@ it('stays on the selected host through stepdown and preserves retryable write id
   } finally {
     await client.close();
     await relay.close();
+    await waitForPreferredPrimary();
   }
 }, 60_000);
 

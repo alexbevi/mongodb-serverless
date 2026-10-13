@@ -172,6 +172,16 @@ export async function stepDownPrimary(): Promise<void> {
   }, 'a new primary to be elected');
 }
 
+export async function waitForPreferredPrimary(): Promise<void> {
+  await waitFor(async () => {
+    const cluster = await describeCluster();
+
+    return cluster.primary === `localhost:${PORTS[0]}` &&
+      cluster.status.members.every(member => member.health === 1 &&
+        (member.stateStr === 'PRIMARY' || member.stateStr === 'SECONDARY'));
+  }, 'the preferred primary to return after stepdown');
+}
+
 async function waitFor(
   condition: () => Promise<boolean>,
   description: string,

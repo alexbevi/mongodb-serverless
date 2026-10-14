@@ -10,6 +10,7 @@ import {
   startCluster,
   startStandalone,
   stepDownPrimary,
+  waitForPreferredPrimary,
   stopStandalone,
   STANDALONE_PORT,
   type TestCluster
@@ -152,19 +153,22 @@ describe.skipIf(!hasDocker)('watcher against a real replica set', () => {
 
       const originalPrimary = original.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
-      await stepDownPrimary();
-      await watcher.check();
+      try {
+        await stepDownPrimary();
+        await watcher.check();
 
-      const updated = await new LocalPlugin().read();
+        const updated = await new LocalPlugin().read();
+        const newPrimary = updated.members.find(m => m.stateStr === 'PRIMARY')?.name;
 
-      const newPrimary = updated.members.find(m => m.stateStr === 'PRIMARY')?.name;
+        expect(before.setName).toBe('rstest');
+        expect(newPrimary).toBeDefined();
+        expect(newPrimary).not.toBe(originalPrimary);
+      } finally {
+        await waitForPreferredPrimary();
+        cluster = await describeCluster();
+      }
 
-      expect(before.setName).toBe('rstest');
-      expect(newPrimary).toBeDefined();
-      expect(newPrimary).not.toBe(originalPrimary);
-
-      // Leave the cluster as the other suite expects to find it.
-      cluster = await describeCluster();
+      expect(cluster.primary).toBe('localhost:28017');
     }, 180_000);
   });
 

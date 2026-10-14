@@ -1,0 +1,29 @@
+import { activate } from './patch.js';
+import { clientModule, verifyDriver } from './adapter.js';
+import type { MongoClient } from 'mongodb';
+import { UnsupportedOperationError } from '../errors.js';
+
+export function disableMonitoring<T extends MongoClient>(client: T): T {
+  if (!(client instanceof clientModule.MongoClient)) {
+    throw new UnsupportedOperationError('disableMonitoring requires a client from the same mongodb module');
+  }
+
+  if (!client.options.directConnection) {
+    throw new UnsupportedOperationError('disableMonitoring requires directConnection: true');
+  }
+
+  const mechanism = client.options.credentials?.mechanism;
+
+  if (mechanism && !['DEFAULT', 'SCRAM-SHA-256', 'SCRAM-SHA-1'].includes(mechanism)) {
+    throw new UnsupportedOperationError('disableMonitoring supports only SCRAM authentication');
+  }
+
+  if (client.options.autoEncryption) {
+    throw new UnsupportedOperationError('disableMonitoring does not support automatic encryption');
+  }
+
+  verifyDriver();
+  activate(client);
+
+  return client;
+}

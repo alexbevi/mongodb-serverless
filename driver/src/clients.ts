@@ -12,6 +12,7 @@ export interface ClientPairOptions {
   plugin: TopologyPlugin;
   createClient: ClientFactory;
   driverOptions?: MongoClientOptions;
+  disableMonitoring?: boolean;
 }
 
 /**
@@ -96,6 +97,12 @@ export class ClientPair {
     // connect() instead of racing to create a second client.
     const pending = (async () => {
       const client = this.#options.createClient(uri, this.#options.driverOptions);
+
+      if (this.#options.disableMonitoring) {
+        const { disableMonitoring } = await import('./no-monitoring/index.js');
+        disableMonitoring(client);
+      }
+
       await client.connect();
 
       return client;

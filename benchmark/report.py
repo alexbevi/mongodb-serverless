@@ -12,7 +12,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, PathPatch
+from matplotlib.path import Path as PlotPath
 
 COLORS = {
     "tcp": "#2563eb",
@@ -107,44 +108,129 @@ def summarize(rows):
     return result
 
 
-def draw_trace(axis, row, base, label):
-    timeline = row["timeline"]
-    connections = timeline["connections"]
-    first = min(connection["start"] for connection in connections)
-    total = timeline["total"]
-    ticks = []
-    labels = []
-    for index, connection in enumerate(connections):
-        y = base - index
-        ticks.append(y)
-        role = connection["role"].capitalize()
-        kind = connection["kind"]
-        labels.append(f"{label}\n{connection['host']} · {role}\n{kind}")
-        axis.barh(y, total, height=0.45, color="#e2e8f0", alpha=0.45)
-        axis.barh(y, first, height=0.45, color="#94a3b8")
-        axis.barh(
-            y,
-            connection["end"] - connection["start"],
-            left=connection["start"],
-            height=0.45,
-            color="#e2e8f0",
-            edgecolor="#334155" if kind == "application" else "#7c3aed",
-        )
-        for phase, (begin, end) in connection["phases"].items():
-            if phase in COLORS:
-                axis.barh(y, end - begin, left=begin, height=0.4, color=COLORS[phase])
-        if kind == "application" and connection["selected"]:
-            for phase, (begin, end) in timeline["command"].items():
-                axis.barh(y, end - begin, left=begin, height=0.45, color=COLORS[phase])
-            axis.text(
-                total * 1.015,
-                y,
-                f"{total:.1f} ms",
-                va="center",
-                fontsize=10,
-                weight="bold",
+def draw_connection(axis, connection, y):
+    application = connection["kind"] == "application"
+    axis.barh(
+        y,
+        connection["end"] - connection["start"],
+        left=connection["start"],
+        height=0.4,
+        color="#e2e8f0",
+        edgecolor="#334155" if application else "#7c3aed",
+        linewidth=1.5,
+        zorder=2,
+    )
+    for phase, (begin, end) in connection["phases"].items():
+        if phase in COLORS:
+            axis.barh(
+                y, end - begin, left=begin, height=0.36, color=COLORS[phase], zorder=3
             )
-    return ticks, labels
+
+
+def draw_command(axis, timeline, y):
+    for phase, (begin, end) in timeline["command"].items():
+        axis.barh(y, end - begin, left=begin, height=0.4, color=COLORS[phase], zorder=4)
+    axis.text(
+        timeline["total"] * 1.015,
+        y,
+        f"{timeline['total']:.1f} ms",
+        va="center",
+        fontsize=10,
+        weight="bold",
+    )
+
+
+def draw_node_lanes(axis, native, serverless, member_letters):
+    timeline = native["timeline"]
+    connections = timeline["connections"]
+    roles = {connection["host"]: connection["role"] for connection in connections}
+    primary = next(host for host, role in roles.items() if role == "PRIMARY")
+    secondaries = sorted(host for host in roles if host != primary)
+    hosts = [secondaries[0], primary, secondaries[1]]
+    lanes = dict(zip(hosts, [3.2, 2.2, 1.2]))
+    applications = [c for c in connections if c["kind"] == "application"]
+    selected = next(c for c in reversed(applications) if c["selected"])
+    axis.barh(
+        lanes[selected["host"]],
+        timeline["total"],
+        height=0.4,
+        color="#e2e8f0",
+        zorder=1,
+    )
+    totalmax = max(timeline["total"], serverless["timeline"]["total"])
+    for connection in connections:
+        y = lanes[connection["host"]]
+        draw_connection(axis, connection, y)
+        label = "monitor"
+        if connection["kind"] == "application":
+            label = "selected → " + (
+                native["operation"] if connection is selected else "connect()"
+            )
+        axis.text(
+            (connection["start"] + connection["end"]) / 2,
+            y + 0.29,
+            label,
+            ha="center",
+            fontsize=8.5,
+            color="#334155",
+        )
+    for connection in applications:
+        x = connection["start"]
+        y = lanes[connection["host"]]
+        width = totalmax * 0.025
+        left, middle = x - width * 0.65, x - width * 0.32
+        vertices = [
+            (left, 3.6),
+            (middle, 3.6),
+            (middle, y + 0.13),
+            (x, y),
+            (middle, y - 0.13),
+            (middle, 0.8),
+            (left, 0.8),
+        ]
+        axis.add_patch(
+            PathPatch(
+                PlotPath(vertices, [PlotPath.MOVETO] + [PlotPath.CURVE4] * 6),
+                fill=False,
+                lw=1,
+                color="#0f172a",
+                zorder=5,
+            )
+        )
+    draw_command(axis, timeline, lanes[selected["host"]])
+    first = min(connection["start"] for connection in connections)
+    axis.axvspan(0, first, ymin=0.31, ymax=0.94, color="#94a3b8", alpha=0.32, zorder=0)
+    axis.axhline(0.35, color="#cbd5e1", lw=1)
+    direct = serverless["timeline"]
+    axis.barh(-0.55, direct["total"], height=0.4, color="#e2e8f0", zorder=0)
+    axis.barh(
+        -0.55,
+        min(c["start"] for c in direct["connections"]),
+        height=0.4,
+        color="#94a3b8",
+    )
+    for connection in direct["connections"]:
+        draw_connection(axis, connection, -0.55)
+        axis.text(
+            (connection["start"] + connection["end"]) / 2,
+            -0.23,
+            "direct application connection",
+            ha="center",
+            fontsize=9,
+        )
+    draw_command(axis, direct, -0.55)
+    direct_host = direct["connections"][0]["host"]
+    labels = [
+        f"MongoDB {roles[host].capitalize()} {member_letters[host]}" for host in hosts
+    ]
+    labels.append(
+        f"Serverless {serverless['servedRole'].capitalize()} {member_letters[direct_host]}"
+    )
+    axis.set_yticks([3.2, 2.2, 1.2, -0.55], labels, fontsize=10)
+    for label in axis.get_yticklabels():
+        if "Primary" in label.get_text():
+            label.set_fontweight("bold")
+    axis.set_ylim(-1.2, 4)
 
 
 def render(data, environment, output):
@@ -162,8 +248,14 @@ def render(data, environment, output):
             representatives[operation, mode] = min(
                 group, key=lambda row: abs(row["timeline"]["total"] - middle)
             )
-    figure, axes = plt.subplots(2, 1, figsize=(15, 13))
-    figure.subplots_adjust(left=0.25, right=0.94, top=0.86, bottom=0.12, hspace=0.45)
+    member_letters = {
+        host: chr(65 + index)
+        for index, host in enumerate(
+            sorted({c["host"] for row in rows for c in row["timeline"]["connections"]})
+        )
+    }
+    figure, axes = plt.subplots(1, 2, figsize=(22, 8))
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.76, bottom=0.22, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -174,7 +266,7 @@ def render(data, environment, output):
     )
     figure.text(
         0.5,
-        0.935,
+        0.89,
         f"Measured {date}. Individual traces nearest cohort medians; headings report all-sample means.",
         ha="center",
         fontsize=11,
@@ -182,7 +274,7 @@ def render(data, environment, output):
     if environment == "aws":
         figure.text(
             0.5,
-            0.91,
+            0.85,
             "Point-in-time snapshot; not a statement of current performance.",
             ha="center",
             fontsize=11,
@@ -190,10 +282,7 @@ def render(data, environment, output):
     for axis, operation in zip(axes, ("read", "write")):
         native = representatives[operation, "native-cluster"]
         serverless = representatives[operation, "serverless"]
-        ticks, labels = draw_trace(axis, native, 0, "MongoDB")
-        base = -len(native["timeline"]["connections"]) - 1
-        more_ticks, more_labels = draw_trace(axis, serverless, base, "Serverless")
-        axis.set_yticks(ticks + more_ticks, labels + more_labels, fontsize=8)
+        draw_node_lanes(axis, native, serverless, member_letters)
         means = {
             item["driver"]: item["mean"]
             for item in summary
@@ -227,13 +316,13 @@ def render(data, environment, output):
             Patch(facecolor="#e2e8f0", label="Other / gaps"),
         ],
         loc="lower center",
-        bbox_to_anchor=(0.5, 0.055),
+        bbox_to_anchor=(0.5, 0.09),
         ncol=8,
         frameon=False,
     )
     figure.text(
         0.5,
-        0.025,
+        0.045,
         "Every socket in each illustrated sample is shown. Watcher work, imports, client close and Lambda INIT are excluded.",
         ha="center",
         fontsize=10,

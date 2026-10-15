@@ -8,10 +8,8 @@ data, diagram and report in this folder, keeping the same links.
 
 ![AWS connection timings from 15 October 2026](latency.png)
 
-| Operation | MongoDB mean | Serverless mean | Reduction |
-| --- | ---: | ---: | ---: |
-| Read | 254.7 ms | 203.6 ms | 20.1% |
-| Write | 263.2 ms | 203.0 ms | 22.9% |
+Mean read time was **253.1 → 200.5 ms (20.8% less time)**; mean write time was
+**263.3 → 206.8 ms (21.5% less time)**.
 
 Percentages use unrounded means. Each driver/operation has 30 verified cold Lambda
 invocations. Timing starts before handler invocation, including lazy client construction,
@@ -22,20 +20,20 @@ AWS results were collected on a sample application using MongoDB driver 7.7.0
 and serverless driver 0.2.0. The MongoDB driver used the cluster SRV URI and
 `secondaryPreferred` for reads. The serverless driver used watcher-provided direct
 secondary/read and primary/write URIs with monitoring disabled. Writes used
-majority acknowledgement. MongoDB reads reached secondaries in 22 of 30 samples
-and fell back to the primary in 8, as permitted by `secondaryPreferred` during
+majority acknowledgement. MongoDB reads reached secondaries in 25 of 30 samples
+and fell back to the primary in 5, as permitted by `secondaryPreferred` during
 discovery. All serverless reads reached secondaries; all writes reached primaries.
 
 Every serverless sample opened one authenticated application socket and no monitor
 socket. Each illustrated trace is a real sample nearest its driver/operation
-median, with every socket from that sample shown. The table and diagram headings
+median, with every socket from that sample shown. The diagram headings
 report means across all 30 samples per driver/operation.
 Cluster DNS is the shared SRV/TXT discovery stage, shown as one block spanning
-all three node lanes before sockets open. Its elapsed time averaged 13.47 ms for MongoDB reads and 12.93 ms for writes.
+all three node lanes before sockets open. Its elapsed time averaged 15.79 ms for MongoDB reads and 13.33 ms for writes.
 The requests overlap; their individual durations must not be added. Host DNS
 segments show hostname resolution before TCP on each socket. For the selected
-application socket, this averaged 12.49/7.17 ms for MongoDB reads/writes and
-8.51/9.09 ms for serverless reads/writes. Direct clients skip cluster discovery
+application socket, this averaged 13.80/7.05 ms for MongoDB reads/writes and
+7.32/8.96 ms for serverless reads/writes. Direct clients skip cluster discovery
 DNS but still resolve the member hostname. Detailed means are in `dnsMeanMs` in
 the summary; individual requests are retained in `trace.dns`.
 
@@ -50,11 +48,14 @@ Lambda placement, CPU scheduling, DNS, TLS and database load affect these timing
 The results do not establish current performance or the behavior of long-lived
 pools, elections or failover.
 
-The tables beneath the lanes partition each illustrated trace's elapsed time.
-Application phases take precedence over concurrent monitor phases; overlapping
-monitor intervals count once. The remaining time is bounded by lifecycle events
-or marked as having an unmeasured cause. These durations include CPU work, I/O
-and scheduling; they are not exclusive CPU costs. `~` marks rounded values.
+The diagram separates Setup, Connection and Operation. Application phases take
+precedence over concurrent monitor phases; overlapping monitor intervals count
+once in the summary. `~` marks rounded values.
+
+This run uses socket and client-event instrumentation without diagnostic code
+probes or async-hook stack capture. Grey intervals retain measured elapsed time
+whose internal cause was not profiled on Lambda. The [local diagnostic workflow](../../README.md#reading-the-diagram)
+measures code scopes separately; its durations are not substituted into AWS bars.
 The summary retains the unrounded accounting and interval boundaries.
 
 [Raw samples](samples.json) · [Summary statistics](summary.json) ·

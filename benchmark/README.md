@@ -341,6 +341,12 @@ receive includes network transit and server work. Without diagnostics, internal 
 runs subdivide them into the measured scopes and execution intervals defined above. Instrumentation adds
 some overhead and is verified against MongoDB driver 7.7.0.
 
+CI collects separate 100-iteration cohorts for the performance gate and the
+diagram. The gate uses uninstrumented timings; the diagram uses `--diagnostics`
+to show code scopes and execution intervals. Its timings include tracing overhead.
+The measurements artifact contains `samples.json` for the gate and
+`diagnostics/samples.json` for the diagram.
+
 The local DNS resolver, host CPU, certificates, MongoDB deployment and network
 scheduler differ from AWS. Local results test the connection sequence; they are
 not an AWS latency prediction. Saved measurements live only in `results/local/`

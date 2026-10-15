@@ -82,10 +82,16 @@ jobs:
         id: benchmark
         timeout-minutes: 10
         run: |
+          pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/workflow.test.ts
           python3 -m unittest discover -s benchmark/test -p performance_test.py
           python3 -m unittest discover -s benchmark/test -p ci_summary_test.py
           pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
           python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+
+      - name: Collect detailed latency diagnostics (100 iterations)
+        if: always() && steps.benchmark.outcome != 'skipped'
+        timeout-minutes: 10
+        run: pnpm benchmark --diagnostics --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/diagnostics/samples.json"
 
       - name: Render benchmark latency
         if: always() && steps.benchmark.outcome != 'skipped'
@@ -93,10 +99,10 @@ jobs:
         env:
           BENCHMARK_NODE: '24'
         run: |
-          if [ -f "$RUNNER_TEMP/benchmark/samples.json" ]; then
+          if [ -f "$RUNNER_TEMP/benchmark/diagnostics/samples.json" ]; then
             python3 -m pip install -r benchmark/requirements-report.txt
-            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json" --environment local
-            mv "$RUNNER_TEMP/benchmark/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
+            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/diagnostics/samples.json" --environment local
+            mv "$RUNNER_TEMP/benchmark/diagnostics/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
           fi
 
       - name: Upload benchmark measurements
@@ -105,7 +111,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-node-24
-          path: ${{ runner.temp }}/benchmark/samples.json
+          path: |
+            ${{ runner.temp }}/benchmark/samples.json
+            ${{ runner.temp }}/benchmark/diagnostics/samples.json
           if-no-files-found: ignore
           retention-days: 7
 

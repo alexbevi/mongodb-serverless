@@ -8,6 +8,25 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_legend_order_follows_first_appearance_within_each_stage(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        row = {"applicationConnectionReadyMs": 10, "timeline": {
+            "total": 13, "dns": [{"start": 2, "end": 3}],
+            "connections": [{"kind": "application", "selected": True, "start": 4, "end": 10,
+                             "phases": {"lookup": [5, 6], "tcp": [6, 7], "tls": [7, 8], "auth": [8, 10]}}],
+            "command": {"send": [11, 12], "receive": [12, 13]},
+            "activities": [{"name": "Native URI/options parsing", "kind": "sync", "start": 0, "end": 2},
+                           {"name": "TLS socket/context construction", "kind": "sync", "start": 4, "end": 5}],
+            "execution": [{"kind": "callback", "start": 0, "end": 13}]}}
+        self.assertEqual(report.legend_order([row], "Setup"),
+                         ["code:Client & topology initialization", "clusterDns", "callback"])
+        self.assertEqual(report.legend_order([row], "Connection")[:3],
+                         ["code:TLS socket/context construction", "lookup", "tcp"])
+        self.assertEqual(report.legend_order([row], "Operation"), ["callback", "send", "receive"])
+
     def test_setup_display_merges_adjacent_related_scopes_without_swallowing_waits(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")

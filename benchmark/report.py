@@ -405,6 +405,25 @@ def section_spans(row):
     return result
 
 
+def legend_order(rows, group):
+    first_seen = {}
+    for row in rows:
+        timeline = row["timeline"]
+        sections = section_spans(row)
+        first_socket = sections[0]["end"]
+        ready = sections[-1]["start"]
+        begin, end = {"Setup": (0, first_socket), "Connection": (first_socket, ready),
+                      "Operation": (ready, timeline["total"])}[group]
+        spans = display_segments(accounting_segments(timeline))
+        spans += [{"phase": phase, "start": a, "end": b} for c in timeline["connections"]
+                  for phase, (a, b) in c["phases"].items()]
+        for span in spans:
+            if span["start"] < end and span["end"] > begin:
+                phase = span["phase"]
+                first_seen[phase] = min(first_seen.get(phase, float("inf")), max(span["start"], begin) - begin)
+    return sorted(first_seen, key=lambda phase: (first_seen[phase], phase))
+
+
 def draw_sections(axis, row, lanes, selected_y, direct=False):
     for section in section_spans(row):
         begin, end = section["start"], section["end"]
@@ -550,8 +569,8 @@ def render(data, environment, output):
         )
     }
     diagnostic = any("execution" in row["timeline"] for row in rows)
-    figure, axes = plt.subplots(1, 2, figsize=(22, 10 if diagnostic else 8))
-    figure.subplots_adjust(left=0.12, right=0.97, top=0.78, bottom=0.29, wspace=0.42)
+    figure, axes = plt.subplots(1, 2, figsize=(22, 11 if diagnostic else 9))
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.78, bottom=0.34, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -614,24 +633,26 @@ def render(data, environment, output):
                    "hello": "Hello", "auth": "Auth", "send": "Command → write", "receive": "Write → reply"}
     for phase, color in COLORS.items():
         group = "Setup" if phase == "clusterDns" else "Operation" if phase in ("send", "receive") else "Connection"
-        groups[group].append(Patch(facecolor=color, label=phase_names[phase]))
+        groups[group].append(Patch(facecolor=color, label=phase_names[phase], gid=phase))
     if diagnostic:
         for name, color in CODE_COLORS.items():
             if name in visible_code:
                 group = "Connection" if name in ("TLS socket/context construction", "Await handshake metadata") else "Setup"
-                groups[group].append(Patch(facecolor=color, label=name))
-        groups["Connection"].append(Patch(facecolor=phase_color("monitor"), label="Replica-set monitor activity"))
+                groups[group].append(Patch(facecolor=color, label=name, gid="code:" + name))
+        groups["Connection"].append(Patch(facecolor=phase_color("monitor"), label="Replica-set monitor activity", gid="monitor"))
         for group in groups.values():
-            group.extend([Patch(facecolor=phase_color("callback"), label="Callback execution"),
-                          Patch(facecolor=phase_color("dispatch"), label="Event-loop wait / dispatch")])
+            group.extend([Patch(facecolor=phase_color("callback"), label="Callback execution", gid="callback"),
+                          Patch(facecolor=phase_color("dispatch"), label="Event-loop wait / dispatch", gid="dispatch")])
     else:
         if show_gaps:
             for phase, (color, name) in GAP_COLORS.items():
-                groups["Connection" if phase == "poolGaps" else "Operation"].append(Patch(facecolor=color, label=name))
-        groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured"))
-        groups["Operation"].append(Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured"))
-    for (title, handles), x, columns in zip(groups.items(), (0.12, 0.48, 0.81), (2, 2, 1)):
-        legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.23),
+                groups["Connection" if phase == "poolGaps" else "Operation"].append(Patch(facecolor=color, label=name, gid=phase))
+        groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured", gid="beforeSocket"))
+        groups["Operation"].append(Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured", gid="unattributed"))
+    for (title, handles), x, columns in zip(groups.items(), (0.12, 0.48, 0.81), (1, 1, 1)):
+        order = legend_order(representatives.values(), title)
+        handles.sort(key=lambda handle: order.index(handle.get_gid()) if handle.get_gid() in order else len(order))
+        legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.28),
                                ncol=columns, fontsize=8.5, title_fontsize=11, frameon=False,
                                columnspacing=1, handlelength=1.6)
         legend.get_title().set_fontweight("bold")

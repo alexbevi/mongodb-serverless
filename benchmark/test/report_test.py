@@ -8,6 +8,22 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_off_cpu_hatching_does_not_cover_phase_colours_with_text(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        figure, axis = report.plt.subplots()
+        timeline = {'threadCpuMs': 4, 'execution': [
+            {'kind': 'callback', 'start': 0, 'end': 10, 'threadCpuMs': 2, 'source': 'first callback'},
+            {'kind': 'callback', 'start': 10, 'end': 20, 'threadCpuMs': 2, 'source': 'second callback'}]}
+        report.draw_off_cpu(axis, timeline, 0)
+        self.assertEqual(len(axis.patches), 2)
+        self.assertEqual(len(axis.texts), 0)
+        self.assertIn('callbacks off CPU ~16.0 ms', report.cpu_annotation(timeline))
+        report.plt.close(figure)
+
     def test_aws_diagnostics_use_measured_scopes_and_preserve_batch_pairing(self):
         import importlib.util
         root = Path(__file__).parents[1]

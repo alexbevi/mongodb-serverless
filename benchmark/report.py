@@ -425,14 +425,6 @@ def draw_off_cpu(axis, timeline, y):
             continue
         axis.barh(y, span["end"] - span["start"], left=span["start"], height=0.4,
                   color="none", edgecolor="#334155", hatch="///", linewidth=0.5, zorder=6)
-        source = span["source"]
-        label = ("SCRAM continuation" if "/auth/scram" in source else
-                 "Handshake continuation" if "performInitialHandshake" in source else
-                 "Pool-ready continuation" if "ConnectionPool.createConnection" in source else
-                 "Callback")
-        axis.text((span["start"] + span["end"]) / 2, y,
-                  f"{label}\n~{off_cpu:.1f} ms off CPU", fontsize=7.5, ha="center", va="center",
-                  bbox={"facecolor": "white", "alpha": 0.88, "edgecolor": "none", "pad": 1}, zorder=7)
 
 
 def section_spans(row):
@@ -501,6 +493,11 @@ def draw_sections(axis, row, lanes, selected_y, direct=False):
 
 def cpu_annotation(timeline):
     label = f"Main-thread CPU ~{timeline['threadCpuMs']:.1f} ms"
+    execution = timeline.get("execution", [])
+    if execution:
+        off_cpu = sum(max(0, span["end"] - span["start"] - span["threadCpuMs"])
+                      for span in execution if span["kind"] == "callback")
+        label += f" · callbacks off CPU ~{off_cpu:.1f} ms"
     throttled = timeline.get("throttledMs", 0)
     if round(throttled, 1) > 0:
         label += f" · cgroup throttled ~{throttled:.1f} ms"
@@ -600,13 +597,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
         segment.set_gid("cluster-dns")
     if "execution" in timeline:
         for item, y in [(timeline, 0.60), (direct, -1.02)]:
-            scopes = [a for a in item.get("activities", []) if a["kind"] == "sync" and "threadCpuMs" in a]
-            delayed = max(scopes, key=lambda a: a["end"] - a["start"] - a["threadCpuMs"], default=None)
-            if delayed and delayed["end"] - delayed["start"] - delayed["threadCpuMs"] > 2:
-                axis.text(0, y, f"{delayed['name']}: ~{delayed['end'] - delayed['start']:.1f} ms elapsed; ~{delayed['threadCpuMs']:.1f} ms thread CPU",
-                          fontsize=8, color="#475569")
-            else:
-                axis.text(0, y, cpu_annotation(item), fontsize=8, color="#475569")
+            axis.text(0, y, cpu_annotation(item), fontsize=8, color="#475569")
     axis.set_ylim(-1.2, 4)
 
 
@@ -671,8 +662,9 @@ def render(data, environment, output):
         )
     }
     diagnostic = any("execution" in row["timeline"] for row in rows)
-    figure, axes = plt.subplots(1, 2, figsize=(22, 12 if diagnostic else 9))
-    figure.subplots_adjust(left=0.12, right=0.97, top=0.72, bottom=0.34, wspace=0.42)
+    figure, axes = plt.subplots(1, 2, figsize=(22, 13 if diagnostic else 9))
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.78 if diagnostic else 0.72,
+                           bottom=0.38 if diagnostic else 0.34, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -749,7 +741,7 @@ def render(data, environment, output):
     for (title, handles), x, columns in zip(groups.items(), (0.20, 0.45, 0.70), (1, 1, 1)):
         order = legend_order(representatives.values(), title)
         handles.sort(key=lambda handle: order.index(handle.get_gid()) if handle.get_gid() in order else len(order))
-        legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.28),
+        legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.32 if diagnostic else 0.28),
                                ncol=columns, fontsize=8.5, title_fontsize=11, frameon=False,
                                columnspacing=1, handlelength=1.6)
         legend.get_title().set_fontweight("bold")
@@ -757,7 +749,9 @@ def render(data, environment, output):
         0.5,
         0.025,
         "Mean and SD are in ms; CV = SD / mean. Arrows compare MongoDB → serverless. Concurrent node lanes must not be added.\n"
-        + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
+        + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. "
+           + ("Cgroup counters cover all threads. " if environment == "local" else "")
+           + "~ marks rounded timings." if diagnostic else
            "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
         ha="center",
         fontsize=10,

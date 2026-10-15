@@ -7,8 +7,14 @@ driver, measured against a local three-member TLS replica set.
 
 The diagram shows the latest retained local run. Each trace is the sample nearest
 its driver/operation median; headings report means across all samples. Every socket
-opened by each illustrated sample is shown, including additional application
-connections when `connect()` and the operation select different members.
+opened by each illustrated sample is shown. The first operation connects
+automatically, without an explicit `client.connect()` call.
+
+Magenta marks gaps within connection setup or pool checkout, teal marks the
+remaining interval between connection readiness and command start, and pink marks
+time after command success. These colours exclude the phases already shown and
+do not overlap each other. They locate elapsed time between events without
+identifying whether it was CPU work or scheduling delay.
 
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
@@ -35,15 +41,17 @@ compares the MongoDB driver with the serverless driver with monitoring disabled.
 
 ## Measurement scope
 
-Timing starts before client construction and ends when the operation returns.
+Timing starts before handler invocation, including lazy client construction,
+and ends when the handler returns.
 Imports, process startup, watcher work and client close are excluded. Reads use
 `secondaryPreferred`; writes use primary selection and majority acknowledgement.
 The serverless driver receives watcher-provided direct member URIs. Watcher
 selection happens outside the timed operation.
 
-The MongoDB driver's monitors overlap. `connect()` and the operation select
-independently, so a read can open two authenticated application connections.
-`secondaryPreferred` may fall back to the primary when no secondary is known.
+The MongoDB driver's monitors overlap. `secondaryPreferred` may fall back to
+the primary when no secondary is known. Connection readiness is measured from
+public client events and matched to the socket that serves the operation;
+`applicationConnectionReadyMs` includes discovery and authentication.
 
 Docker CPU quotas and injected network delays do not reproduce Lambda scheduling,
 DNS, processor speed or database load. These measurements describe the recorded

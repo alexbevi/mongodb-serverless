@@ -5,29 +5,24 @@ driver, measured against a local three-member TLS replica set.
 
 ![Local connection timings](benchmark/results/local/latency.png)
 
-The diagram shows the latest retained local run. Each trace is the sample nearest
-its driver/operation median; headings report means across all samples. Every socket
-opened by each illustrated sample is shown. The first operation connects
-automatically, without an explicit `client.connect()` call.
+The diagram shows the latest local diagnostic run: four cold samples for each
+read/write and driver variant, 24 invocations in total. Each illustrated trace is
+the sample nearest its driver/operation median. All sockets are shown. The first
+operation connects automatically, without an explicit `client.connect()` call.
 
-Cluster DNS is one shared block spanning all three node lanes, covering the
-overlapping SRV and TXT requests before any sockets open. Brown Host DNS segments show hostname
-resolution for each socket;
-blue TCP segments begin after resolution completes. The direct client skips the
-SRV/TXT stage but still resolves its member hostname.
+The Setup, Connection and Operation legends follow the order in which phases
+first appear. Related setup scopes share a colour; adjacent scopes in the same
+group are merged. Cluster DNS spans all three MongoDB node lanes before the
+connections split. Braces show selection of an application connection.
 
-Magenta marks gaps within connection setup or pool checkout, teal marks the
-remaining interval between connection readiness and command start, and pink marks
-time after command success. These colours exclude the phases already shown and
-do not overlap each other. They locate elapsed time between events without
-identifying whether it was CPU work or scheduling delay.
+Every interval is covered by measured socket phases, code scopes or callback
+execution/dispatch boundaries. Hatched callbacks contain more than 2 ms of
+measured off-CPU time; the hatch does not locate individual pauses. Container
+throttling counters provide supporting context but cover all threads.
 
-The tables beneath the lanes partition each illustrated trace's elapsed time.
-Application phases take precedence over concurrent monitor phases; overlapping
-monitor intervals count once. The remaining time is bounded by lifecycle events
-or marked as having an unmeasured cause. These durations include CPU work, I/O
-and scheduling; they are not exclusive CPU costs. `~` marks rounded values.
-The summary retains the unrounded accounting and interval boundaries.
+These timings include diagnostic overhead and are not an uninstrumented savings
+comparison. `~` marks rounded durations. The [legend definitions](benchmark/README.md#reading-the-diagram)
+explain each interval and link to its instrumentation and implementation.
 
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
@@ -38,7 +33,7 @@ The summary retains the unrounded accounting and interval boundaries.
 From the repository root, with Docker running:
 
 ```sh
-npm run benchmark -- --no-monitoring --samples 48
+npm run benchmark -- --diagnostics --no-monitoring --samples 4
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
 /tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json --environment local

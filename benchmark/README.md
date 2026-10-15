@@ -8,6 +8,9 @@ call `client.connect()` first.
 
 ![Local connection timings](results/local/latency.png)
 
+This is the retained diagnostic run: 24 cold invocations, with tracing overhead
+included. The image, raw samples and summary are kept together in `results/local/`.
+
 ### Reading the diagram
 
 Timing runs from [handler invocation to its return](handler-base.ts#L98).

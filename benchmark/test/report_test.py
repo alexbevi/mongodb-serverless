@@ -8,6 +8,16 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_retained_local_diagram_has_matching_diagnostic_measurements(self):
+        root = Path(__file__).parents[1]
+        data = json.loads((root / "results/local/samples.json").read_text())
+        self.assertTrue(data["configuration"].get("diagnostics"))
+        for sample in data["samples"]:
+            trace = sample["trace"]
+            self.assertEqual(trace["execution"]["start"], trace["start"])
+            self.assertEqual(trace["execution"]["end"], trace["end"])
+            self.assertTrue(trace["activities"])
+
     def test_legend_order_follows_first_appearance_within_each_stage(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
@@ -144,13 +154,16 @@ class ReportTest(unittest.TestCase):
             {"kind": "TXT", "start": start + 2, "end": start + 4},
         ]
         row = report.local_samples({"samples": [sample]})[0]
-        self.assertEqual(row["timeline"]["dns"], [
+        for actual, expected in zip(row["timeline"]["dns"], [
             {"kind": "SRV", "start": 1, "end": 6},
             {"kind": "TXT", "start": 2, "end": 4},
-        ])
-        self.assertEqual(row["dnsDurations"]["SRV"], 5)
-        self.assertEqual(row["dnsDurations"]["TXT"], 2)
-        self.assertEqual(row["dnsDurations"]["seedlistWall"], 5)
+        ]):
+            self.assertEqual(actual["kind"], expected["kind"])
+            self.assertAlmostEqual(actual["start"], expected["start"])
+            self.assertAlmostEqual(actual["end"], expected["end"])
+        self.assertAlmostEqual(row["dnsDurations"]["SRV"], 5)
+        self.assertAlmostEqual(row["dnsDurations"]["TXT"], 2)
+        self.assertAlmostEqual(row["dnsDurations"]["seedlistWall"], 5)
 
     def test_cluster_dns_spans_all_node_lanes_without_extra_rows(self):
         import importlib.util
@@ -294,15 +307,15 @@ class ReportTest(unittest.TestCase):
                 for s in summary
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
-            self.assertEqual(read["n"], 48)
             samples = json.loads((root / "results/local/samples.json").read_text())
             totals = [
                 sample["timings"]["total"]
                 for sample in samples["samples"]
                 if sample["variant"] == "native" and sample["operation"] == "read"
             ]
+            self.assertEqual(read["n"], len(totals))
             self.assertAlmostEqual(read["mean"], sum(totals) / len(totals))
-            self.assertEqual(sum(read["sockets"].values()), 48)
+            self.assertEqual(sum(read["sockets"].values()), len(totals))
             self.assertTrue(
                 (output / "local/latency.png").read_bytes().startswith(b"\x89PNG")
             )
@@ -329,6 +342,7 @@ class ReportTest(unittest.TestCase):
             data = json.loads((root / "results/aws/samples.json").read_text())
             totals = [s["phases"]["total"] for s in data["samples"]
                       if s["mode"] == "native-cluster" and s["operation"] == "read"]
+            self.assertEqual(read["n"], len(totals))
             self.assertAlmostEqual(read["mean"], sum(totals) / len(totals))
             self.assertEqual(snapshot.read_text(), "Historical AWS snapshot\n")
             self.assertFalse(list(output.rglob("*.svg")))

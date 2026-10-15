@@ -8,8 +8,10 @@ export interface SocketTrace {
   tls?: Interval;
   hello?: Interval;
   auth?: Interval;
+  authMechanism?: string;
   protocol?: string | null;
   authorized?: boolean;
+  role?: string;
 }
 
 export interface CommandTrace {

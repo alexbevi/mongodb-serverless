@@ -46,7 +46,8 @@ export function instrument() {
   });
   const tls = require('node:tls') as { connect(options: ConnectionOptions & { host: string; port: number }): TLSSocket };
   const { Connection } = require('mongodb/lib/cmap/connection.js') as { Connection: { prototype: InstrumentedConnection } };
-  const { ScramSHA256 } = require('mongodb/lib/cmap/auth/scram.js') as { ScramSHA256: { prototype: { auth(context: AuthContext): Promise<unknown> } } };
+  // SAFETY: These provider exports and their auth signature are verified against the pinned driver version.
+  const { ScramSHA1, ScramSHA256 } = require('mongodb/lib/cmap/auth/scram.js') as Record<'ScramSHA1' | 'ScramSHA256', { prototype: { auth(context: AuthContext): Promise<void> } }>;
   const sockets = new WeakMap<TLSSocket, SocketTrace>();
   const traceFor = (socket: TLSSocket): SocketTrace => {
     const trace = sockets.get(socket);
@@ -71,12 +72,19 @@ export function instrument() {
     });
     return socket;
   };
-  const originalAuth = ScramSHA256.prototype.auth;
-  ScramSHA256.prototype.auth = async function (context) {
-    const start = performance.now();
-    try { return await originalAuth.call(this, context); }
-    finally { traceFor(context.connection.socket).auth = [start, performance.now()]; }
-  };
+
+  for (const [Provider, mechanism] of [[ScramSHA1!, 'SCRAM-SHA-1'], [ScramSHA256!, 'SCRAM-SHA-256']] as const) {
+    const originalAuth = Provider.prototype.auth;
+    Provider.prototype.auth = async function (context) {
+      const start = performance.now();
+      try { return await originalAuth.call(this, context); }
+      finally {
+        const trace = traceFor(context.connection.socket);
+        trace.auth = [start, performance.now()];
+        trace.authMechanism = mechanism;
+      }
+    };
+  }
   const active = new WeakMap<InstrumentedConnection, CommandTrace>();
   const originalWrite = Connection.prototype.writeCommand;
   Connection.prototype.writeCommand = async function (...args) {
@@ -91,11 +99,18 @@ export function instrument() {
     const start = performance.now();
     const trace = traceFor(this.socket);
     const command: CommandTrace = { name, start, address: this.address };
-    if (name === 'find' || name === 'insert') active.set(this, command);
+
+    if (name === 'find' || name === 'update') active.set(this, command);
     try {
       const result = await originalCommand.call(this, ns, document, ...args);
       command.end = performance.now();
-      if (name === 'hello' || name === 'ismaster') trace.hello = [start, command.end];
+
+      if (name === 'hello' || name === 'ismaster') {
+        trace.hello = [start, command.end];
+        // SAFETY: MongoDB hello replies define these optional role flags; missing flags remain UNKNOWN.
+        const reply = result as { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean };
+        trace.role = reply.isWritablePrimary || reply.ismaster ? 'PRIMARY' : reply.secondary ? 'SECONDARY' : 'UNKNOWN';
+      }
       if (active.get(this) === command) commands.push({ ...command, socket: trace });
       return result;
     } finally { if (active.get(this) === command) active.delete(this); }

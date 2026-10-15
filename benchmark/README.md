@@ -1,225 +1,80 @@
-# Mini Benchmark
+# Cold connection benchmark
 
-A small docker based benchmark which attempts to replicate a realistic cloud environment to run cold connections to the cluster. It measures the time to complete a read operation, and the time for a write operation including all phases of the connection assuming a completely new client environment similar to a serverless cold start.   
-
-Compares the stock MongoClient and the ServerlessMongoClient against a three-member
-Docker replica set with TLS, SCRAM-SHA-256 and network delay for zones within a single cloud region.
-
-![Local Docker benchmark: both clients operate on mongo-a; the native client also monitors mongo-b and mongo-c](assets/architecture.png)
-
-Default injected RTT: 0.5 ms within AZ A and 2 ms across AZs.
+Compare MongoDB driver discovery with a serverless driver that connects directly
+to a watcher-selected replica-set member. Each sample creates a fresh Node process,
+constructs a client, connects, and completes one operation against a three-member
+TLS replica set.
 
 ## Install
 
-Use Node 20.19 or later, Docker Compose, and the repository's installed development
-dependencies. Docker must support `NET_ADMIN` and Linux `netem`. The client runs
-inside Docker, so Docker Desktop's host forwarding is outside the measured path.
+Use Node 20.19 or later, installed workspace dependencies, and Docker Compose with
+`NET_ADMIN` and Linux `netem` support. No database ports are exposed to the host.
 
 ## Usage
 
 ```sh
-npm run benchmark
-npm run benchmark -- --samples 48 --local-rtt 0.5 --cross-rtt 2 --output benchmark/results/run.json
-pnpm test:unit
+npm run benchmark -- --no-monitoring --samples 48 --output benchmark/results/run.json
 npm run benchmark:test
+pnpm lint
 ```
 
-`npm run benchmark` and `npm run benchmark:test` compile the TypeScript harness
-and its driver/plugin dependencies before execution. `npm run benchmark:build`
-only compiles them. The emitted files live in `benchmark/dist`; Docker copies
-and runs those JavaScript files, with compilation outside the measured interval.
+The command builds the harness and driver dependencies before starting Docker.
+`--no-monitoring` includes the serverless driver with monitoring disabled, alongside
+the MongoDB driver and a serverless control with monitoring enabled. Driver order
+alternates. All results are verified; failures stop the run.
 
-The benchmark tests use Vitest. `pnpm test:unit` includes the benchmark unit tests.
-The live Docker test runs only through `npm run benchmark:test`, which also runs
-the benchmark unit tests.
+The MongoDB driver receives a `mongodb+srv` cluster URI. A local DNS service returns
+three member addresses and the replica-set TXT record. Reads use
+`secondaryPreferred`; writes use the default primary preference. The serverless
+driver receives separate read and write member URIs with `directConnection=true`.
+The read member is a secondary and the write member is the primary. The topology
+snapshot is prepared outside the timed operation.
 
-Each run builds two images, creates an isolated replica set,
-checks all twelve directed network paths with ping, and alternates the driver
-order. Each sample executes in a new Node process with a new client. The default
-is 48 samples per driver per operation, or 192 fresh processes. For the native
-client, all six seed orders occur eight times, with the primary appearing equally
-often in each position. The serverless client uses one selected host and has no
-seed-order treatment. Driver
-order reverses on the next six-order cycle, balancing which client runs first.
-Use a sample count divisible by 12 for complete balance. Each native sample records its
-input `seedOrder`, and native-client host options and socket traces verify it.
-This varies explicit URI order; it does not measure DNS SRV discovery. The harness
-removes its containers, network, certificate volume and generated images when it
-finishes or fails. It also prunes dangling images labelled as belonging to this
-benchmark, including obsolete builds from earlier runs. Docker's build cache and
-base images remain available for subsequent runs; unrelated images are untouched.
-If the process is forcibly killed, remove its resources with
-`docker compose -f benchmark/docker/compose.yaml down --volumes --remove-orphans --rmi local`.
-Do not run two copies concurrently; the Compose project and subnet are fixed.
+Both drivers perform an indexed `findOne` or a majority-acknowledged `updateOne`.
+Authentication uses SCRAM-SHA-1 to match the measured Atlas account. TLS verifies
+the generated CA and member hostname. Each pool allows one application connection
+per member; retries are disabled. Socket traces record the member role and negotiated
+authentication mechanism, including additional application connections if `connect()`
+and the operation select different members.
 
-The client and primary are in simulated AZ A; the secondaries are in AZ B and C.
-The default injected RTT is 0.5 ms within AZ A and 2 ms across AZs. Each endpoint
-adds half that delay to packets addressed to the peer, including replication
-traffic. Real scheduling and processing overhead adds to the configured delay.
-These are illustrative values, not measurements from AWS. AWS describes same-region
-AZ networking as [single-digit millisecond latency](https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_fault_isolation_multiaz_region_system.html).
+The client container has 1 GiB memory and a 0.579 CPU quota. This approximates the
+CPU share associated with the default 1024 MB Lambda configuration; it does not
+reproduce Lambda scheduling or processor speed. The JSON records actual cgroup limits.
+The client and read secondary share simulated AZ B; the primary is in AZ A and
+the other secondary is in AZ C. This models the measured AWS ordering, where a
+secondary had the lowest warm network latency.
+Default injected RTT is 0.5 ms within a zone and 2 ms between zones. These are added
+delays, not total network latency. The run measures all twelve directed paths with
+ping and saves the results. Override delays with `--local-rtt` and `--cross-rtt`.
 
-Both clients perform the same indexed `findOne` on the primary, or an `insertOne`
-with majority acknowledgement. Reads explicitly request the primary because the
-wrapper otherwise selects a secondary. Data and topology are prepared before
-sampling; the serverless client reads topology prepared by `replSetGetStatus`
-through LocalPlugin from the process environment. Both clients use a one-connection
-pool with retries disabled. Every result is checked; no failures are discarded. TLS verifies
-a generated CA and hostname. Certificates and benchmark-only credentials are
-confined to the disposable Docker network; no database ports are published.
+Containers, generated images, network and certificate volume are removed on exit.
+Docker build caches and base images remain. Do not run two copies concurrently:
+the project name and subnet are fixed. After a forced termination, clean up with:
 
-The normal MongoClient uses the full three-host replica-set URI. The serverless
-wrapper rewrites that URI to the selected host with `directConnection=true` and
-removes `replicaSet` before constructing its underlying MongoClient. The live test
-checks the effective URI, resolved options, `Single` topology and socket targets
-for both reads and writes. Connection records remove URI credentials.
-
-A [historical live connection check](baseline/connection-check.json) records the
-effective URIs, resolved options, topology types and socket destinations from the
-earlier fixed-order run. The wrapper used `Single` topology and contacted only
-`mongo-a`; the normal client used `ReplicaSetWithPrimary` and contacted all three members.
-
-The JSON contains effective connection URIs and topologies, individual samples,
-timestamps, selected addresses, TLS status,
-connection traces, configured and measured RTTs, versions and image identities.
-
-## Timing boundaries
-
-The total starts immediately before client construction and ends after the first
-operation resolves. Imports, process launch, cluster setup and client close are
-outside this interval. `connectCallMs` is diagnostic only: the wrapper's `connect()`
-does not open a database connection.
-
-The report reconstructs a timeline from the saved socket timestamps. Both clients
-first open a monitoring connection to the selected host and wait for its hello.
-Only then do they open a separate application connection and authenticate it.
-`directConnection=true` still uses both connections to that host. The native
-client also monitors the other members concurrently. Separate lanes show their
-TCP / DNS, TLS and hello at the recorded offsets; those durations are not added
-to total elapsed time. The seed URI already lists all three members. Hello replies
-confirm membership and roles; with an incomplete seed list, they can reveal more
-members for the driver to monitor. The wrapper uses topology prepared before
-timing and direct mode does not expand its one-host topology from hello replies.
-
-The native driver learns the primary’s role from its own hello reply, not from
-seed position. The Primary confirmed marker is at the end of that reply; only
-then can application connection setup begin. It need not wait for secondary
-replies. A pool exists for each known server, but with `minPoolSize=0` this run
-opens no application connections to the unused secondaries.
-
-See the [MongoDB discovery specification](https://specifications.readthedocs.io/en/latest/server-discovery-and-monitoring/server-discovery-and-monitoring/).
-
-The horizontal graph has read and write columns on the same elapsed-time scale.
-Each client has one bar, with outlined monitoring and application intervals.
-TCP / DNS, TLS and hello appear twice at their measured positions; the second
-connection also completes authentication. Brackets show each connection’s setup
-duration. The sample scatter plot is a separate figure.
-
-The timeline runs left to right from client construction to the completed operation:
-
-| Segment | Boundary |
-| --- | --- |
-| Before monitoring | Client construction to the selected host's monitoring socket starting |
-| 1. Monitoring connection | First socket starts to its initial hello completing; includes TCP / DNS, TLS and hello |
-| Between connections | Monitor hello completes to application socket starting |
-| 2. Application connection | Application socket starts to authentication completing; includes TCP / DNS, TLS, hello and remaining SCRAM work |
-| Before command | Authentication completes to command entry |
-| Send / buffer | Command entry to socket-write completion |
-| Receive / wait | Socket-write completion to decoded command result |
-| Return to caller | Decoded command result to operation resolution |
-
-Connection durations measure setup, not socket lifetime: the monitoring socket
-remains open after its first hello. Start and ready times are relative to client
-construction. Means keep the sequential graph segments additive. The report also
-shows the phases within each connection and writes per-sample relative timestamps
-to `connection-timings.json` alongside the graphs. It rejects traces without one
-completed monitor connection to the selected host before the application socket,
-or with overlapping intervals, rather than inventing a timeline.
-
-The original `timings` fields remain in the raw JSON for comparison. They describe
-the application socket that served the operation:
-
-| Phase | Boundary |
-| --- | --- |
-| TCP / DNS | `tls.connect()` call to the socket's `connect` event |
-| TLS | TCP connect to `secureConnect` |
-| Hello | Initial MongoDB handshake command, including speculative SCRAM authentication |
-| Auth | SCRAM provider execution after hello, including computation and remaining exchanges |
-| Send | Operation command entry to completion of the driver's socket-write method |
-| Receive / wait | Socket-write completion to decoded command result; includes network, server execution and write acknowledgement |
-| Other / discovery | Remaining elapsed time, including server selection, monitoring connections, plugin access, client construction and operation overhead |
-
-Only application-socket phases are subtracted from total elapsed time. Discovery
-sockets run in parallel and their durations must not be added together. Their
-individual traces are retained in the JSON.
-
-The report replaces the old Other / discovery bar with the monitoring connection
-and the remaining intervals. Before monitoring includes configuration, CA-file
-reading, topology setup and, for the wrapper, routing setup. The existing traces
-do not separate those costs. Gaps within each connection include the transitions
-between TLS, hello and authentication.
-
-### Local results breakdown
-
-[Latest results](../BENCHMARK.md) · [Raw samples](baseline/samples.json) · [Connection timings](baseline/connection-timings.json)
-
-The following charts use the timing boundaries above. Connection start and ready
-times are means relative to client construction. Remaining gaps are measured
-intervals, not CPU profiles.
-
-![Connection start and ready times](baseline/connection-times.png)
-
-![Breakdown of former Other time](baseline/other-times.png)
-
-The seed-order chart applies only to the native client; the serverless client
-uses one host from the supplied topology.
-
-![Native client by seed order](baseline/seed-orders.png)
-
-Means keep the connection phases and timeline segments additive; medians do not.
-
-![Mean connection phases](baseline/connection-phases.png)
-
-![Mean timeline segments](baseline/timeline-segments.png)
-
-Measured RTTs include Docker VM scheduling overhead in addition to the configured delay.
-
-![Configured and measured network latency](baseline/network.png)
-
-![Run and environment](baseline/environment.png)
-
-Image identities and complete version metadata are included in the raw samples.
-Database credentials and generated certificate keys are excluded.
+```sh
+docker compose -f benchmark/docker/compose.yaml down --volumes --remove-orphans --rmi local
+```
 
 ## Limitations
 
-Send measures serialization and local socket writing, not arrival at the server.
-Receive includes the round trip and server work; a client cannot distinguish
-one-way transit from server execution. Hello and speculative authentication share
-one exchange, so they cannot honestly be reported as independent durations.
+Timing starts before client construction and ends when the operation returns.
+Process startup, imports, watcher work and client close are excluded. This boundary
+is narrower than a complete Lambda cold start. Database processes and OS caches
+remain warm across samples.
 
-Instrumentation wraps Node TLS and MongoDB connection/authentication methods in
-the benchmark process. It does not edit either driver on disk. Those internal
-hooks are checked against MongoDB 7.7.0 and deliberately reject another version.
-Instrumentation itself adds some overhead, equally enabled for both clients.
+`secondaryPreferred` can fall back to a primary when no secondary is known.
+Discovery does not wait for every monitor. `connect()` and the operation select
+independently, so a read can establish application connections to two members.
+The saved socket roles identify where each operation actually ran.
 
-The processes are fresh, but the database, OS caches and Docker VM are warm. There
-is no Lambda sandbox provisioning, package-import timing, SRV DNS, remote topology
-store, jitter, loss or bandwidth cap. This is a repeatable connection-latency
-experiment rather than an AWS performance prediction. Default driver discovery
-is allowed to complete as soon as it finds a suitable server; it is not forced to
-wait for every replica member.
+TCP timing includes hostname lookup and event-loop scheduling. Hello can include
+speculative authentication. Send measures serialization and socket buffering;
+receive includes network transit and server work. Internal gaps remain elapsed-time
+residuals rather than a claim to identify every CPU activity. Instrumentation adds
+some overhead and is verified against MongoDB driver 7.7.0.
 
-To refresh the PNG and SVG images and data linked by `BENCHMARK.md`, install the
-optional plotting dependency and pass a saved run to the report script. The output
-directory defaults to `benchmark/baseline`. The renderer copies the input data to
-`samples.json` there and refreshes `connection-timings.json`, both charts, numeric
-tables and run metadata. It never writes Markdown, so edits to `BENCHMARK.md` are
-preserved. A different output directory can be used for a report preview:
-
-```sh
-python3 -m venv /tmp/mongodb-benchmark-plot
-/tmp/mongodb-benchmark-plot/bin/pip install -r benchmark/requirements-report.txt
-/tmp/mongodb-benchmark-plot/bin/python benchmark/report.py benchmark/results/latest.json --output-dir benchmark/baseline
-/tmp/mongodb-benchmark-plot/bin/python benchmark/test/report_test.py
-```
+The local DNS resolver, CPU quota, certificates, MongoDB deployment and network
+scheduler differ from AWS. Local results test the connection sequence; they are
+not an AWS latency prediction. The historical charts in `baseline/` retain their original configurations.
+The older `report.py` assumes one application connection and should only be used
+with those historical datasets. Current comparisons must show every socket.

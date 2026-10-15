@@ -6,7 +6,8 @@ import { parseArgs } from 'node:util';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 process.chdir(root);
-const { values } = parseArgs({ options: { samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/latest.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
+
+const { values } = parseArgs({ options: { 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/latest.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
 const count = Number(values.samples);
 const localRtt = Number(values['local-rtt']);
 const crossRtt = Number(values['cross-rtt']);
@@ -23,13 +24,13 @@ async function waitFor(action: () => unknown) {
   }
   throw new Error('Cluster did not become ready', { cause });
 }
-const nodes = [ { name: 'client', ip: '172.30.91.10', az: 'a' }, { name: 'mongo-a', ip: '172.30.91.11', az: 'a' }, { name: 'mongo-b', ip: '172.30.91.12', az: 'b' }, { name: 'mongo-c', ip: '172.30.91.13', az: 'c' } ];
+const nodes = [ { name: 'client', ip: '172.30.91.10', az: 'b' }, { name: 'mongo-a', ip: '172.30.91.11', az: 'a' }, { name: 'mongo-b', ip: '172.30.91.12', az: 'b' }, { name: 'mongo-c', ip: '172.30.91.13', az: 'c' } ];
 try {
   compose('build');
   compose('run', '--rm', '--no-deps', 'certificates');
-  compose('up', '-d', 'mongo-a', 'mongo-b', 'mongo-c', 'client');
+  compose('up', '-d', 'mongo-a', 'mongo-b', 'mongo-c', 'dns', 'client');
   await waitFor(() => shell('if (db.adminCommand({ping:1}).ok !== 1) throw Error("ping failed")'));
-  shell('if (rs.initiate({_id:"benchmark",members:[{_id:0,host:"mongo-a:27017",priority:10},{_id:1,host:"mongo-b:27017",priority:0},{_id:2,host:"mongo-c:27017",priority:0}]}).ok !== 1) throw Error("initiate failed")');
+  shell('if (rs.initiate({_id:"benchmark",members:[{_id:0,host:"mongo-a.bench.test:27017",priority:10},{_id:1,host:"mongo-b.bench.test:27017",priority:0},{_id:2,host:"mongo-c.bench.test:27017",priority:0}]}).ok !== 1) throw Error("initiate failed")');
   await waitFor(() => shell('if (!db.hello().isWritablePrimary) throw Error("waiting for primary")'));
   shell('db.getSiblingDB("admin").createUser({user:"bench",pwd:"benchmark-only",roles:["root"]})');
   await waitFor(() => inside('client', 'node', 'benchmark/dist/setup.js'));
@@ -55,14 +56,19 @@ try {
   const samples = [];
   for (let iteration = 0; iteration < count; iteration++) {
     const variants = (iteration + Math.floor(iteration / 6)) % 2 ? ['serverless', 'native'] : ['native', 'serverless'];
+
+    if (values['no-monitoring']) {
+      if (iteration % 2) variants.unshift('serverless-no-monitoring');
+      else variants.push('serverless-no-monitoring');
+    }
     for (const operation of ['read', 'write']) {
       for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'node', 'benchmark/dist/sample.js', variant, operation, String(iteration))) });
     }
   }
   const output = resolve(values.output!);
   mkdirSync(dirname(output), { recursive: true });
-  const environment = { docker: execFileSync('docker', ['version', '--format', '{{json .Server}}'], { encoding: 'utf8' }).trim(), client: inside('client', 'uname', '-a').trim(), mongo: inside('mongo-a', 'mongod', '--version').trim(), images: compose('images', '--format', 'json').trim(), gitDirty: execFileSync('git', ['status', '--porcelain', '--', 'benchmark', 'driver', 'plugins'], { encoding: 'utf8' }).trim().length > 0, git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() };
-  writeFileSync(output, JSON.stringify({ createdAt: new Date().toISOString(), configuration: { seedOrder: 'cycle-six-permutations', count, localRtt, crossRtt, tls: true, auth: 'SCRAM-SHA-256', readPreference: 'primary', writeConcern: 'majority' }, environment, network, samples }, null, 2) + '\n');
+  const environment = { cpuMax: inside('client', 'cat', '/sys/fs/cgroup/cpu.max').trim(), memoryMax: inside('client', 'cat', '/sys/fs/cgroup/memory.max').trim(), docker: execFileSync('docker', ['version', '--format', '{{json .Server}}'], { encoding: 'utf8' }).trim(), client: inside('client', 'uname', '-a').trim(), mongo: inside('mongo-a', 'mongod', '--version').trim(), images: compose('images', '--format', 'json').trim(), gitDirty: execFileSync('git', ['status', '--porcelain', '--', 'benchmark', 'driver', 'plugins'], { encoding: 'utf8' }).trim().length > 0, git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() };
+  writeFileSync(output, JSON.stringify({ createdAt: new Date().toISOString(), configuration: { noMonitoringComparison: values['no-monitoring'], seedOrder: 'DNS SRV resolver order', count, localRtt, crossRtt, tls: true, auth: 'SCRAM-SHA-1', readPreference: 'secondaryPreferred', writeConcern: 'majority' }, environment, network, samples }, null, 2) + '\n');
   console.log(`Saved ${samples.length} cold samples to ${output}`);
 } finally {
   try {

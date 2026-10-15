@@ -16,16 +16,28 @@ services:
   mongo-a:
     <<: *mongo
     networks:
-      bench: {ipv4_address: 172.30.91.11}
+      bench: {ipv4_address: 172.30.91.11, aliases: [mongo-a.bench.test]}
   mongo-b:
     <<: *mongo
     networks:
-      bench: {ipv4_address: 172.30.91.12}
+      bench: {ipv4_address: 172.30.91.12, aliases: [mongo-b.bench.test]}
   mongo-c:
     <<: *mongo
     networks:
-      bench: {ipv4_address: 172.30.91.13}
+      bench: {ipv4_address: 172.30.91.13, aliases: [mongo-c.bench.test]}
+  dns:
+    build:
+      context: ../..
+      dockerfile: benchmark/docker/mongo.Dockerfile
+    entrypoint: [dnsmasq]
+    command: [--no-daemon, --conf-file=/etc/benchmark-dns.conf]
+    volumes: [./dns.conf:/etc/benchmark-dns.conf:ro]
+    networks:
+      bench: {ipv4_address: 172.30.91.14}
   client:
+    cpus: 0.579
+    mem_limit: 1024m
+    dns: [172.30.91.14]
     build:
       context: ../..
       dockerfile: benchmark/docker/client.Dockerfile

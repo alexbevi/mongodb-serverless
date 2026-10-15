@@ -83,8 +83,7 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
     assert.ok(connection);
     const target = sample.operation === 'read' ? 'mongo-b' : 'mongo-a';
 
-    if (sample.operation === 'read' && sample.variant === 'native') assert.ok(['SECONDARY', 'PRIMARY'].includes(sample.servedRole));
-    else assert.equal(sample.servedRole, sample.operation === 'read' ? 'SECONDARY' : 'PRIMARY');
+    assert.equal(sample.servedRole, sample.operation === 'read' ? 'SECONDARY' : 'PRIMARY');
 
     if (sample.variant !== 'native') {
       assert.equal(sample.seedOrder, undefined);
@@ -109,7 +108,7 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
     for (const phase of ['tcp', 'tls', 'hello', 'auth', 'send', 'receive'] as const) assert.ok(sample.timings[phase] > 0, phase);
     assert.ok(sample.timings.other >= 0);
     assert.equal(sample.driverVersion, '7.7.0');
-    assert.match(sample.address, sample.operation === 'read' && sample.variant === 'native' ? /172\.30\.91\.1[123]:27017/ : sample.operation === 'read' ? /172\.30\.91\.12:27017/ : /172\.30\.91\.11:27017/);
+    assert.match(sample.address, sample.operation === 'read' && sample.variant === 'native' ? /172\.30\.91\.1[23]:27017/ : sample.operation === 'read' ? /172\.30\.91\.12:27017/ : /172\.30\.91\.11:27017/);
   }
 
   assert.equal(new Set(result.samples.map(s => s.processId)).size, 72);

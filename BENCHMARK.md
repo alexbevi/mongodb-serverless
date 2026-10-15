@@ -11,7 +11,7 @@ callback tracing and socket/client events recording the full breakdown.
 Each illustrated trace is the sample nearest its driver/operation median.
 Headings report medians and the percentage reduction between those medians.
 The first operation connects automatically, and the local client has no CPU quota.
-The complete four-batch run took approximately 3m 35s, including compilation,
+The complete four-batch run took approximately 3m 38s, including compilation,
 cluster setup and teardown. The command below collects one 100-iteration batch.
 
 Timings include profiling overhead, so the percentages describe this instrumented
@@ -55,12 +55,12 @@ compares the MongoDB driver with the serverless driver with monitoring disabled.
 Timing starts before handler invocation, including lazy client construction,
 and ends when the handler returns.
 Imports, process startup, watcher work and client close are excluded. Reads use
-`secondaryPreferred`; writes use primary selection and majority acknowledgement.
+`secondary`; writes use primary selection and majority acknowledgement.
 The serverless driver receives watcher-provided direct member URIs. Watcher
 selection happens outside the timed operation.
 
-The MongoDB driver's monitors overlap. `secondaryPreferred` may fall back to
-the primary when no secondary is known. Connection readiness is measured from
+The MongoDB driver's monitors overlap. Reads wait for an eligible secondary;
+the benchmark rejects any read served by a primary. Connection readiness is measured from
 public client events and matched to the socket that serves the operation;
 `applicationConnectionReadyMs` includes discovery and authentication.
 

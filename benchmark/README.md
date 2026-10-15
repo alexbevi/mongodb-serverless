@@ -91,8 +91,8 @@ counts across the bars:
 - **Trace stack capture:** the benchmark's own [async-hook recorder](execution.ts)
   capturing and formatting creation stacks. This is diagnostic overhead, not normal
   driver work. Its elapsed time remains in the measured totals. Across the 400 local native/direct
-  samples, stack capture alone took a median 6.9 ms per invocation
-  (median share 13.4%); it is too large to omit.
+  samples, stack capture alone took a median 7.2 ms per invocation
+  (median share 13.5%); it is too large to omit.
 
 These colours appear in each stage where their measured spans occur. **Other
 callbacks** retains the remaining callback intervals; the named probes do not
@@ -301,8 +301,7 @@ handler reuse is tested separately. Database processes and OS caches remain warm
 across samples.
 
 Reads wait for an eligible secondary and fail if none becomes available.
-The benchmark verifies that every read ran on a secondary. Previously saved
-results used `secondaryPreferred`; their recorded roles and timings are unchanged.
+The benchmark verifies that every read ran on a secondary.
 
 Public events record connection creation/readiness, checkout start/success/failure,
 check-in, connection closure, and command start/success/failure. Each callback

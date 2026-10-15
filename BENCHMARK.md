@@ -12,7 +12,7 @@ connections when `connect()` and the operation select different members.
 
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
-[October 2026 AWS snapshot](benchmark/results/aws/sample-10-2026.md)
+[AWS results](benchmark/results/aws/results.md)
 
 ## Run locally
 
@@ -27,7 +27,7 @@ python3 -m venv /tmp/mongodb-benchmark-report
 
 The benchmark replaces `benchmark/results/local/samples.json`. The report command
 replaces the local diagram and summary. It does not read or change the AWS snapshot.
-Only one local result set and one dated AWS result set are retained; replace those
+Only one local result set and one AWS result set are retained; replace those
 files instead of adding run folders. SVGs and other generated result files are ignored.
 
 The raw local data includes the monitoring-enabled serverless control. The diagram

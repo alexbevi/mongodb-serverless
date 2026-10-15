@@ -59,7 +59,7 @@ class ReportTest(unittest.TestCase):
             output = Path(directory)
             aws = output / "aws"
             aws.mkdir()
-            snapshot = aws / "sample-10-2026.md"
+            snapshot = aws / "results.md"
             snapshot.write_text("Historical AWS snapshot\n")
             before = hashlib.sha256(snapshot.read_bytes()).hexdigest()
             subprocess.run(

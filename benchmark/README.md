@@ -80,4 +80,4 @@ scheduler differ from AWS. Local results test the connection sequence; they are
 not an AWS latency prediction. Saved measurements live only in `results/local/`
 and `results/aws/`. The [local report](../BENCHMARK.md) describes how to replace
 the local samples, diagram and summary. The
-[AWS snapshot](results/aws/sample-10-2026.md) records a separate October 2026 run.
+[AWS results](results/aws/results.md) record a separate AWS run and its measurement date.

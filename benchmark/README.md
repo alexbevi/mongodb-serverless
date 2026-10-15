@@ -62,7 +62,7 @@ appearance within each stage; parallel work can make the order differ across tra
 
 ### Setup legend
 
-**Callback execution.** Main-thread execution between Node's async-hook `before`
+**Other callbacks.** Main-thread execution between Node's async-hook `before`
 and `after` boundaries, including promise continuations. The initial synchronous
 handler call is recorded explicitly. This colour fills time outside more specific
 measured phases. A callback's elapsed duration can include a pause while the thread
@@ -71,38 +71,37 @@ resource type and the resource's creation stack. That stack identifies where the
 async work was scheduled; it is not a sampled stack of every instruction executed.
 This colour has the same meaning in all three legends.
 
-The parenthesized names list the three largest identified work categories in each
-stage from a separate local CPU profile: 20 cold invocations per driver/operation,
-80 analyzed invocations across the native and no-monitoring clients. They describe
-sampled work, not every callback or exact shares of the illustrated bars. Unclassified
-stacks remain in the retained evidence; the legend ranks named categories only.
-The performance statistics still use the original 100 iterations per cohort.
+CPU sampling identified the work to instrument. The diagram now uses direct
+[source probes](source-probes.ts) for these chunks rather than distributing sample
+counts across the bars:
 
-- **IP validation:** `isIPv4` / `isIPv6`, called from the driver's
-  [TLS option parsing](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts).
-- **Server creation:** construction of the driver's
-  [Server objects](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/server.ts).
-- **SCRAM preparation:** nonce generation, including lazy loading of Node crypto
-  helpers, beneath [SCRAM's prepare method](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/auth/scram.ts).
-- **Connection creation / handshake setup:** the
-  [Connection constructor](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connection.ts)
-  and [performInitialHandshake](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts),
-  outside separately timed wire phases.
-- **Command handling / operation execution:** continuations in
-  [Server.command](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/server.ts)
-  and [executeOperation](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/operations/execute_operation.ts).
-- **Tracing overhead:** the benchmark's own [async-hook recorder](execution.ts),
-  particularly creation-stack capture and formatting. This cost belongs to the
-  diagnostic instrumentation, not normal driver operation.
+- **TLS options / IP validation:** synchronous TLS option parsing, including
+  `isIPv4` / `isIPv6`, in [parseSslOptions](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts).
+- **Connection object construction:** the synchronous
+  [Connection constructor](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connection.ts), after the socket opens.
+- **Handshake preparation:** [prepareHandshakeDocument](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts),
+  including SCRAM nonce preparation and its lazy crypto initialization. This is an
+  asynchronous scope and includes waits; separately named metadata scopes take precedence.
+- **Topology update:** [serverUpdateHandler](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/topology.ts)
+  processing a member description.
+- **Command preparation:** building the command and options in
+  [Server.command](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/server.ts).
+- **Result processing:** the operation's `handleOk` call in
+  [executeOperation](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/operations/execute_operation.ts).
+- **Trace stack capture:** the benchmark's own [async-hook recorder](execution.ts)
+  capturing and formatting creation stacks. This is diagnostic overhead, not normal
+  driver work. Its elapsed time remains in the measured totals. Across the 400 native/direct
+  samples, stack capture alone took a median 6.9 ms per invocation
+  (median share 13.4%); it is too large to omit.
 
-The sampled stacks and counts are stored in `callbackProfile` in the local
-`samples.json`. The [classifier](report.py) gives tracing overhead priority over
-its caller and groups the remaining named functions by their work. AWS has no
-corresponding CPU profile; these local labels are not applied to AWS.
+These colours appear in each stage where their measured spans occur. **Other
+callbacks** retains the remaining callback intervals; the named probes do not
+claim to explain every instruction. AWS has no corresponding source probes, so
+these local categories are not applied to its diagram.
 
 **Client & topology initialization.** Related scopes for creating the wrapper and
 native client, parsing URI/options, reading the plugin's topology, rewriting a
-direct member URI and constructing the native topology. See the
+direct member URI and constructing the native topology and server objects. See the
 [benchmark client factory](handler-base.ts#L78), [member/client resolution](../driver/src/clients.ts#L66),
 [direct URI rewrite](../driver/src/uri.ts#L18), and the native driver's
 [constructor](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/mongo_client.ts#L444)
@@ -147,7 +146,7 @@ This phase appears only for the serverless variant with monitoring disabled.
 
 ### Connection legend
 
-**Callback execution** and **Event-loop wait / dispatch** have the definitions
+**Other callbacks** and **Event-loop wait / dispatch** have the definitions
 above, restricted to intervals within this section.
 
 **TLS socket/context construction.** The synchronous call to Node's `tls.connect`,
@@ -193,7 +192,7 @@ server exchanges, waits and any off-CPU pauses within that scope.
 
 ### Operation legend
 
-**Callback execution** and **Event-loop wait / dispatch** retain the same definitions,
+**Other callbacks** and **Event-loop wait / dispatch** retain the same definitions,
 now covering checkout/dispatch and completion work after the connection is ready.
 The benchmark performs [findOne](handler-read.ts) or [updateOne](handler-write.ts).
 

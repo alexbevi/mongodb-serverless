@@ -8,6 +8,18 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_measured_callback_chunks_have_distinct_colours(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        names = ["TLS options / IP validation", "Connection object construction", "Handshake preparation",
+                 "Topology update", "Command preparation", "Result processing", "Trace stack capture"]
+        colours = [report.phase_color("code:" + name) for name in names]
+        self.assertEqual(len(set(colours)), len(names))
+        self.assertNotIn(report.phase_color("callback"), colours)
+
     def test_chart_heading_uses_median_reduction_on_one_line(self):
         import importlib.util
         root = Path(__file__).parents[1]
@@ -24,27 +36,6 @@ class ReportTest(unittest.TestCase):
         direct = {"median": 200, "mean": 270, "standardDeviation": 27, "coefficientOfVariationPercent": 10}
         self.assertEqual(report.chart_heading("read", native, direct),
                          "Read · median ~250.0→~200.0 ms (20.0% less) · mean ~300.0→~270.0 · SD ~30.0→~27.0 · CV 10.0→10.0%")
-
-    def test_callback_legend_names_measured_work_and_keeps_probe_overhead(self):
-        import importlib.util
-        root = Path(__file__).parents[1]
-        spec = importlib.util.spec_from_file_location("report", root / "report.py")
-        report = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(report)
-        data = {"callbackProfile": {"stacks": [
-            {"group": "Setup", "samples": 50, "stack": [
-                {"function": "isIPv6", "url": "node:internal/net"},
-                {"function": "parseSslOptions", "url": "/mongodb/lib/cmap/connect.js"}]},
-            {"group": "Setup", "samples": 20, "stack": [
-                {"function": "defaultPrepareStackTrace", "url": "node:internal/errors"},
-                {"function": "init", "url": "/benchmark/dist/execution.js"},
-                {"function": "Server", "url": "/mongodb/lib/sdam/server.js"}]},
-            {"group": "Operation", "samples": 100, "stack": [
-                {"function": "command", "url": "/mongodb/lib/sdam/server.js"}]}]}}
-        self.assertEqual(report.callback_legend(data, "Setup"),
-                         "Callbacks (IP validation, tracing overhead)")
-        self.assertEqual(report.callback_legend(data, "Connection"), "Callbacks (not sampled)")
-        self.assertEqual(report.callback_legend({}, "Setup"), "Callbacks (not sampled)")
 
     def test_cpu_annotation_omits_zero_throttling(self):
         import importlib.util

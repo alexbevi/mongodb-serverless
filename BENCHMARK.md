@@ -11,7 +11,7 @@ callback tracing and socket/client events recording the full breakdown.
 Each illustrated trace is the sample nearest its driver/operation median.
 Headings report medians and the percentage reduction between those medians.
 The first operation connects automatically, and the local client has no CPU quota.
-The complete four-batch run took approximately 3m 29s, including compilation,
+The complete four-batch run took approximately 3m 35s, including compilation,
 cluster setup and teardown. The command below collects one 100-iteration batch.
 
 Timings include profiling overhead, so the percentages describe this instrumented

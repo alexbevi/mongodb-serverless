@@ -1,4 +1,4 @@
-import { MongoClient, type Db, type MongoClientOptions } from 'mongodb';
+import { MongoClient, type Db, type MongoClientOptions, type MongoClientEvents } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { ClientPair, type ClientFactory } from './clients.js';
 import { UnsupportedOperationError } from './errors.js';
@@ -11,6 +11,8 @@ export interface ServerlessClientOptions extends MongoClientOptions {
   plugin?: PluginSource;
   /** Disable SDAM monitoring for the underlying direct connections. Requires mongodb >=7.7.0 <8.0.0. */
   disableMonitoring?: boolean;
+  /** Listeners attached to each native client before it connects. */
+  on?: Partial<MongoClientEvents> & ThisType<MongoClient>;
   /** Builds the real clients. For tests. */
   createClient?: ClientFactory;
 }
@@ -32,7 +34,7 @@ export class ServerlessMongoClient {
   readonly #pair: Promise<ClientPair>;
 
   constructor(uri: string, options: ServerlessClientOptions = {}) {
-    const { plugin, createClient, disableMonitoring = false, ...driverOptions } = options;
+    const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
 
     this.#uri = uri;
     this.#defaultDb = defaultDatabaseOf(uri);
@@ -42,7 +44,15 @@ export class ServerlessMongoClient {
         new ClientPair({
           uri,
           plugin: resolved,
-          createClient: createClient ?? defaultFactory,
+          createClient: (uri, options) => {
+            const client = (createClient ?? defaultFactory)(uri, options);
+
+            for (const [event, listener] of Object.entries(on)) {
+              if (listener) client.on(event, listener);
+            }
+
+            return client;
+          },
           driverOptions,
           disableMonitoring
         })

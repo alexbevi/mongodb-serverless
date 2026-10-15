@@ -31,6 +31,13 @@ class CiSummaryTest(unittest.TestCase):
         self.assertIn('Invalid benchmark result', render_summary(data, '24', 'failure', '', ''))
         self.assertIn('No result JSON', render_summary(None, '24', 'cancelled', '', ''))
 
+    def test_authenticated_artifact_url_does_not_produce_a_broken_inline_image(self):
+        from ci_summary import render_summary
+        summary = render_summary(None, '24', 'failure',
+                                 'https://github.com/owner/repo/actions/runs/1/artifacts/2', '')
+        self.assertNotIn('![Latency diagram]', summary)
+        self.assertIn('Inline display requires a public image URL', summary)
+
 
 if __name__ == '__main__':
     unittest.main()

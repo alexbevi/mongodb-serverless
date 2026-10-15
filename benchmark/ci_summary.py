@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from performance import check_performance
 
@@ -27,7 +28,11 @@ def render_summary(data, node_version, outcome, image_url, result_url):
         lines.extend(['**⚠️ Benchmark incomplete**', '', f'Invalid benchmark result: {error}'])
     lines.append('')
     if image_url:
-        lines.extend([f'![Latency diagram]({image_url})', ''])
+        image = urlparse(image_url)
+        if image.hostname == 'github.com' and '/actions/runs/' in image.path and '/artifacts/' in image.path:
+            lines.extend(['The latency PNG is retained in Artifacts. Inline display requires a public image URL.', ''])
+        else:
+            lines.extend([f'![Latency diagram]({image_url})', ''])
     if result_url:
         lines.extend([f'[Download result JSON]({result_url})', ''])
     if image_url or result_url:

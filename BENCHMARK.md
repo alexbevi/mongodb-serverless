@@ -22,6 +22,13 @@ time after command success. These colours exclude the phases already shown and
 do not overlap each other. They locate elapsed time between events without
 identifying whether it was CPU work or scheduling delay.
 
+The tables beneath the lanes partition each illustrated trace's elapsed time.
+Application phases take precedence over concurrent monitor phases; overlapping
+monitor intervals count once. The remaining time is bounded by lifecycle events
+or marked as having an unmeasured cause. These durations include CPU work, I/O
+and scheduling; they are not exclusive CPU costs. `~` marks rounded values.
+The summary retains the unrounded accounting and interval boundaries.
+
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
 [AWS results](benchmark/results/aws/results.md)

@@ -8,6 +8,37 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_accounting_covers_every_millisecond_without_adding_parallel_work(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        timeline = {
+            "total": 20,
+            "dns": [{"start": 2, "end": 5}, {"start": 3, "end": 4}],
+            "connections": [
+                {"kind": "monitor", "selected": True, "start": 5,
+                 "phases": {"tcp": [5, 7], "tls": [7, 10]}},
+                {"kind": "application", "selected": True, "start": 10,
+                 "phases": {"tcp": [10, 12], "tls": [12, 14]}},
+            ],
+            "gaps": [{"phase": "poolGaps", "start": 9, "end": 15}],
+            "command": {"send": [15, 16], "receive": [16, 19]},
+        }
+        segments = report.accounting_segments(timeline)
+        self.assertEqual(segments[0]["start"], 0)
+        self.assertEqual(segments[-1]["end"], 20)
+        for left, right in zip(segments, segments[1:]):
+            self.assertEqual(left["end"], right["start"])
+        totals = report.accounting_totals(timeline)
+        self.assertEqual(sum(totals.values()), 20)
+        self.assertEqual(totals["clusterDns"], 3)
+        self.assertEqual(totals["tcp"], 2)
+        self.assertEqual(totals["poolGaps"], 1)
+        self.assertEqual(totals["monitor"], 5)
+        self.assertEqual(totals["beforeSocket"], 2)
+        self.assertEqual(totals["unattributed"], 1)
+
     def test_dns_intervals_remain_separate_and_parallel_queries_are_not_added(self):
         import importlib.util
         root = Path(__file__).parents[1]

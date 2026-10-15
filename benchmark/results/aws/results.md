@@ -50,6 +50,13 @@ Lambda placement, CPU scheduling, DNS, TLS and database load affect these timing
 The results do not establish current performance or the behavior of long-lived
 pools, elections or failover.
 
+The tables beneath the lanes partition each illustrated trace's elapsed time.
+Application phases take precedence over concurrent monitor phases; overlapping
+monitor intervals count once. The remaining time is bounded by lifecycle events
+or marked as having an unmeasured cause. These durations include CPU work, I/O
+and scheduling; they are not exclusive CPU costs. `~` marks rounded values.
+The summary retains the unrounded accounting and interval boundaries.
+
 [Raw samples](samples.json) · [Summary statistics](summary.json) ·
 [Current local benchmark](../../../BENCHMARK.md)
 

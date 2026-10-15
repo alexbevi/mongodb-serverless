@@ -29,9 +29,9 @@ MODES = ("native-cluster", "serverless")
 
 
 GAP_COLORS = {
-    "poolGaps": ("#c026d3", "Connection / pool gaps"),
-    "beforeCommand": ("#0e7490", "Before command"),
-    "afterReply": ("#fb7185", "After reply"),
+    "poolGaps": ("#c026d3", "Pool / checkout remainder"),
+    "beforeCommand": ("#0e7490", "Ready → command remainder"),
+    "afterReply": ("#fb7185", "After reply remainder"),
 }
 
 
@@ -69,6 +69,75 @@ def event_gap_segments(sample):
                     segments.append({"phase": phase, "start": a - trace["start"], "end": b - trace["start"]})
                     covered.append((a, b))
     return segments
+
+
+PHASE_LABELS = {
+    "clusterDns": "Cluster DNS (SRV + TXT union)",
+    "lookup": "Application host DNS",
+    "tcp": "Application TCP connect",
+    "tls": "Application TLS handshake",
+    "hello": "Application hello exchange",
+    "auth": "Application authentication",
+    "send": "Command start → socket write",
+    "receive": "Socket write → reply received",
+    "monitor": "Monitor DNS / TCP / TLS / hello (union)",
+    "poolGaps": "Pool / checkout interval remainder",
+    "beforeCommand": "Ready → command interval remainder",
+    "afterReply": "Reply → handler return remainder",
+    "beforeSocket": "Before first socket: cause unmeasured",
+    "unattributed": "Between events: cause unmeasured",
+}
+
+
+def accounting_segments(timeline):
+    total = timeline["total"]
+    application = next(c for c in reversed(timeline["connections"])
+                       if c["kind"] == "application" and c["selected"])
+    first_socket = min(c["start"] for c in timeline["connections"])
+    intervals = [(phase, *interval) for phase, interval in timeline["command"].items()]
+    intervals += [(phase, *interval) for phase, interval in application["phases"].items()]
+    intervals += [("clusterDns", q["start"], q["end"]) for q in timeline.get("dns", [])]
+    intervals += [("monitor", *interval) for c in timeline["connections"]
+                  if c["kind"] == "monitor" for interval in c["phases"].values()]
+    intervals += [(g["phase"], g["start"], g["end"]) for g in timeline.get("gaps", [])]
+    intervals.append(("beforeSocket", 0, first_socket))
+    boundaries = sorted({0, total, *(max(0, min(total, t))
+                                    for _, a, b in intervals for t in (a, b))})
+    result = []
+    for a, b in zip(boundaries, boundaries[1:]):
+        phase = next((phase for phase, left, right in intervals if left <= a and b <= right),
+                     "unattributed")
+        if result and result[-1]["phase"] == phase:
+            result[-1]["end"] = b
+        else:
+            result.append({"phase": phase, "start": a, "end": b})
+    return result
+
+
+def accounting_totals(timeline):
+    totals = dict.fromkeys(PHASE_LABELS, 0.0)
+    for segment in accounting_segments(timeline):
+        totals[segment["phase"]] += segment["end"] - segment["start"]
+    return totals
+
+
+def draw_accounting(axis, native, serverless):
+    totals = [accounting_totals(row["timeline"]) for row in (native, serverless)]
+    cells = [[label, *(f"~{t[phase]:.2f}" for t in totals)]
+             for phase, label in PHASE_LABELS.items()]
+    cells.append(["Total elapsed (ms)", *(f"~{r['timeline']['total']:.2f}" for r in (native, serverless))])
+    table = axis.table(cellText=cells, colLabels=["Illustrated trace · exclusive elapsed ms", "MongoDB", "Serverless"],
+                       colWidths=[0.72, 0.14, 0.14], bbox=[0, -1.04, 1, 0.81], cellLoc="right")
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    for (row, column), cell in table.get_celld().items():
+        cell.set_edgecolor("#e2e8f0")
+        if column == 0:
+            cell.get_text().set_ha("left")
+        if row == 0 or row == len(cells):
+            cell.get_text().set_weight("bold")
+        if row in (13, 14):
+            cell.set_facecolor("#fef3c7")
 
 
 def local_samples(data):
@@ -223,7 +292,7 @@ def draw_command(axis, timeline, y):
     axis.text(
         timeline["total"] * 1.015,
         y,
-        f"{timeline['total']:.1f} ms",
+        f"~{timeline['total']:.1f} ms",
         va="center",
         fontsize=10,
         weight="bold",
@@ -353,8 +422,8 @@ def render(data, environment, output):
             sorted({c["host"] for row in rows for c in row["timeline"]["connections"]})
         )
     }
-    figure, axes = plt.subplots(1, 2, figsize=(22, 8))
-    figure.subplots_adjust(left=0.12, right=0.97, top=0.76, bottom=0.22, wspace=0.42)
+    figure, axes = plt.subplots(1, 2, figsize=(22, 13))
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.83, bottom=0.48, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -366,7 +435,7 @@ def render(data, environment, output):
     sample_caption = "Individual traces nearest cohort medians"
     figure.text(
         0.5,
-        0.89,
+        0.92,
         f"Measured {date}. {sample_caption}; headings report all-sample means.",
         ha="center",
         fontsize=11,
@@ -374,7 +443,7 @@ def render(data, environment, output):
     if environment == "aws":
         figure.text(
             0.5,
-            0.85,
+            0.89,
             "Point-in-time snapshot; not a statement of current performance.",
             ha="center",
             fontsize=11,
@@ -383,6 +452,12 @@ def render(data, environment, output):
         native = representatives[operation, "native-cluster"]
         serverless = representatives[operation, "serverless"]
         draw_node_lanes(axis, native, serverless, member_letters)
+        draw_accounting(axis, native, serverless)
+        for item in summary:
+            if item["operation"] == operation:
+                row = native if item["driver"] == "native-cluster" else serverless
+                item["illustratedTraceAccountingMs"] = accounting_totals(row["timeline"])
+                item["illustratedTraceSegments"] = accounting_segments(row["timeline"])
         means = {
             item["driver"]: item["mean"]
             for item in summary
@@ -390,7 +465,7 @@ def render(data, environment, output):
         }
         reduction = 100 * (1 - means["serverless"] / means["native-cluster"])
         axis.set_title(
-            f"{operation.title()} · mean {means['native-cluster']:.1f} → {means['serverless']:.1f} ms ({reduction:.1f}% less time)",
+            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)",
             loc="left",
             fontsize=15,
             weight="bold",
@@ -408,25 +483,25 @@ def render(data, environment, output):
         handles=[
             Patch(
                 facecolor=color,
-                label="Cluster DNS" if phase == "clusterDns" else "Host DNS" if phase == "lookup" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
+                label="Cluster DNS" if phase == "clusterDns" else "Host DNS" if phase == "lookup" else "Command → write" if phase == "send" else "Write → reply" if phase == "receive" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
             )
             for phase, color in COLORS.items()
         ]
         + ([Patch(facecolor=color, label=label) for color, label in GAP_COLORS.values()] if show_gaps else [])
         + [
-            Patch(facecolor="#94a3b8", label="Before first socket"),
-            Patch(facecolor="#e2e8f0", label="Other / gaps"),
+            Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured"),
+            Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured"),
         ],
         loc="lower center",
-        bbox_to_anchor=(0.5, 0.09),
+        bbox_to_anchor=(0.5, 0.055),
         ncol=7 if show_gaps else 8,
         frameon=False,
     )
     figure.text(
         0.5,
-        0.045,
-        ("Gap colours mark event-bounded intervals, not their CPU/network cause. Every illustrated socket is shown." if show_gaps else
-         "Every socket in each illustrated sample is shown. Watcher work, imports, client close and Lambda INIT are excluded."),
+        0.025,
+        "Tables partition elapsed time once; application phases take precedence over concurrent monitor phases. Intervals include CPU, I/O and scheduling; they are not CPU costs.\n"
+        "~ marks rounded timings; amber rows identify unmeasured causes. Imports, watcher work, client close and Lambda INIT are outside the measurement.",
         ha="center",
         fontsize=10,
     )

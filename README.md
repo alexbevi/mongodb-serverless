@@ -15,10 +15,8 @@ created on first use.
 
 ## Benchmark
 
-
-Run `npm run benchmark` for cold connection timings against a TLS replica set with
-simulated availability-zone latency. See the [benchmark usage](benchmark/README.md)
-and the recorded [benchmark](BENCHMARK.md).
+![Replica-set discovery and direct member connections](benchmark/baseline/latency.png)
+See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
 
 ## Components
 

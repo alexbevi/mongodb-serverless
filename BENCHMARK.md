@@ -1,9 +1,6 @@
 # Mini Benchmark Results
 
-[Earlier monitoring comparison](https://github.com/alexbevi/mongodb-serverless/pull/2#issuecomment-6175589881) records the previous local and AWS runs.
-
-Measured on 15 October 2026: MongoDB driver discovery compared with direct
-connections through the serverless driver, locally and on AWS Lambda.
+MongoDB driver discovery compared with direct connections through the serverless driver, locally and on AWS Lambda.
 
 For documentation on the benchmark, see [README.md](benchmark/README.md).
 

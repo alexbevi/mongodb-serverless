@@ -39,20 +39,55 @@ jobs:
       - run: pnpm test
 
       - name: Require 10% benchmark improvement (100 iterations)
-        timeout-minutes: 5
+        id: benchmark
+        timeout-minutes: 10
         run: |
           python3 -m unittest discover -s benchmark/test -p performance_test.py
+          python3 -m unittest discover -s benchmark/test -p ci_summary_test.py
           pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
           python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
 
+      - name: Render benchmark latency
+        if: always() && steps.benchmark.outcome != 'skipped'
+        timeout-minutes: 3
+        env:
+          BENCHMARK_NODE: ${{ matrix.node }}
+        run: |
+          if [ -f "$RUNNER_TEMP/benchmark/samples.json" ]; then
+            python3 -m pip install -r benchmark/requirements-report.txt
+            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json" --environment local
+            mv "$RUNNER_TEMP/benchmark/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
+          fi
+
       - name: Upload benchmark measurements
+        id: benchmark-results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-node-${{ matrix.node }}
           path: ${{ runner.temp }}/benchmark/samples.json
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Upload latency diagram
+        id: benchmark-image
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/latency-node-${{ matrix.node }}.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Summarize benchmark
+        if: always() && steps.benchmark.outcome != 'skipped'
+        env:
+          BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json
+          BENCHMARK_NODE: ${{ matrix.node }}
+          BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
+          BENCHMARK_IMAGE_URL: ${{ steps.benchmark-image.outputs.artifact-url }}
+          BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
+        run: python3 benchmark/ci_summary.py
 
       - name: Check the packages are installable
         run: |

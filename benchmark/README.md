@@ -325,3 +325,10 @@ benchmark command and send `--output` to a temporary file. The
 [Node CPU profiler](https://nodejs.org/api/inspector.html#cpu-profiler) samples
 executing stacks at a requested 100 µs interval around the handler. Sampling adds
 overhead; keep these diagnostic timings separate from the performance results.
+
+To identify work in the residual callback colour, run
+`python3 benchmark/callback_profile.py /tmp/callback-profiles.json /tmp/callback-summary.json`.
+The analyzer counts executing stacks only when their sample timestamp falls inside
+that colour's measured intervals, excluding already named connection, operation
+and setup scopes. It separates Setup, Connection and Operation at the same
+boundaries as the diagram. Stack counts describe sampled work, not exact durations.

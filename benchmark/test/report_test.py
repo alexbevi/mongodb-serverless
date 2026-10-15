@@ -8,6 +8,24 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_comparison_resamples_paired_blocks_and_reports_batch_variation(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        rows = [{"mode": mode, "block": [batch, iteration], "batch": batch,
+                 "timeline": {"total": duration}}
+                for batch in (1, 2) for iteration in range(3)
+                for mode, duration in (("native-cluster", 10 + iteration), ("serverless", (10 + iteration) / 2))]
+        stats = report.comparison_stats(rows)
+        self.assertEqual(stats["blocks"], 6)
+        self.assertEqual(stats["reductionPercent"], 50)
+        self.assertEqual(stats["confidence95Percent"], [50, 50])
+        self.assertEqual([batch["reductionPercent"] for batch in stats["batches"]], [50, 50])
+        with self.assertRaisesRegex(ValueError, "paired"):
+            report.comparison_stats(rows[:-1])
+
     def test_run_caption_reports_iterations_location_and_hardware(self):
         import importlib.util
         root = Path(__file__).parents[1]

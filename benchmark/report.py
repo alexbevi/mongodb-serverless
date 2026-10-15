@@ -5,6 +5,7 @@ import argparse
 from collections import Counter
 import json
 import math
+import random
 from pathlib import Path
 from statistics import mean, median
 
@@ -251,6 +252,8 @@ def local_samples(data):
                 if sample["variant"] == "native"
                 else "serverless",
                 "operation": sample["operation"],
+                "batch": sample.get("batch", 1),
+                "block": [sample.get("batch", 1), sample.get("iteration", 0)],
                 "servedRole": sample["servedRole"],
                 "applicationConnectionReadyMs": sample["applicationConnectionReadyMs"],
                 "lifecycleDurations": lifecycle_durations,
@@ -270,6 +273,29 @@ def local_samples(data):
             }
         )
     return rows
+
+
+def comparison_stats(rows):
+    blocks = {}
+    for row in rows:
+        key = tuple(row.get("block", (row.get("batch", 1), row.get("round", 0))))
+        blocks.setdefault(key, {mode: [] for mode in MODES})[row["mode"]].append(row["timeline"]["total"])
+    if any(not values[mode] for values in blocks.values() for mode in MODES):
+        raise ValueError("Each bootstrap block must contain paired driver measurements")
+    totals = [{mode: (sum(values[mode]), len(values[mode])) for mode in MODES} for values in blocks.values()]
+
+    def reduction(selected):
+        means = {mode: sum(block[mode][0] for block in selected) / sum(block[mode][1] for block in selected) for mode in MODES}
+        return 100 * (1 - means["serverless"] / means["native-cluster"])
+
+    rng = random.Random(0)
+    estimates = sorted(reduction(rng.choices(totals, k=len(totals))) for _ in range(2000))
+    batches = []
+    for batch in sorted({key[0] for key in blocks}):
+        selected = [value for key, value in zip(blocks, totals) if key[0] == batch]
+        batches.append({"batch": batch, "reductionPercent": reduction(selected)})
+    return {"reductionPercent": reduction(totals), "confidence95Percent": [estimates[49], estimates[1949]],
+            "blocks": len(blocks), "bootstrapResamples": 2000, "batches": batches}
 
 
 def summarize(rows):
@@ -295,6 +321,7 @@ def summarize(rows):
                     "n": len(group),
                     "mean": mean(totals),
                     "median": median(totals),
+                    "medianAbsoluteDeviation": median(abs(value - median(totals)) for value in totals),
                     "p95": totals[math.ceil(0.95 * len(totals)) - 1],
                     "roles": dict(Counter(row["servedRole"] for row in group)),
                     "sockets": dict(
@@ -553,6 +580,11 @@ def run_caption(data, environment):
     counts = sorted(set(groups.values()))
     iterations = str(counts[0]) if len(counts) == 1 else f"{counts[0]}–{counts[-1]}"
     count = f"{iterations} iterations per driver/operation · {len(data['samples'])} total cold invocations"
+    if "runDurationSeconds" in data:
+        seconds = round(data["runDurationSeconds"])
+        count += f" · elapsed ~{seconds // 60}m {seconds % 60:02d}s"
+    if "batches" in data:
+        count += f" · {len(data['batches'])} batches"
     if environment == "aws":
         region = data.get("region", "region not recorded")
         location = "Sydney (ap-southeast-2)" if region == "ap-southeast-2" else region
@@ -593,7 +625,7 @@ def render(data, environment, output):
     }
     diagnostic = any("execution" in row["timeline"] for row in rows)
     figure, axes = plt.subplots(1, 2, figsize=(22, 11 if diagnostic else 9))
-    figure.subplots_adjust(left=0.12, right=0.97, top=0.78, bottom=0.34, wspace=0.42)
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.72, bottom=0.34, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -633,13 +665,20 @@ def render(data, environment, output):
             for item in summary
             if item["operation"] == operation
         }
-        reduction = 100 * (1 - means["serverless"] / means["native-cluster"])
+        comparison = comparison_stats([row for row in rows if row["operation"] == operation])
+        for item in summary:
+            if item["operation"] == operation:
+                item["comparison"] = comparison
+        reduction = comparison["reductionPercent"]
+        low, high = comparison["confidence95Percent"]
+        batch_values = [batch["reductionPercent"] for batch in comparison["batches"]]
+        distributions = {item["driver"]: item for item in summary if item["operation"] == operation}
+        native_stats, serverless_stats = (distributions[mode] for mode in MODES)
         axis.set_title(
-            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)",
-            loc="left",
-            fontsize=15,
-            weight="bold",
-            pad=15,
+            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)\n"
+            f"Median ~{native_stats['median']:.1f} (MAD ~{native_stats['medianAbsoluteDeviation']:.1f}) → ~{serverless_stats['median']:.1f} (MAD ~{serverless_stats['medianAbsoluteDeviation']:.1f}) ms\n"
+            f"Reduction 95% CI: {low:.1f}–{high:.1f}% · batch range: {min(batch_values):.1f}–{max(batch_values):.1f}%",
+            loc="left", fontsize=12, weight="bold", pad=15,
         )
         axis.set_xlim(
             0, max(native["timeline"]["total"], serverless["timeline"]["total"]) * 1.15
@@ -682,7 +721,8 @@ def render(data, environment, output):
     figure.text(
         0.5,
         0.025,
-        "Every interval is drawn; concurrent node lanes overlap in time and must not be added.\n"
+        "MAD = median absolute deviation. CI = paired-block bootstrap interval for the mean reduction (2,000 resamples).\n"
+        "Concurrent node lanes overlap in time and must not be added.\n"
         + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
            "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
         ha="center",

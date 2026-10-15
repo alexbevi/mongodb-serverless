@@ -30,8 +30,8 @@ Every serverless sample opened one authenticated application socket and no monit
 socket. Each illustrated trace is a real sample nearest its driver/operation
 median, with every socket from that sample shown. The table and diagram headings
 report means across all 30 samples per driver/operation.
-Cluster DNS is the shared SRV/TXT discovery stage, shown once on the operation
-path. Its elapsed time averaged 13.47 ms for MongoDB reads and 12.93 ms for writes.
+Cluster DNS is the shared SRV/TXT discovery stage, shown as one block spanning
+all three node lanes before sockets open. Its elapsed time averaged 13.47 ms for MongoDB reads and 12.93 ms for writes.
 The requests overlap; their individual durations must not be added. Host DNS
 segments show hostname resolution before TCP on each socket. For the selected
 application socket, this averaged 12.49/7.17 ms for MongoDB reads/writes and

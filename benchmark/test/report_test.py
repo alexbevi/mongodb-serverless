@@ -30,7 +30,7 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(row["dnsDurations"]["TXT"], 2)
         self.assertEqual(row["dnsDurations"]["seedlistWall"], 5)
 
-    def test_cluster_dns_is_a_segment_on_the_operation_lane_not_extra_rows(self):
+    def test_cluster_dns_spans_all_node_lanes_without_extra_rows(self):
         import importlib.util
         from unittest.mock import patch
         root = Path(__file__).parents[1]
@@ -53,6 +53,8 @@ class ReportTest(unittest.TestCase):
                 self.assertEqual(len(segments), 1)
                 self.assertEqual(segments[0].get_x(), 1)
                 self.assertEqual(segments[0].get_width(), 3)
+                self.assertAlmostEqual(segments[0].get_y(), 1.0)
+                self.assertAlmostEqual(segments[0].get_height(), 2.4)
                 self.assertFalse(any("SRV DNS" in t.get_text() or "TXT DNS" in t.get_text() for t in axis.texts))
             report.plt.close(figure)
 

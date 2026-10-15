@@ -326,8 +326,8 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     if dns:
         begin = min(query["start"] for query in dns)
         end = max(query["end"] for query in dns)
-        segment = axis.barh(lanes[selected["host"]], end - begin, left=begin,
-                            height=0.36, color=COLORS["clusterDns"], zorder=4)[0]
+        segment = axis.barh(2.2, end - begin, left=begin,
+                            height=2.4, color=COLORS["clusterDns"], zorder=4)[0]
         segment.set_gid("cluster-dns")
     axis.set_ylim(-1.2, 4)
 

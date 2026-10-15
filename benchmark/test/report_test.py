@@ -135,11 +135,12 @@ class ReportTest(unittest.TestCase):
             self.assertIn(expected, caption)
         aws = json.loads((root / "results/aws/samples.json").read_text())
         aws["architecture"] = "arm64"
+        aws["memoryMB"] = 1769
         aws["samples"] = [{"mode": mode, "operation": operation}
                           for mode in ("native-cluster", "serverless")
                           for operation in ("read", "write") for _ in range(120)]
         caption = report.run_caption(aws, "aws")
-        for expected in ("120 iterations per driver/operation", "480 total", "ap-southeast-2", "ARM64", "1024 MB"):
+        for expected in ("120 iterations per driver/operation", "480 total", "ap-southeast-2", "ARM64", "1769 MB"):
             self.assertIn(expected, caption)
 
     def test_local_diagram_uses_one_measured_cohort_with_percentage_headings(self):

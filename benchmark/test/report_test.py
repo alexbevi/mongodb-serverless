@@ -8,6 +8,23 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_execution_stack_compaction_preserves_sources(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("compact", root / "compact.py")
+        compact = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(compact)
+        data = {"samples": [{"trace": {"execution": {"segments": [
+            {"source": "first stack", "start": 1}, {"source": "first stack", "start": 2},
+            {"source": "second stack", "start": 3}]}}}]}
+        compact.compact_sources(data)
+        self.assertEqual(data["executionSources"], ["first stack", "second stack"])
+        segments = data["samples"][0]["trace"]["execution"]["segments"]
+        self.assertEqual([s["sourceId"] for s in segments], [0, 0, 1])
+        self.assertEqual([s["start"] for s in segments], [1, 2, 3])
+        compact.compact_sources(data)
+        self.assertEqual(data["executionSources"], ["first stack", "second stack"])
+
     def test_comparison_resamples_paired_blocks_and_reports_batch_variation(self):
         import importlib.util
         root = Path(__file__).parents[1]

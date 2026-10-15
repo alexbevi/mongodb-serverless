@@ -236,7 +236,7 @@ def local_samples(data):
             raise ValueError("Lifecycle windows double-count measured phases")
         extra = {}
         if trace.get("execution"):
-            extra["execution"] = [{**e, "start": e["start"] - start, "end": e["end"] - start}
+            extra["execution"] = [{**e, "source": data["executionSources"][e["sourceId"]] if "sourceId" in e else e.get("source"), "start": e["start"] - start, "end": e["end"] - start}
                                   for e in trace["execution"]["segments"]]
             extra["activities"] = [{**a, "start": a["start"] - start, "end": a["end"] - start}
                                    for a in trace["activities"]]

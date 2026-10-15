@@ -8,6 +8,29 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_diagnostic_accounting_uses_measured_code_and_execution_intervals(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        timeline = {"total": 10, "dns": [], "gaps": [],
+                    "connections": [{"kind": "application", "selected": True, "start": 4,
+                                     "phases": {"tcp": [4, 6]}}],
+                    "command": {"send": [8, 9], "receive": [9, 10]},
+                    "activities": [{"name": "Native URI/options parsing", "kind": "sync", "start": 0, "end": 2}],
+                    "execution": [{"kind": "callback", "resource": "HANDLER", "start": 0, "end": 4},
+                                  {"kind": "dispatch", "resource": "TCPWRAP", "start": 4, "end": 8},
+                                  {"kind": "callback", "resource": "TCPWRAP", "start": 8, "end": 10}]}
+        totals = report.accounting_totals(timeline)
+        self.assertEqual(totals["code:Native URI/options parsing"], 2)
+        self.assertEqual(totals["callback"], 2)
+        self.assertEqual(totals["dispatch"], 2)
+        self.assertEqual(totals["beforeSocket"] + totals["unattributed"], 0)
+        self.assertEqual(sum(totals.values()), 10)
+        timeline["execution"] = []
+        with self.assertRaisesRegex(ValueError, "Uncovered diagnostic interval"):
+            report.accounting_segments(timeline)
+
     def test_accounting_covers_every_millisecond_without_adding_parallel_work(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")

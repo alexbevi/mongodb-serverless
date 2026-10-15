@@ -99,14 +99,23 @@ def accounting_segments(timeline):
     intervals += [("clusterDns", q["start"], q["end"]) for q in timeline.get("dns", [])]
     intervals += [("monitor", *interval) for c in timeline["connections"]
                   if c["kind"] == "monitor" for interval in c["phases"].values()]
-    intervals += [(g["phase"], g["start"], g["end"]) for g in timeline.get("gaps", [])]
-    intervals.append(("beforeSocket", 0, first_socket))
+    diagnostic = "execution" in timeline
+    if diagnostic:
+        activities = sorted(timeline.get("activities", []),
+                            key=lambda a: (a["kind"] != "sync", a["end"] - a["start"]))
+        intervals += [("code:" + a["name"], a["start"], a["end"]) for a in activities]
+        intervals += [(e["kind"], e["start"], e["end"]) for e in timeline["execution"]]
+    else:
+        intervals += [(g["phase"], g["start"], g["end"]) for g in timeline.get("gaps", [])]
+        intervals.append(("beforeSocket", 0, first_socket))
     boundaries = sorted({0, total, *(max(0, min(total, t))
                                     for _, a, b in intervals for t in (a, b))})
     result = []
     for a, b in zip(boundaries, boundaries[1:]):
         phase = next((phase for phase, left, right in intervals if left <= a and b <= right),
                      "unattributed")
+        if diagnostic and phase == "unattributed":
+            raise ValueError(f"Uncovered diagnostic interval: {a}–{b} ms")
         if result and result[-1]["phase"] == phase:
             result[-1]["end"] = b
         else:
@@ -117,27 +126,43 @@ def accounting_segments(timeline):
 def accounting_totals(timeline):
     totals = dict.fromkeys(PHASE_LABELS, 0.0)
     for segment in accounting_segments(timeline):
-        totals[segment["phase"]] += segment["end"] - segment["start"]
+        phase = segment["phase"]
+        totals[phase] = totals.get(phase, 0) + segment["end"] - segment["start"]
     return totals
 
 
-def draw_accounting(axis, native, serverless):
-    totals = [accounting_totals(row["timeline"]) for row in (native, serverless)]
-    cells = [[label, *(f"~{t[phase]:.2f}" for t in totals)]
-             for phase, label in PHASE_LABELS.items()]
-    cells.append(["Total elapsed (ms)", *(f"~{r['timeline']['total']:.2f}" for r in (native, serverless))])
-    table = axis.table(cellText=cells, colLabels=["Illustrated trace · exclusive elapsed ms", "MongoDB", "Serverless"],
-                       colWidths=[0.72, 0.14, 0.14], bbox=[0, -1.04, 1, 0.81], cellLoc="right")
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    for (row, column), cell in table.get_celld().items():
-        cell.set_edgecolor("#e2e8f0")
-        if column == 0:
-            cell.get_text().set_ha("left")
-        if row == 0 or row == len(cells):
-            cell.get_text().set_weight("bold")
-        if row in (13, 14):
-            cell.set_facecolor("#fef3c7")
+def phase_label(phase):
+    if phase.startswith("code:"):
+        return phase[5:]
+    return {"callback": "Callback execution / continuation",
+            "dispatch": "Event-loop wait / callback dispatch"}.get(phase, PHASE_LABELS.get(phase, phase))
+
+
+CODE_COLORS = {
+    "Facade / client construction": "#65a30d",
+    "Native client construction": "#a3e635",
+    "Native URI/options parsing": "#047857",
+    "Direct URI rewrite": "#d97706",
+    "Read TLS CA certificate": "#be123c",
+    "Load no-monitoring module": "#9333ea",
+    "Activate no-monitoring patch": "#c026d3",
+    "Read plugin topology": "#0f766e",
+    "Topology construction": "#0284c7",
+    "Await handshake metadata": "#a16207",
+    "Container metadata probe": "#e11d48",
+    "Load runtime adapter": "#4d7c0f",
+    "TLS socket/context construction": "#f97316",
+}
+
+
+def phase_color(phase):
+    if phase == "monitor":
+        return "#ddd6fe"
+    if phase == "callback":
+        return "#0891b2"
+    if phase == "dispatch":
+        return "#f472b6"
+    return CODE_COLORS[phase[5:]]
 
 
 def local_samples(data):
@@ -189,6 +214,18 @@ def local_samples(data):
         gap_durations["unclassified"] = sample["timings"]["other"] - sum(gap_durations.values())
         if gap_durations["unclassified"] < -1e-6:
             raise ValueError("Lifecycle windows double-count measured phases")
+        extra = {}
+        if trace.get("execution"):
+            extra["execution"] = [{**e, "start": e["start"] - start, "end": e["end"] - start}
+                                  for e in trace["execution"]["segments"]]
+            extra["activities"] = [{**a, "start": a["start"] - start, "end": a["end"] - start}
+                                   for a in trace["activities"]]
+            extra["threadCpuMs"] = trace["execution"]["threadCpuMs"]
+            counters = trace.get("cgroupCpu")
+            if counters:
+                before = dict(line.split() for line in counters["before"].splitlines())
+                after = dict(line.split() for line in counters["after"].splitlines())
+                extra["throttledMs"] = (int(after["throttled_usec"]) - int(before["throttled_usec"])) / 1000
         rows.append(
             {
                 "mode": "native-cluster"
@@ -200,6 +237,7 @@ def local_samples(data):
                 "dnsDurations": dns_durations,
                 "gapDurations": gap_durations,
                 "timeline": {
+                    **extra,
                     "total": sample["timings"]["total"],
                     "gaps": gaps,
                     "dns": dns,
@@ -262,12 +300,20 @@ def summarize(rows):
 
 
 def draw_gaps(axis, timeline, y):
+    if "execution" in timeline:
+        for segment in accounting_segments(timeline):
+            phase = segment["phase"]
+            if phase in COLORS:
+                continue
+            axis.barh(y, segment["end"] - segment["start"], left=segment["start"],
+                      height=0.36, color=phase_color(phase), zorder=2.6)
+        return
     for gap in timeline.get("gaps", []):
         axis.barh(y, gap["end"] - gap["start"], left=gap["start"], height=0.36,
                   color=GAP_COLORS[gap["phase"]][0], zorder=4)
 
 
-def draw_connection(axis, connection, y):
+def draw_connection(axis, connection, y, timeline=None):
     application = connection["kind"] == "application"
     axis.barh(
         y,
@@ -279,6 +325,15 @@ def draw_connection(axis, connection, y):
         linewidth=1.5,
         zorder=2,
     )
+    if timeline and "execution" in timeline:
+        spans = [(e["kind"], e["start"], e["end"]) for e in timeline["execution"]]
+        spans += [("code:" + a["name"], a["start"], a["end"]) for a in
+                  sorted(timeline.get("activities", []), key=lambda a: (a["kind"] == "sync", -(a["end"] - a["start"])))]
+        for phase, begin, end in spans:
+            begin, end = max(begin, connection["start"]), min(end, connection["end"])
+            if end > begin:
+                axis.barh(y, end - begin, left=begin, height=0.36,
+                          color=phase_color(phase), zorder=2.5)
     for phase, (begin, end) in connection["phases"].items():
         if phase in COLORS:
             axis.barh(
@@ -297,6 +352,23 @@ def draw_command(axis, timeline, y):
         fontsize=10,
         weight="bold",
     )
+
+
+def draw_off_cpu(axis, timeline, y):
+    for span in timeline.get("execution", []):
+        off_cpu = span["end"] - span["start"] - span["threadCpuMs"]
+        if span["kind"] != "callback" or off_cpu < 2:
+            continue
+        axis.barh(y, span["end"] - span["start"], left=span["start"], height=0.4,
+                  color="none", edgecolor="#334155", hatch="///", linewidth=0.5, zorder=6)
+        source = span["source"]
+        label = ("SCRAM continuation" if "/auth/scram" in source else
+                 "Handshake continuation" if "performInitialHandshake" in source else
+                 "Pool-ready continuation" if "ConnectionPool.createConnection" in source else
+                 "Callback")
+        axis.text((span["start"] + span["end"]) / 2, y,
+                  f"{label}\n~{off_cpu:.1f} ms off CPU", fontsize=7.5, ha="center", va="center",
+                  bbox={"facecolor": "white", "alpha": 0.88, "edgecolor": "none", "pad": 1}, zorder=7)
 
 
 def draw_node_lanes(axis, native, serverless, member_letters):
@@ -319,7 +391,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     totalmax = max(timeline["total"], serverless["timeline"]["total"])
     for connection in connections:
         y = lanes[connection["host"]]
-        draw_connection(axis, connection, y)
+        draw_connection(axis, connection, y, timeline)
         label = "monitor"
         if connection["kind"] == "application":
             label = "selected → " + (
@@ -358,8 +430,17 @@ def draw_node_lanes(axis, native, serverless, member_letters):
         )
     draw_gaps(axis, timeline, lanes[selected["host"]])
     draw_command(axis, timeline, lanes[selected["host"]])
+    draw_off_cpu(axis, timeline, lanes[selected["host"]])
     first = min(connection["start"] for connection in connections)
-    axis.axvspan(0, first, ymin=0.31, ymax=0.94, color="#94a3b8", alpha=0.32, zorder=0)
+    if "execution" in timeline:
+        for segment in accounting_segments(timeline):
+            end = min(first, segment["end"])
+            if segment["start"] < end:
+                phase = segment["phase"]
+                color = COLORS[phase] if phase in COLORS else phase_color(phase)
+                axis.barh(2.2, end - segment["start"], left=segment["start"], height=2.4, color=color, alpha=0.55, zorder=0)
+    else:
+        axis.axvspan(0, first, ymin=0.31, ymax=0.94, color="#94a3b8", alpha=0.32, zorder=0)
     axis.axhline(0.35, color="#cbd5e1", lw=1)
     direct = serverless["timeline"]
     axis.barh(-0.55, direct["total"], height=0.4, color="#e2e8f0", zorder=0)
@@ -370,7 +451,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
         color="#94a3b8",
     )
     for connection in direct["connections"]:
-        draw_connection(axis, connection, -0.55)
+        draw_connection(axis, connection, -0.55, direct)
         axis.text(
             (connection["start"] + connection["end"]) / 2,
             -0.23,
@@ -380,6 +461,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
         )
     draw_gaps(axis, direct, -0.55)
     draw_command(axis, direct, -0.55)
+    draw_off_cpu(axis, direct, -0.55)
     direct_host = direct["connections"][0]["host"]
     labels = [
         f"MongoDB {roles[host].capitalize()} {member_letters[host]}" for host in hosts
@@ -398,6 +480,15 @@ def draw_node_lanes(axis, native, serverless, member_letters):
         segment = axis.barh(2.2, end - begin, left=begin,
                             height=2.4, color=COLORS["clusterDns"], zorder=4)[0]
         segment.set_gid("cluster-dns")
+    if "execution" in timeline:
+        for item, y in [(timeline, 3.8), (direct, -1.02)]:
+            scopes = [a for a in item.get("activities", []) if a["kind"] == "sync" and "threadCpuMs" in a]
+            delayed = max(scopes, key=lambda a: a["end"] - a["start"] - a["threadCpuMs"], default=None)
+            if delayed and delayed["end"] - delayed["start"] - delayed["threadCpuMs"] > 2:
+                axis.text(0, y, f"{delayed['name']}: ~{delayed['end'] - delayed['start']:.1f} ms elapsed; ~{delayed['threadCpuMs']:.1f} ms thread CPU",
+                          fontsize=8, color="#475569")
+            else:
+                axis.text(0, y, f"Main-thread CPU ~{item['threadCpuMs']:.1f} ms · cgroup throttled Δ ~{item.get('throttledMs', 0):.1f} ms", fontsize=8, color="#475569")
     axis.set_ylim(-1.2, 4)
 
 
@@ -422,8 +513,9 @@ def render(data, environment, output):
             sorted({c["host"] for row in rows for c in row["timeline"]["connections"]})
         )
     }
-    figure, axes = plt.subplots(1, 2, figsize=(22, 13))
-    figure.subplots_adjust(left=0.12, right=0.97, top=0.83, bottom=0.48, wspace=0.42)
+    diagnostic = any("execution" in row["timeline"] for row in rows)
+    figure, axes = plt.subplots(1, 2, figsize=(22, 10 if diagnostic else 8))
+    figure.subplots_adjust(left=0.12, right=0.97, top=0.78, bottom=0.29, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
     figure.suptitle(
@@ -435,15 +527,15 @@ def render(data, environment, output):
     sample_caption = "Individual traces nearest cohort medians"
     figure.text(
         0.5,
-        0.92,
-        f"Measured {date}. {sample_caption}; headings report all-sample means.",
+        0.90,
+        f"Measured {date}. {sample_caption}. " + ("Diagnostic probes enabled; timings include tracing overhead." if diagnostic else "Headings report all-sample means."),
         ha="center",
         fontsize=11,
     )
     if environment == "aws":
         figure.text(
             0.5,
-            0.89,
+            0.85,
             "Point-in-time snapshot; not a statement of current performance.",
             ha="center",
             fontsize=11,
@@ -452,7 +544,6 @@ def render(data, environment, output):
         native = representatives[operation, "native-cluster"]
         serverless = representatives[operation, "serverless"]
         draw_node_lanes(axis, native, serverless, member_letters)
-        draw_accounting(axis, native, serverless)
         for item in summary:
             if item["operation"] == operation:
                 row = native if item["driver"] == "native-cluster" else serverless
@@ -465,7 +556,8 @@ def render(data, environment, output):
         }
         reduction = 100 * (1 - means["serverless"] / means["native-cluster"])
         axis.set_title(
-            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)",
+            (f"{operation.title()} · cold invocation with diagnostic probes" if diagnostic else
+             f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)"),
             loc="left",
             fontsize=15,
             weight="bold",
@@ -478,7 +570,9 @@ def render(data, environment, output):
         axis.grid(axis="x", alpha=0.15)
         axis.set_axisbelow(True)
         axis.spines[["top", "right", "left"]].set_visible(False)
-    show_gaps = any(row["timeline"].get("gaps") for row in rows)
+    show_gaps = not diagnostic and any(row["timeline"].get("gaps") for row in rows)
+    visible_code = {segment["phase"][5:] for row in representatives.values()
+                    for segment in accounting_segments(row["timeline"]) if segment["phase"].startswith("code:")}
     figure.legend(
         handles=[
             Patch(
@@ -488,20 +582,22 @@ def render(data, environment, output):
             for phase, color in COLORS.items()
         ]
         + ([Patch(facecolor=color, label=label) for color, label in GAP_COLORS.values()] if show_gaps else [])
-        + [
+        + ([Patch(facecolor=phase_color(phase), label=label) for phase, label in
+             [("code:" + name, name) for name in CODE_COLORS if name in visible_code] + [("monitor", "Replica-set monitor activity"), ("callback", "Callback execution"), ("dispatch", "Event-loop wait / dispatch")]] if diagnostic else [
             Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured"),
             Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured"),
-        ],
+        ]),
         loc="lower center",
         bbox_to_anchor=(0.5, 0.055),
-        ncol=7 if show_gaps else 8,
+        ncol=5 if diagnostic else 7 if show_gaps else 8,
         frameon=False,
     )
     figure.text(
         0.5,
         0.025,
-        "Tables partition elapsed time once; application phases take precedence over concurrent monitor phases. Intervals include CPU, I/O and scheduling; they are not CPU costs.\n"
-        "~ marks rounded timings; amber rows identify unmeasured causes. Imports, watcher work, client close and Lambda INIT are outside the measurement.",
+        "Every interval is drawn; concurrent node lanes overlap in time and must not be added.\n"
+        + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
+           "~ marks rounded timings; amber rows identify unmeasured causes. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
         ha="center",
         fontsize=10,
     )

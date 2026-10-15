@@ -138,21 +138,40 @@ def phase_label(phase):
             "dispatch": "Event-loop wait / callback dispatch"}.get(phase, PHASE_LABELS.get(phase, phase))
 
 
+CODE_GROUPS = {
+    "Facade / client construction": "Client & topology initialization",
+    "Native client construction": "Client & topology initialization",
+    "Native URI/options parsing": "Client & topology initialization",
+    "Direct URI rewrite": "Client & topology initialization",
+    "Read plugin topology": "Client & topology initialization",
+    "Topology construction": "Client & topology initialization",
+    "Load runtime adapter": "Runtime & handshake metadata",
+    "Container metadata probe": "Runtime & handshake metadata",
+    "Load no-monitoring module": "No-monitoring initialization",
+    "Activate no-monitoring patch": "No-monitoring initialization",
+}
+
 CODE_COLORS = {
-    "Facade / client construction": "#65a30d",
-    "Native client construction": "#a3e635",
-    "Native URI/options parsing": "#047857",
-    "Direct URI rewrite": "#d97706",
+    "Client & topology initialization": "#047857",
+    "Runtime & handshake metadata": "#a16207",
+    "No-monitoring initialization": "#9333ea",
     "Read TLS CA certificate": "#be123c",
-    "Load no-monitoring module": "#9333ea",
-    "Activate no-monitoring patch": "#c026d3",
-    "Read plugin topology": "#0f766e",
-    "Topology construction": "#0284c7",
     "Await handshake metadata": "#a16207",
-    "Container metadata probe": "#e11d48",
-    "Load runtime adapter": "#4d7c0f",
     "TLS socket/context construction": "#f97316",
 }
+
+
+def display_segments(segments):
+    result = []
+    for segment in segments:
+        phase = segment["phase"]
+        if phase.startswith("code:"):
+            phase = "code:" + CODE_GROUPS.get(phase[5:], phase[5:])
+        if result and result[-1]["phase"] == phase and result[-1]["end"] == segment["start"]:
+            result[-1]["end"] = segment["end"]
+        else:
+            result.append({**segment, "phase": phase})
+    return result
 
 
 def phase_color(phase):
@@ -162,7 +181,7 @@ def phase_color(phase):
         return "#0891b2"
     if phase == "dispatch":
         return "#f472b6"
-    return CODE_COLORS[phase[5:]]
+    return CODE_COLORS[CODE_GROUPS.get(phase[5:], phase[5:])]
 
 
 def local_samples(data):
@@ -302,7 +321,7 @@ def summarize(rows):
 
 def draw_gaps(axis, timeline, y):
     if "execution" in timeline:
-        for segment in accounting_segments(timeline):
+        for segment in display_segments(accounting_segments(timeline)):
             phase = segment["phase"]
             if phase in COLORS:
                 continue
@@ -455,7 +474,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     draw_off_cpu(axis, timeline, lanes[selected["host"]])
     first = min(connection["start"] for connection in connections)
     if "execution" in timeline:
-        for segment in accounting_segments(timeline):
+        for segment in display_segments(accounting_segments(timeline)):
             end = min(first, segment["end"])
             if segment["start"] < end:
                 phase = segment["phase"]
@@ -589,7 +608,7 @@ def render(data, environment, output):
         axis.spines[["top", "right", "left"]].set_visible(False)
     show_gaps = not diagnostic and any(row["timeline"].get("gaps") for row in rows)
     visible_code = {segment["phase"][5:] for row in representatives.values()
-                    for segment in accounting_segments(row["timeline"]) if segment["phase"].startswith("code:")}
+                    for segment in display_segments(accounting_segments(row["timeline"])) if segment["phase"].startswith("code:")}
     groups = {"Setup": [], "Connection": [], "Operation": []}
     phase_names = {"clusterDns": "Cluster DNS", "lookup": "Host DNS", "tcp": "TCP", "tls": "TLS",
                    "hello": "Hello", "auth": "Auth", "send": "Command → write", "receive": "Write → reply"}

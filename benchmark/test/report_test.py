@@ -8,6 +8,28 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_setup_display_merges_adjacent_related_scopes_without_swallowing_waits(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        raw = [
+            {"phase": "code:Direct URI rewrite", "start": 0, "end": 1},
+            {"phase": "code:Native URI/options parsing", "start": 1, "end": 3},
+            {"phase": "code:Native client construction", "start": 3, "end": 4},
+            {"phase": "dispatch", "start": 4, "end": 5},
+            {"phase": "code:Topology construction", "start": 5, "end": 6},
+        ]
+        display = report.display_segments(raw)
+        self.assertEqual(display, [
+            {"phase": "code:Client & topology initialization", "start": 0, "end": 4},
+            {"phase": "dispatch", "start": 4, "end": 5},
+            {"phase": "code:Client & topology initialization", "start": 5, "end": 6},
+        ])
+        self.assertEqual(len(raw), 5)
+        self.assertEqual(raw[0]["phase"], "code:Direct URI rewrite")
+        self.assertEqual(report.phase_color(raw[0]["phase"]), report.phase_color(raw[1]["phase"]))
+
     def test_section_labels_use_connection_ready_and_group_the_legend(self):
         import importlib.util
         from unittest.mock import patch

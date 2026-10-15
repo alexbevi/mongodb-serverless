@@ -233,6 +233,7 @@ def local_samples(data):
                 else "serverless",
                 "operation": sample["operation"],
                 "servedRole": sample["servedRole"],
+                "applicationConnectionReadyMs": sample["applicationConnectionReadyMs"],
                 "lifecycleDurations": lifecycle_durations,
                 "dnsDurations": dns_durations,
                 "gapDurations": gap_durations,
@@ -371,6 +372,40 @@ def draw_off_cpu(axis, timeline, y):
                   bbox={"facecolor": "white", "alpha": 0.88, "edgecolor": "none", "pad": 1}, zorder=7)
 
 
+def section_spans(row):
+    timeline = row["timeline"]
+    connections = timeline["connections"]
+    selected = next(c for c in reversed(connections) if c["kind"] == "application" and c["selected"])
+    ready = row.get("applicationConnectionReadyMs", selected["end"])
+    result = [{"label": "Setup", "start": 0, "end": min(c["start"] for c in connections)}]
+    for connection in connections:
+        result.append({"label": "Application Connection" if connection["kind"] == "application" else "Monitor Connection",
+                       "start": connection["start"], "end": ready if connection is selected else connection["end"],
+                       "connection": connection})
+    result.append({"label": "Operation", "start": ready, "end": timeline["total"]})
+    return result
+
+
+def draw_sections(axis, row, lanes, selected_y, direct=False):
+    for section in section_spans(row):
+        begin, end = section["start"], section["end"]
+        connection = section.get("connection")
+        y = lanes[connection["host"]] if connection else selected_y
+        if section["label"] == "Setup":
+            y = 3.2
+        if direct:
+            y = -0.55
+        offset = 0.31 if connection else 0.66
+        label = section["label"]
+        text = f"{label} (~{end - begin:.1f} ms)"
+        if connection:
+            text = text.replace(" Connection (", " Connection\n(")
+        axis.plot([begin, begin, end, end], [y + offset - 0.03, y + offset, y + offset, y + offset - 0.03],
+                  color="#64748b", linewidth=0.7, zorder=8)
+        axis.text((begin + end) / 2, y + offset + 0.03, text, ha="center", va="bottom",
+                  fontsize=7.5, color="#334155", zorder=8)
+
+
 def draw_node_lanes(axis, native, serverless, member_letters):
     timeline = native["timeline"]
     connections = timeline["connections"]
@@ -392,19 +427,6 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     for connection in connections:
         y = lanes[connection["host"]]
         draw_connection(axis, connection, y, timeline)
-        label = "monitor"
-        if connection["kind"] == "application":
-            label = "selected → " + (
-                native["operation"] if connection is selected else "connect()"
-            )
-        axis.text(
-            (connection["start"] + connection["end"]) / 2,
-            y + 0.29,
-            label,
-            ha="center",
-            fontsize=8.5,
-            color="#334155",
-        )
     for connection in applications:
         x = connection["start"]
         y = lanes[connection["host"]]
@@ -452,16 +474,11 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     )
     for connection in direct["connections"]:
         draw_connection(axis, connection, -0.55, direct)
-        axis.text(
-            (connection["start"] + connection["end"]) / 2,
-            -0.23,
-            "direct application connection",
-            ha="center",
-            fontsize=9,
-        )
     draw_gaps(axis, direct, -0.55)
     draw_command(axis, direct, -0.55)
     draw_off_cpu(axis, direct, -0.55)
+    draw_sections(axis, native, lanes, lanes[selected["host"]])
+    draw_sections(axis, serverless, lanes, -0.55, direct=True)
     direct_host = direct["connections"][0]["host"]
     labels = [
         f"MongoDB {roles[host].capitalize()} {member_letters[host]}" for host in hosts
@@ -481,7 +498,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
                             height=2.4, color=COLORS["clusterDns"], zorder=4)[0]
         segment.set_gid("cluster-dns")
     if "execution" in timeline:
-        for item, y in [(timeline, 3.8), (direct, -1.02)]:
+        for item, y in [(timeline, 0.60), (direct, -1.02)]:
             scopes = [a for a in item.get("activities", []) if a["kind"] == "sync" and "threadCpuMs" in a]
             delayed = max(scopes, key=lambda a: a["end"] - a["start"] - a["threadCpuMs"], default=None)
             if delayed and delayed["end"] - delayed["start"] - delayed["threadCpuMs"] > 2:
@@ -573,25 +590,32 @@ def render(data, environment, output):
     show_gaps = not diagnostic and any(row["timeline"].get("gaps") for row in rows)
     visible_code = {segment["phase"][5:] for row in representatives.values()
                     for segment in accounting_segments(row["timeline"]) if segment["phase"].startswith("code:")}
-    figure.legend(
-        handles=[
-            Patch(
-                facecolor=color,
-                label="Cluster DNS" if phase == "clusterDns" else "Host DNS" if phase == "lookup" else "Command → write" if phase == "send" else "Write → reply" if phase == "receive" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
-            )
-            for phase, color in COLORS.items()
-        ]
-        + ([Patch(facecolor=color, label=label) for color, label in GAP_COLORS.values()] if show_gaps else [])
-        + ([Patch(facecolor=phase_color(phase), label=label) for phase, label in
-             [("code:" + name, name) for name in CODE_COLORS if name in visible_code] + [("monitor", "Replica-set monitor activity"), ("callback", "Callback execution"), ("dispatch", "Event-loop wait / dispatch")]] if diagnostic else [
-            Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured"),
-            Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured"),
-        ]),
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.055),
-        ncol=5 if diagnostic else 7 if show_gaps else 8,
-        frameon=False,
-    )
+    groups = {"Setup": [], "Connection": [], "Operation": []}
+    phase_names = {"clusterDns": "Cluster DNS", "lookup": "Host DNS", "tcp": "TCP", "tls": "TLS",
+                   "hello": "Hello", "auth": "Auth", "send": "Command → write", "receive": "Write → reply"}
+    for phase, color in COLORS.items():
+        group = "Setup" if phase == "clusterDns" else "Operation" if phase in ("send", "receive") else "Connection"
+        groups[group].append(Patch(facecolor=color, label=phase_names[phase]))
+    if diagnostic:
+        for name, color in CODE_COLORS.items():
+            if name in visible_code:
+                group = "Connection" if name in ("TLS socket/context construction", "Await handshake metadata") else "Setup"
+                groups[group].append(Patch(facecolor=color, label=name))
+        groups["Connection"].append(Patch(facecolor=phase_color("monitor"), label="Replica-set monitor activity"))
+        for group in groups.values():
+            group.extend([Patch(facecolor=phase_color("callback"), label="Callback execution"),
+                          Patch(facecolor=phase_color("dispatch"), label="Event-loop wait / dispatch")])
+    else:
+        if show_gaps:
+            for phase, (color, name) in GAP_COLORS.items():
+                groups["Connection" if phase == "poolGaps" else "Operation"].append(Patch(facecolor=color, label=name))
+        groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured"))
+        groups["Operation"].append(Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured"))
+    for (title, handles), x, columns in zip(groups.items(), (0.12, 0.48, 0.81), (2, 2, 1)):
+        legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.23),
+                               ncol=columns, fontsize=8.5, title_fontsize=11, frameon=False,
+                               columnspacing=1, handlelength=1.6)
+        legend.get_title().set_fontweight("bold")
     figure.text(
         0.5,
         0.025,

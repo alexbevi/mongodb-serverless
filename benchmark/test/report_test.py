@@ -8,6 +8,33 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_section_labels_use_connection_ready_and_group_the_legend(self):
+        import importlib.util
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        row = {"applicationConnectionReadyMs": 18, "timeline": {
+            "total": 25, "connections": [
+                {"kind": "monitor", "selected": True, "start": 3, "end": 8},
+                {"kind": "application", "selected": True, "start": 10, "end": 15}]}}
+        sections = report.section_spans(row)
+        self.assertEqual([(s["label"], s["start"], s["end"]) for s in sections], [
+            ("Setup", 0, 3), ("Monitor Connection", 3, 8),
+            ("Application Connection", 10, 18), ("Operation", 18, 25)])
+        data = json.loads((Path(__file__).parents[1] / "results/aws/samples.json").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(report.plt, "close") as close:
+                report.render(data, "aws", Path(directory))
+            figure = close.call_args.args[0]
+            self.assertEqual([legend.get_title().get_text() for legend in figure.legends],
+                             ["Setup", "Connection", "Operation"])
+            for axis in figure.axes:
+                self.assertTrue(any(t.get_text().startswith("Setup (") for t in axis.texts))
+                self.assertTrue(any(t.get_text().startswith("Operation (") for t in axis.texts))
+                self.assertEqual(len(axis.tables), 0)
+            report.plt.close(figure)
+
     def test_diagnostic_accounting_uses_measured_code_and_execution_intervals(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")

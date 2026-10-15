@@ -6,7 +6,7 @@ interface Resource {
   source: string;
 }
 
-interface ExecutionSegment extends Resource {
+export interface ExecutionSegment extends Resource {
   kind: 'callback' | 'dispatch';
   start: number;
   end: number;
@@ -50,6 +50,7 @@ export function executionRecorder() {
       const frames = new Error().stack?.split('\n').slice(1).filter(line =>
         !line.includes('/execution.') && !line.includes('node:internal/async_hooks') &&
         !line.includes('node:internal/promise_hooks')) ?? [];
+
       resources.set(id, { resource, source: frames.slice(0, 6).join('\n') || resources.get(trigger)?.source || handler.source });
     },
     before(id) {

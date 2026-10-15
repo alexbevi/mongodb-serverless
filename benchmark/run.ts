@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 process.chdir(root);
 
-const { values } = parseArgs({ options: { 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
+const { values } = parseArgs({ options: { diagnostics: { type: 'boolean', default: false }, 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
 const count = Number(values.samples);
 const localRtt = Number(values['local-rtt']);
 const crossRtt = Number(values['cross-rtt']);
@@ -34,6 +34,8 @@ try {
   await waitFor(() => shell('if (!db.hello().isWritablePrimary) throw Error("waiting for primary")'));
   shell('db.getSiblingDB("admin").createUser({user:"bench",pwd:"benchmark-only",roles:["root"]})');
   await waitFor(() => inside('client', 'node', 'benchmark/dist/setup.js'));
+
+  if (values.diagnostics) inside('client', 'node', 'benchmark/dist/source-probes.js');
   const network: { source: string; target: string; configuredRttMs: number; measuredRttMs?: number }[] = [];
   for (const source of nodes) {
     inside(source.name, 'tc', 'qdisc', 'replace', 'dev', 'eth0', 'root', 'handle', '1:', 'prio', 'bands', '4', 'priomap', ...Array(16).fill('3'));
@@ -62,13 +64,13 @@ try {
       else variants.push('serverless-no-monitoring');
     }
     for (const operation of ['read', 'write']) {
-      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'node', 'benchmark/dist/benchmark.js', variant, operation, String(iteration))) });
+      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'env', `BENCHMARK_DIAGNOSTICS=${values.diagnostics ? '1' : '0'}`, 'node', 'benchmark/dist/benchmark.js', variant, operation, String(iteration))) });
     }
   }
   const output = resolve(values.output!);
   mkdirSync(dirname(output), { recursive: true });
   const environment = { cpuMax: inside('client', 'cat', '/sys/fs/cgroup/cpu.max').trim(), memoryMax: inside('client', 'cat', '/sys/fs/cgroup/memory.max').trim(), docker: execFileSync('docker', ['version', '--format', '{{json .Server}}'], { encoding: 'utf8' }).trim(), client: inside('client', 'uname', '-a').trim(), mongo: inside('mongo-a', 'mongod', '--version').trim(), images: compose('images', '--format', 'json').trim(), gitDirty: execFileSync('git', ['status', '--porcelain', '--', 'benchmark', 'driver', 'plugins'], { encoding: 'utf8' }).trim().length > 0, git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() };
-  writeFileSync(output, JSON.stringify({ createdAt: new Date().toISOString(), configuration: { noMonitoringComparison: values['no-monitoring'], seedOrder: 'DNS SRV resolver order', count, localRtt, crossRtt, tls: true, auth: 'SCRAM-SHA-1', readPreference: 'secondaryPreferred', writeConcern: 'majority' }, environment, network, samples }, null, 2) + '\n');
+  writeFileSync(output, JSON.stringify({ createdAt: new Date().toISOString(), configuration: { diagnostics: values.diagnostics, noMonitoringComparison: values['no-monitoring'], seedOrder: 'DNS SRV resolver order', count, localRtt, crossRtt, tls: true, auth: 'SCRAM-SHA-1', readPreference: 'secondaryPreferred', writeConcern: 'majority' }, environment, network, samples }, null, 2) + '\n');
   console.log(`Saved ${samples.length} cold samples to ${output}`);
 } finally {
   try {

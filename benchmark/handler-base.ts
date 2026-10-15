@@ -1,5 +1,8 @@
 import type { MongoClientOptions, MongoClientEvents, ObjectId, WithId, UpdateResult } from 'mongodb';
 import assert from 'node:assert/strict';
+import { activities } from './activities.js';
+import { executionRecorder } from './execution.js';
+import { readFileSync } from 'node:fs';
 import { instrument } from './instrument.js';
 import type { LifecycleEvent } from './types.js';
 import { breakdown, lifecycleWindows } from './metrics.js';
@@ -79,9 +82,9 @@ export function createServerlessMongoClientForBenchmark(operation: BenchmarkOper
 
   if (operation === 'read') options.readPreference = 'secondaryPreferred';
 
-  const client = variant === 'native'
+  const client = activities.sync("Facade / client construction", () => variant === 'native'
     ? new NativeClient(uri, options)
-    : new ServerlessClient(uri, { ...options, plugin: new LocalPlugin(), on, disableMonitoring: variant === 'serverless-no-monitoring' });
+    : new ServerlessClient(uri, { ...options, plugin: new LocalPlugin(), on, disableMonitoring: variant === 'serverless-no-monitoring' }));
 
   if (client instanceof NativeClient) {
     for (const [event, listener] of Object.entries(on)) client.on(event, listener);
@@ -99,9 +102,18 @@ export async function measureBenchmark(
   const variant = getBenchmarkVariant();
   const commandIndex = telemetry.commands.length;
   const eventIndex = events.length;
-  const start = performance.now();
-  const result = await handler();
-  const end = performance.now();
+  const diagnostics = process.env.BENCHMARK_DIAGNOSTICS === '1';
+  const recorder = diagnostics ? executionRecorder() : undefined;
+  const beforeCpu = diagnostics ? readFileSync('/sys/fs/cgroup/cpu.stat', 'utf8') : undefined;
+
+  if (diagnostics) activities.start();
+
+  const start = recorder?.start() ?? performance.now();
+  const result = await (recorder ? recorder.invoke(handler) : handler());
+  const execution = recorder?.stop();
+  const end = execution?.end ?? performance.now();
+  const spans = diagnostics ? activities.stop(end) : undefined;
+  const afterCpu = diagnostics ? readFileSync('/sys/fs/cgroup/cpu.stat', 'utf8') : undefined;
 
   if (operation === 'read') assert.equal(result && 'payload' in result && result.payload, 'benchmark');
   else assert.equal(result && 'matchedCount' in result && result.matchedCount, 1);
@@ -123,7 +135,7 @@ export async function measureBenchmark(
   assert.ok(connectionReady >= command.socket.auth![1], 'Readiness must follow authentication');
   assert.ok(readyToCommandMs >= 0 && commandStartedMs < timings.total, 'Invalid operation event order');
 
-  return { variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, servedRole: command.socket.role, connections: telemetry.connections(), timings, applicationConnectionReadyMs, commandStartedMs, readyToCommandMs, trace: { start, end, dns: telemetry.dns, command, lifecycle, events: lifecycleEvents, sockets: [...telemetry.traces] } };
+  return { variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, servedRole: command.socket.role, connections: telemetry.connections(), timings, applicationConnectionReadyMs, commandStartedMs, readyToCommandMs, trace: { start, end, execution, activities: spans, cgroupCpu: diagnostics ? { before: beforeCpu, after: afterCpu } : undefined, dns: telemetry.dns, command, lifecycle, events: lifecycleEvents, sockets: [...telemetry.traces] } };
 }
 
 export async function closeBenchmarkClients() {

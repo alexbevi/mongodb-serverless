@@ -1,3 +1,4 @@
+import { activities } from './activities.js';
 import assert from 'node:assert/strict';
 import type { LookupFunction } from 'node:net';
 import type { TLSSocket, ConnectionOptions } from 'node:tls';
@@ -85,7 +86,7 @@ export function instrument() {
       });
     }) satisfies LookupFunction };
 
-    const socket = originalTls.call(this, options);
+    const socket = activities.sync("TLS socket/context construction", () => originalTls.call(this, options));
     traces.push(trace);
     sockets.set(socket, trace);
     socket.once('connect', () => { trace.tcp = [trace.lookup?.[1] ?? start, performance.now()]; });

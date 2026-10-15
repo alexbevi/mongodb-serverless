@@ -6,17 +6,188 @@ constructs a client, and completes its first operation against a three-member
 TLS replica set. The operation connects automatically; the benchmark does not
 call `client.connect()` first.
 
-See the [connection diagram and measured results](../BENCHMARK.md).
+![Local connection timings](results/local/latency.png)
+
+### Reading the diagram
+
+Timing runs from [handler invocation to its return](handler-base.ts#L98).
+The headings above the bars describe elapsed sections:
+
+- **Setup** runs from handler invocation to the first socket creation.
+- **Monitor Connection** runs from that monitor socket's creation through its
+  last recorded handshake phase. Monitors discover member roles and overlap
+  across nodes; their durations must not be added.
+- **Application Connection** runs from socket creation to the matched
+  `connectionReady` event for the socket serving the operation. It includes
+  hostname resolution, handshakes, authentication and readiness processing.
+- **Operation** runs from that readiness event to handler return. It includes
+  checkout/dispatch, the command exchange and completion processing, not just
+  database execution.
+
+These boundaries are defined in [section_spans](report.py#L394), using
+[connection and command event matching](metrics.ts#L57). Braces show the transition
+from replica-set discovery to the selected application connection. The direct
+client skips replica-set monitoring. `~` denotes rounded milliseconds.
+
+The definitions below cover the diagnostic legend. Collect those additional
+measurements with `--diagnostics`; ordinary runs retain socket and lifecycle
+measurements but do not record the code scopes or callback CPU counters.
+[Source probes](source-probes.ts#L3) modify only the Docker copies of the built
+packages. The [activity recorder](activities.ts) measures their boundaries;
+[display grouping](report.py#L141) merges adjacent related spans without absorbing
+intervening waits. Detailed spans remain in the raw JSON. The legend follows first
+appearance within each stage; parallel work can make the order differ across traces.
+
+### Setup legend
+
+**Callback execution.** Main-thread execution between Node's async-hook `before`
+and `after` boundaries, including promise continuations. The initial synchronous
+handler call is recorded explicitly. This colour fills time outside more specific
+measured phases. A callback's elapsed duration can include a pause while the thread
+is off CPU. The [execution recorder](execution.ts#L27) retains wall time, thread CPU,
+resource type and the resource's creation stack. That stack identifies where the
+async work was scheduled; it is not a sampled stack of every instruction executed.
+This colour has the same meaning in all three legends.
+
+**Client & topology initialization.** Related scopes for creating the wrapper and
+native client, parsing URI/options, reading the plugin's topology, rewriting a
+direct member URI and constructing the native topology. See the
+[benchmark client factory](handler-base.ts#L78), [member/client resolution](../driver/src/clients.ts#L66),
+[direct URI rewrite](../driver/src/uri.ts#L18), and the native driver's
+[constructor](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/mongo_client.ts#L444)
+and [connection setup](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/mongo_client.ts#L623).
+Plugin reads are asynchronous; construction and parsing scopes are synchronous.
+Separate occurrences share a colour but are joined only when adjacent.
+
+**Event-loop wait / dispatch.** The measured interval after one callback exits and
+before the next callback enters. It can include waiting for I/O, event-loop work,
+native runtime work and scheduling delays. The [recorder's transitions](execution.ts#L27)
+associate it with the next resource's type and creation stack. It is not a claim
+that the thread slept throughout, or that the next resource caused the whole delay.
+This definition also applies in Connection and Operation.
+
+**Runtime & handshake metadata.** The native driver's wait for its runtime adapter
+and its container-metadata probe, grouped under one colour. This supports the
+[client metadata sent in the handshake](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/handshake/client_metadata.ts#L108).
+The [probes](source-probes.ts#L13) wrap those specific promises; other metadata
+assembly between them remains in the measured callback intervals. Overlapping
+async scopes are not added together.
+
+**Read TLS CA certificate.** The asynchronous read of the configured CA certificate
+file before connecting. It includes filesystem/cache service and the delay until
+the promise continuation runs. See the [certificate-read probe](source-probes.ts#L10)
+and the native client's [TLS file loading](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/mongo_client.ts#L623).
+This is distinct from the later TLS handshake.
+
+**Cluster DNS.** SRV and TXT queries for the `mongodb+srv` seed list and connection
+options. The shared block spans all node lanes because discovery precedes the
+individual sockets. Queries may overlap; the block covers first query start to
+last completion, while accounting counts their union. The
+[DNS instrumentation](instrument.ts#L51) records the individual requests.
+Direct member URIs skip these queries but still perform Host DNS.
+
+**No-monitoring initialization.** Loading the wrapper's no-monitoring module and
+activating its patch. Module loading can include file access, evaluation and promise
+dispatch; activation validates and installs the patch. See the
+[lazy import and activation](../driver/src/clients.ts#L101),
+[validation](../driver/src/no-monitoring/index.ts#L25) and
+[bootstrap implementation](../driver/src/no-monitoring/patch.ts#L6).
+This phase appears only for the serverless variant with monitoring disabled.
+
+### Connection legend
+
+**Callback execution** and **Event-loop wait / dispatch** have the definitions
+above, restricted to intervals within this section.
+
+**TLS socket/context construction.** The synchronous call to Node's `tls.connect`,
+including socket/context initialization and submission of asynchronous connection
+work. See the [timed call](instrument.ts#L89). This scope ends when `tls.connect`
+returns; it does not wait for the encrypted connection to become ready.
+
+**Host DNS.** From invoking the socket's hostname lookup function to entering its
+callback. It includes resolver/cache work and callback scheduling. The
+[lookup wrapper](instrument.ts#L81) preserves the socket's configured resolver.
+Both drivers resolve member hostnames.
+
+**Replica-set monitor activity.** The union of measured monitor DNS, TCP, TLS and
+hello intervals, used on the selected path where application phases do not already
+cover the time. The individual monitor lanes retain their detailed phases.
+[Accounting precedence](report.py#L92) prevents concurrent monitors from being
+counted multiple times. This is elapsed discovery activity, not a CPU-cost total.
+
+**TCP.** From hostname lookup completion to the socket's `connect` event.
+The [event boundary](instrument.ts#L92) includes connection establishment and the
+delay until Node delivers that event. It excludes the separately measured lookup.
+
+**TLS.** From `connect` to `secureConnect`, recorded by the
+[TLS event listener](instrument.ts#L93). It includes handshake traffic, cryptographic
+work, certificate verification and event delivery. It is elapsed time, not a
+measurement of encryption CPU cost alone.
+
+**Await handshake metadata.** Waiting for the native client's metadata promise
+before preparing the hello document. The [probe](source-probes.ts#L12) wraps the
+await in [prepareHandshakeDocument](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts#L235).
+Metadata may already be ready, making this interval very short. This is separate
+from the earlier work producing that metadata.
+
+**Hello.** From entering the native connection's `hello` or legacy `ismaster`
+command to its return. The [command wrapper](instrument.ts#L123) records the member
+role from the reply. The interval includes command preparation, transport, server
+response and continuation scheduling; it can also include speculative authentication.
+
+**Auth.** From entering the SCRAM provider's `auth` method to its completion.
+The [provider wrapper](instrument.ts#L102) measures the actual negotiated mechanism.
+These runs use SCRAM-SHA-1. The interval includes local authentication work,
+server exchanges, waits and any off-CPU pauses within that scope.
+
+### Operation legend
+
+**Callback execution** and **Event-loop wait / dispatch** retain the same definitions,
+now covering checkout/dispatch and completion work after the connection is ready.
+The benchmark performs [findOne](handler-read.ts) or [updateOne](handler-write.ts).
+
+**Command → write.** From entering the native connection's `command` method until
+its `writeCommand` promise resolves. The [write wrapper](instrument.ts#L114) and
+[command wrapper](instrument.ts#L123) capture these endpoints. It includes command
+serialization and submission/buffering; it is not the time until the remote server
+has received every byte.
+
+**Write → reply.** From that write completion to the return of the native command.
+It includes network transit, MongoDB execution, write-concern acknowledgement for
+writes, reply processing and promise scheduling. It does not isolate server CPU
+time. Both endpoints are recorded by the same [command instrumentation](instrument.ts#L114).
+
+### CPU annotations and hatching
+
+**Main-thread CPU** is the increase in `process.threadCpuUsage()` over the measured
+invocation. **Off CPU** within a callback is its elapsed wall time minus its measured
+thread CPU time. Worker threads can still be running. The
+[execution recorder](execution.ts#L27) captures both counters, and the
+[renderer](report.py#L377) hatches callbacks with more than 2 ms of this difference.
+The hatch spans the whole callback; it does not locate each pause inside it.
+SCRAM, handshake and pool-ready labels identify the recorded continuation's origin.
+
+**Cgroup throttled Δ** is the change in Linux `cpu.stat`'s `throttled_usec`, read
+[around the invocation](handler-base.ts#L107). It covers the container's threads,
+not just the JavaScript thread, and cannot be assigned exactly to one callback.
+A similar-sized off-CPU interval supports throttling as an explanation but does not
+prove that every part of the pause had that cause. Diagnostic probes add overhead
+and can themselves increase throttling; their runs explain execution rather than
+provide an uninstrumented performance comparison.
+
+[Local results](../BENCHMARK.md) · [AWS results](results/aws/results.md)
 
 ## Install
 
-Use Node 20.19 or later, installed workspace dependencies, and Docker Compose with
+Use Node 24.18 or later, installed workspace dependencies, and Docker Compose with
 `NET_ADMIN` and Linux `netem` support. No database ports are exposed to the host.
 
 ## Usage
 
 ```sh
 npm run benchmark -- --no-monitoring --samples 48
+# Include code scopes, callback stacks and CPU counters:
+npm run benchmark -- --diagnostics --no-monitoring --samples 4
 npm run benchmark:test
 pnpm lint
 ```
@@ -89,10 +260,10 @@ The JSON retains `applicationConnectionReadyMs`, `commandStartedMs` and
 setup, checkouts, command execution and return to the handler caller. Setup and
 checkout can overlap; their durations must not be added together.
 
-The diagram colours only the portions of these windows outside the measured
+Without `--diagnostics`, the diagram colours only the portions of these windows outside the measured
 TCP/TLS/hello/authentication and send/receive phases. Connection/pool gaps take
 precedence over the ready-to-command interval, so each piece is counted once.
-The new colours bound work in time; they do not distinguish CPU work from
+These lifecycle colours bound work in time; they do not distinguish CPU work from
 scheduling delays. `summary.json` records the mean windows as `lifecycleMeanMs`
 and the non-overlapping gap categories as `gapMeanMs`, including the remaining
 unclassified time. Readiness includes discovery and authentication; it is not
@@ -111,8 +282,8 @@ the lookup on the application socket serving the operation.
 
 TCP timing excludes hostname resolution but includes event-loop scheduling. Hello can include
 speculative authentication. Send measures serialization and socket buffering;
-receive includes network transit and server work. Internal gaps remain elapsed-time
-residuals rather than a claim to identify every CPU activity. Instrumentation adds
+receive includes network transit and server work. Without diagnostics, internal gaps remain elapsed-time residuals. Diagnostic
+runs subdivide them into the measured scopes and execution intervals defined above. Instrumentation adds
 some overhead and is verified against MongoDB driver 7.7.0.
 
 The local DNS resolver, CPU quota, certificates, MongoDB deployment and network

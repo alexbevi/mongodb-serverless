@@ -477,6 +477,14 @@ def draw_sections(axis, row, lanes, selected_y, direct=False):
                   fontsize=7.5, color="#334155", zorder=8)
 
 
+def cpu_annotation(timeline):
+    label = f"Main-thread CPU ~{timeline['threadCpuMs']:.1f} ms"
+    throttled = timeline.get("throttledMs", 0)
+    if round(throttled, 1) > 0:
+        label += f" · cgroup throttled ~{throttled:.1f} ms"
+    return label
+
+
 def draw_node_lanes(axis, native, serverless, member_letters):
     timeline = native["timeline"]
     connections = timeline["connections"]
@@ -576,7 +584,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
                 axis.text(0, y, f"{delayed['name']}: ~{delayed['end'] - delayed['start']:.1f} ms elapsed; ~{delayed['threadCpuMs']:.1f} ms thread CPU",
                           fontsize=8, color="#475569")
             else:
-                axis.text(0, y, f"Main-thread CPU ~{item['threadCpuMs']:.1f} ms · cgroup throttled Δ ~{item.get('throttledMs', 0):.1f} ms", fontsize=8, color="#475569")
+                axis.text(0, y, cpu_annotation(item), fontsize=8, color="#475569")
     axis.set_ylim(-1.2, 4)
 
 

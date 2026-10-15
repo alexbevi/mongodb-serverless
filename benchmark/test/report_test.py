@@ -8,6 +8,16 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_cpu_annotation_omits_zero_throttling(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        self.assertEqual(report.cpu_annotation({"threadCpuMs": 29.2, "throttledMs": 0}), "Main-thread CPU ~29.2 ms")
+        self.assertNotIn("throttled", report.cpu_annotation({"threadCpuMs": 29.2, "throttledMs": 0.01}))
+        self.assertIn("throttled ~12.3 ms", report.cpu_annotation({"threadCpuMs": 29.2, "throttledMs": 12.3}))
+
     def test_execution_stack_compaction_preserves_sources(self):
         import importlib.util
         root = Path(__file__).parents[1]

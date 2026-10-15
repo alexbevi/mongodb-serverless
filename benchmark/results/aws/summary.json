@@ -1,0 +1,673 @@
+[
+  {
+    "operation": "read",
+    "driver": "native-cluster",
+    "n": 120,
+    "mean": 250.91910695833334,
+    "median": 249.600274,
+    "medianAbsoluteDeviation": 12.294292000000013,
+    "p95": 287.484291,
+    "roles": {
+      "SECONDARY": 91,
+      "PRIMARY": 29
+    },
+    "sockets": {
+      "4": 120
+    },
+    "dnsMeanMs": {
+      "SRV": 7.896797825000005,
+      "TXT": 12.990930875,
+      "seedlistWall": 13.231751816666668,
+      "selectedHostname": 13.316410566666663
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 94.355449125,
+      "checkouts": 95.13139035,
+      "readyToCommand": 1.239957066666662,
+      "command": 7.531135991666674,
+      "afterCommand": 1.7656326833333291
+    },
+    "gapMeanMs": {
+      "poolGaps": 5.941380224999999,
+      "beforeCommand": 0.42917640833333337,
+      "afterReply": 1.4414760916666638,
+      "unclassified": 145.36956754166667
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 4.809460999999999,
+      "lookup": 9.923536999999897,
+      "tcp": 11.882133000000067,
+      "tls": 38.285102999999935,
+      "hello": 2.5058630000000903,
+      "auth": 22.307717000000025,
+      "send": 1.001920000000041,
+      "receive": 12.079942999999957,
+      "monitor": 73.00709700000004,
+      "poolGaps": 3.9262519999999768,
+      "beforeCommand": 0.3669989999999643,
+      "afterReply": 1.669981000000007,
+      "beforeSocket": 48.083101,
+      "unattributed": 19.642773000000034
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "beforeSocket",
+        "start": 0,
+        "end": 28.36098400000003
+      },
+      {
+        "phase": "clusterDns",
+        "start": 28.36098400000003,
+        "end": 33.17044500000003
+      },
+      {
+        "phase": "beforeSocket",
+        "start": 33.17044500000003,
+        "end": 52.892562
+      },
+      {
+        "phase": "unattributed",
+        "start": 52.892562,
+        "end": 72.53533500000003
+      },
+      {
+        "phase": "monitor",
+        "start": 72.53533500000003,
+        "end": 145.54243200000008
+      },
+      {
+        "phase": "lookup",
+        "start": 145.54243200000008,
+        "end": 155.46596899999997
+      },
+      {
+        "phase": "tcp",
+        "start": 155.46596899999997,
+        "end": 167.34810200000004
+      },
+      {
+        "phase": "tls",
+        "start": 167.34810200000004,
+        "end": 205.63320499999998
+      },
+      {
+        "phase": "poolGaps",
+        "start": 205.63320499999998,
+        "end": 208.777878
+      },
+      {
+        "phase": "hello",
+        "start": 208.777878,
+        "end": 211.28374100000008
+      },
+      {
+        "phase": "poolGaps",
+        "start": 211.28374100000008,
+        "end": 211.62747000000002
+      },
+      {
+        "phase": "auth",
+        "start": 211.62747000000002,
+        "end": 233.93518700000004
+      },
+      {
+        "phase": "poolGaps",
+        "start": 233.93518700000004,
+        "end": 234.37303700000007
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 234.37303700000007,
+        "end": 234.74003600000003
+      },
+      {
+        "phase": "send",
+        "start": 234.74003600000003,
+        "end": 235.74195600000007
+      },
+      {
+        "phase": "receive",
+        "start": 235.74195600000007,
+        "end": 247.82189900000003
+      },
+      {
+        "phase": "afterReply",
+        "start": 247.82189900000003,
+        "end": 249.49188000000004
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 19.485666815501766,
+      "confidence95Percent": [
+        18.02733994832202,
+        21.30263327143387
+      ],
+      "blocks": 24,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 19.09640455888322
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 18.780684518675116
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 21.07921027157228
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 18.953125024220974
+        }
+      ]
+    }
+  },
+  {
+    "operation": "read",
+    "driver": "serverless",
+    "n": 120,
+    "mean": 202.02584579999998,
+    "median": 204.24017350000003,
+    "medianAbsoluteDeviation": 9.455792000000002,
+    "p95": 224.12061500000004,
+    "roles": {
+      "SECONDARY": 120
+    },
+    "sockets": {
+      "1": 120
+    },
+    "dnsMeanMs": {
+      "SRV": 0,
+      "TXT": 0,
+      "seedlistWall": 0,
+      "selectedHostname": 8.284017674999996
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 122.21389780833333,
+      "checkouts": 0.5742292916666633,
+      "readyToCommand": 11.686554300000001,
+      "command": 5.5521709083333315,
+      "afterCommand": 1.8319775916666672
+    },
+    "gapMeanMs": {
+      "poolGaps": 28.669962074999987,
+      "beforeCommand": 9.931301650000005,
+      "afterReply": 1.6947182749999934,
+      "unclassified": 60.74124519166667
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.0,
+      "lookup": 13.468364000000008,
+      "tcp": 1.9778539999999794,
+      "tls": 48.89644300000003,
+      "hello": 24.947123000000033,
+      "auth": 22.566596999999945,
+      "send": 0.8540920000000369,
+      "receive": 12.370048999999995,
+      "monitor": 0.0,
+      "poolGaps": 25.92197999999985,
+      "beforeCommand": 4.107164000000125,
+      "afterReply": 1.1587660000000142,
+      "beforeSocket": 48.31463200000002,
+      "unattributed": 0.0
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "beforeSocket",
+        "start": 0,
+        "end": 48.31463200000002
+      },
+      {
+        "phase": "poolGaps",
+        "start": 48.31463200000002,
+        "end": 69.612818
+      },
+      {
+        "phase": "lookup",
+        "start": 69.612818,
+        "end": 83.08118200000001
+      },
+      {
+        "phase": "tcp",
+        "start": 83.08118200000001,
+        "end": 85.05903599999999
+      },
+      {
+        "phase": "tls",
+        "start": 85.05903599999999,
+        "end": 133.95547900000003
+      },
+      {
+        "phase": "poolGaps",
+        "start": 133.95547900000003,
+        "end": 137.57738999999998
+      },
+      {
+        "phase": "hello",
+        "start": 137.57738999999998,
+        "end": 162.524513
+      },
+      {
+        "phase": "poolGaps",
+        "start": 162.524513,
+        "end": 162.91252500000002
+      },
+      {
+        "phase": "auth",
+        "start": 162.91252500000002,
+        "end": 185.47912199999996
+      },
+      {
+        "phase": "poolGaps",
+        "start": 185.47912199999996,
+        "end": 185.84282199999996
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 185.84282199999996,
+        "end": 187.03834800000004
+      },
+      {
+        "phase": "poolGaps",
+        "start": 187.03834800000004,
+        "end": 187.247615
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 187.247615,
+        "end": 189.89124200000003
+      },
+      {
+        "phase": "poolGaps",
+        "start": 189.89124200000003,
+        "end": 189.932146
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 189.932146,
+        "end": 190.200157
+      },
+      {
+        "phase": "send",
+        "start": 190.200157,
+        "end": 191.05424900000003
+      },
+      {
+        "phase": "receive",
+        "start": 191.05424900000003,
+        "end": 203.42429800000002
+      },
+      {
+        "phase": "afterReply",
+        "start": 203.42429800000002,
+        "end": 204.58306400000004
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 19.485666815501766,
+      "confidence95Percent": [
+        18.02733994832202,
+        21.30263327143387
+      ],
+      "blocks": 24,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 19.09640455888322
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 18.780684518675116
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 21.07921027157228
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 18.953125024220974
+        }
+      ]
+    }
+  },
+  {
+    "operation": "write",
+    "driver": "native-cluster",
+    "n": 120,
+    "mean": 260.1850541833333,
+    "median": 256.72140750000005,
+    "medianAbsoluteDeviation": 14.99853200000004,
+    "p95": 299.46632199999993,
+    "roles": {
+      "PRIMARY": 120
+    },
+    "sockets": {
+      "4": 120
+    },
+    "dnsMeanMs": {
+      "SRV": 8.240106516666668,
+      "TXT": 13.731500475000002,
+      "seedlistWall": 13.852684325000002,
+      "selectedHostname": 8.255990791666672
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 90.29390081666666,
+      "checkouts": 91.10238364166666,
+      "readyToCommand": 1.0390622083333383,
+      "command": 10.15615033333333,
+      "afterCommand": 0.9079505250000002
+    },
+    "gapMeanMs": {
+      "poolGaps": 5.856448083333336,
+      "beforeCommand": 0.25341777499999835,
+      "afterReply": 0.8520366250000019,
+      "unclassified": 157.09728
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 15.35686499999997,
+      "lookup": 12.51710799999995,
+      "tcp": 1.364336000000037,
+      "tls": 43.11060900000001,
+      "hello": 5.793412999999987,
+      "auth": 14.830216999999948,
+      "send": 11.069229999999948,
+      "receive": 6.595581000000038,
+      "monitor": 99.774583,
+      "poolGaps": 3.481311000000005,
+      "beforeCommand": 0.2330850000000737,
+      "afterReply": 0.7993870000000243,
+      "beforeSocket": 35.268579000000045,
+      "unattributed": 6.940821000000028
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "beforeSocket",
+        "start": 0,
+        "end": 17.517182000000048
+      },
+      {
+        "phase": "clusterDns",
+        "start": 17.517182000000048,
+        "end": 32.87404700000002
+      },
+      {
+        "phase": "beforeSocket",
+        "start": 32.87404700000002,
+        "end": 50.625444000000016
+      },
+      {
+        "phase": "unattributed",
+        "start": 50.625444000000016,
+        "end": 57.566265000000044
+      },
+      {
+        "phase": "monitor",
+        "start": 57.566265000000044,
+        "end": 157.34084800000005
+      },
+      {
+        "phase": "lookup",
+        "start": 157.34084800000005,
+        "end": 169.857956
+      },
+      {
+        "phase": "tcp",
+        "start": 169.857956,
+        "end": 171.22229200000004
+      },
+      {
+        "phase": "tls",
+        "start": 171.22229200000004,
+        "end": 214.33290100000005
+      },
+      {
+        "phase": "poolGaps",
+        "start": 214.33290100000005,
+        "end": 217.09502100000003
+      },
+      {
+        "phase": "hello",
+        "start": 217.09502100000003,
+        "end": 222.88843400000002
+      },
+      {
+        "phase": "poolGaps",
+        "start": 222.88843400000002,
+        "end": 223.26598200000006
+      },
+      {
+        "phase": "auth",
+        "start": 223.26598200000006,
+        "end": 238.096199
+      },
+      {
+        "phase": "poolGaps",
+        "start": 238.096199,
+        "end": 238.437842
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 238.437842,
+        "end": 238.67092700000006
+      },
+      {
+        "phase": "send",
+        "start": 238.67092700000006,
+        "end": 249.740157
+      },
+      {
+        "phase": "receive",
+        "start": 249.740157,
+        "end": 256.33573800000005
+      },
+      {
+        "phase": "afterReply",
+        "start": 256.33573800000005,
+        "end": 257.1351250000001
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 19.927930165990816,
+      "confidence95Percent": [
+        17.064362561894242,
+        22.716141056885853
+      ],
+      "blocks": 24,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 20.31386735633054
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 18.327919953775307
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 20.36759281736029
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 20.702532240579828
+        }
+      ]
+    }
+  },
+  {
+    "operation": "write",
+    "driver": "serverless",
+    "n": 120,
+    "mean": 208.33555828333334,
+    "median": 205.94241599999998,
+    "medianAbsoluteDeviation": 11.27215000000001,
+    "p95": 245.311806,
+    "roles": {
+      "PRIMARY": 120
+    },
+    "sockets": {
+      "1": 120
+    },
+    "dnsMeanMs": {
+      "SRV": 0,
+      "TXT": 0,
+      "seedlistWall": 0,
+      "selectedHostname": 6.992925533333333
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 124.80455951666666,
+      "checkouts": 0.5542524333333304,
+      "readyToCommand": 9.242298408333333,
+      "command": 10.97634991666667,
+      "afterCommand": 0.9439696499999978
+    },
+    "gapMeanMs": {
+      "poolGaps": 28.239777858333323,
+      "beforeCommand": 6.812822658333345,
+      "afterReply": 0.8874440666666643,
+      "unclassified": 62.36838079166667
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.0,
+      "lookup": 2.599499000000037,
+      "tcp": 2.190695000000005,
+      "tls": 47.904173000000014,
+      "hello": 8.954748999999993,
+      "auth": 32.02778999999998,
+      "send": 1.340208999999959,
+      "receive": 10.13505699999996,
+      "monitor": 0.0,
+      "poolGaps": 30.453463999999883,
+      "beforeCommand": 5.103074000000106,
+      "afterReply": 1.0108139999999821,
+      "beforeSocket": 65.00462700000003,
+      "unattributed": 0.0
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "beforeSocket",
+        "start": 0,
+        "end": 65.00462700000003
+      },
+      {
+        "phase": "poolGaps",
+        "start": 65.00462700000003,
+        "end": 89.58500099999998
+      },
+      {
+        "phase": "lookup",
+        "start": 89.58500099999998,
+        "end": 92.18450000000001
+      },
+      {
+        "phase": "tcp",
+        "start": 92.18450000000001,
+        "end": 94.37519500000002
+      },
+      {
+        "phase": "tls",
+        "start": 94.37519500000002,
+        "end": 142.27936800000003
+      },
+      {
+        "phase": "poolGaps",
+        "start": 142.27936800000003,
+        "end": 146.80474999999996
+      },
+      {
+        "phase": "hello",
+        "start": 146.80474999999996,
+        "end": 155.75949899999995
+      },
+      {
+        "phase": "poolGaps",
+        "start": 155.75949899999995,
+        "end": 156.28428300000002
+      },
+      {
+        "phase": "auth",
+        "start": 156.28428300000002,
+        "end": 188.312073
+      },
+      {
+        "phase": "poolGaps",
+        "start": 188.312073,
+        "end": 188.76247700000005
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 188.76247700000005,
+        "end": 190.47628300000002
+      },
+      {
+        "phase": "poolGaps",
+        "start": 190.47628300000002,
+        "end": 190.790637
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 190.790637,
+        "end": 193.88270700000004
+      },
+      {
+        "phase": "poolGaps",
+        "start": 193.88270700000004,
+        "end": 193.94087299999995
+      },
+      {
+        "phase": "beforeCommand",
+        "start": 193.94087299999995,
+        "end": 194.23807100000005
+      },
+      {
+        "phase": "send",
+        "start": 194.23807100000005,
+        "end": 195.57828
+      },
+      {
+        "phase": "receive",
+        "start": 195.57828,
+        "end": 205.71333699999997
+      },
+      {
+        "phase": "afterReply",
+        "start": 205.71333699999997,
+        "end": 206.72415099999995
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 19.927930165990816,
+      "confidence95Percent": [
+        17.064362561894242,
+        22.716141056885853
+      ],
+      "blocks": 24,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 20.31386735633054
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 18.327919953775307
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 20.36759281736029
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 20.702532240579828
+        }
+      ]
+    }
+  }
+]

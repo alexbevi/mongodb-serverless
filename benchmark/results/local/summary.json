@@ -1,0 +1,3282 @@
+[
+  {
+    "operation": "read",
+    "driver": "native-cluster",
+    "n": 100,
+    "mean": 47.97911877,
+    "median": 47.9507915,
+    "medianAbsoluteDeviation": 1.0985629999999986,
+    "p95": 50.924333,
+    "roles": {
+      "SECONDARY": 100
+    },
+    "sockets": {
+      "4": 100
+    },
+    "dnsMeanMs": {
+      "SRV": 0.3648958600000004,
+      "TXT": 0.52125911,
+      "seedlistWall": 0.5762178900000001,
+      "selectedHostname": 1.5977691699999998
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 17.18282125,
+      "checkouts": 17.40871365,
+      "readyToCommand": 0.47068961000000087,
+      "command": 2.532047449999999,
+      "afterCommand": 0.9507862799999997
+    },
+    "gapMeanMs": {
+      "poolGaps": 1.592681979999999,
+      "beforeCommand": 0.16392341000000002,
+      "afterReply": 0.7285187100000003,
+      "unclassified": 26.65836131
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.5964159999999978,
+      "lookup": 1.6846669999999904,
+      "tcp": 1.8283330000000007,
+      "tls": 3.239083000000008,
+      "hello": 3.4358330000000024,
+      "auth": 5.84075,
+      "send": 0.48254199999999514,
+      "receive": 2.2929170000000028,
+      "monitor": 14.602041999999997,
+      "poolGaps": 0.0,
+      "beforeCommand": 0.0,
+      "afterReply": 0.0,
+      "beforeSocket": 0.0,
+      "unattributed": 0.0,
+      "callback": 5.212203999999993,
+      "code:Facade / client construction": 0.35812500000000114,
+      "code:Native URI/options parsing": 2.423124999999999,
+      "code:Load runtime adapter": 1.6452080000000038,
+      "code:Read TLS CA certificate": 0.5904589999999956,
+      "code:Container metadata probe": 0.8659999999999997,
+      "dispatch": 0.060587000000005276,
+      "code:Topology construction": 0.27670900000000387,
+      "code:TLS socket/context construction": 2.5065410000000057,
+      "code:Await handshake metadata": 0.04241700000000037
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "callback",
+        "start": 0,
+        "end": 0.15424999999999756
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 0.15424999999999756,
+        "end": 0.21479200000000276
+      },
+      {
+        "phase": "code:Native URI/options parsing",
+        "start": 0.21479200000000276,
+        "end": 2.6379170000000016
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 2.6379170000000016,
+        "end": 2.9354999999999976
+      },
+      {
+        "phase": "code:Load runtime adapter",
+        "start": 2.9354999999999976,
+        "end": 4.580708000000001
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 4.580708000000001,
+        "end": 4.951292000000002
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 4.951292000000002,
+        "end": 5.817292000000002
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 5.817292000000002,
+        "end": 6.037166999999997
+      },
+      {
+        "phase": "callback",
+        "start": 6.037166999999997,
+        "end": 6.037708000000002
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.037708000000002,
+        "end": 6.038708
+      },
+      {
+        "phase": "callback",
+        "start": 6.038708,
+        "end": 6.121042000000003
+      },
+      {
+        "phase": "clusterDns",
+        "start": 6.121042000000003,
+        "end": 6.717458000000001
+      },
+      {
+        "phase": "callback",
+        "start": 6.717458000000001,
+        "end": 6.739333000000002
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.739333000000002,
+        "end": 6.740625000000001
+      },
+      {
+        "phase": "callback",
+        "start": 6.740625000000001,
+        "end": 6.741416999999998
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.741416999999998,
+        "end": 6.742416999999996
+      },
+      {
+        "phase": "callback",
+        "start": 6.742416999999996,
+        "end": 6.748249999999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.748249999999999,
+        "end": 6.749291999999997
+      },
+      {
+        "phase": "callback",
+        "start": 6.749291999999997,
+        "end": 6.7500829999999965
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.7500829999999965,
+        "end": 6.751083000000001
+      },
+      {
+        "phase": "callback",
+        "start": 6.751083000000001,
+        "end": 6.752042000000003
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.752042000000003,
+        "end": 6.753042000000001
+      },
+      {
+        "phase": "callback",
+        "start": 6.753042000000001,
+        "end": 6.899250000000002
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.899250000000002,
+        "end": 6.901916999999997
+      },
+      {
+        "phase": "callback",
+        "start": 6.901916999999997,
+        "end": 6.960458000000003
+      },
+      {
+        "phase": "dispatch",
+        "start": 6.960458000000003,
+        "end": 6.962333000000001
+      },
+      {
+        "phase": "callback",
+        "start": 6.962333000000001,
+        "end": 6.966957999999998
+      },
+      {
+        "phase": "code:Topology construction",
+        "start": 6.966957999999998,
+        "end": 7.243667000000002
+      },
+      {
+        "phase": "callback",
+        "start": 7.243667000000002,
+        "end": 10.037917
+      },
+      {
+        "phase": "code:TLS socket/context construction",
+        "start": 10.037917,
+        "end": 12.544458000000006
+      },
+      {
+        "phase": "monitor",
+        "start": 12.544458000000006,
+        "end": 27.146500000000003
+      },
+      {
+        "phase": "lookup",
+        "start": 27.146500000000003,
+        "end": 28.831166999999994
+      },
+      {
+        "phase": "tcp",
+        "start": 28.831166999999994,
+        "end": 30.659499999999994
+      },
+      {
+        "phase": "tls",
+        "start": 30.659499999999994,
+        "end": 33.898583
+      },
+      {
+        "phase": "callback",
+        "start": 33.898583,
+        "end": 33.905625
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.905625,
+        "end": 33.911125
+      },
+      {
+        "phase": "callback",
+        "start": 33.911125,
+        "end": 33.92058299999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.92058299999999,
+        "end": 33.923041999999995
+      },
+      {
+        "phase": "callback",
+        "start": 33.923041999999995,
+        "end": 34.089833
+      },
+      {
+        "phase": "code:Await handshake metadata",
+        "start": 34.089833,
+        "end": 34.13225
+      },
+      {
+        "phase": "callback",
+        "start": 34.13225,
+        "end": 34.133042
+      },
+      {
+        "phase": "dispatch",
+        "start": 34.133042,
+        "end": 34.134417
+      },
+      {
+        "phase": "callback",
+        "start": 34.134417,
+        "end": 34.634583000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 34.634583000000006,
+        "end": 34.637249999999995
+      },
+      {
+        "phase": "callback",
+        "start": 34.637249999999995,
+        "end": 34.726375000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 34.726375000000004,
+        "end": 34.728333000000006
+      },
+      {
+        "phase": "callback",
+        "start": 34.728333000000006,
+        "end": 34.730417
+      },
+      {
+        "phase": "dispatch",
+        "start": 34.730417,
+        "end": 34.731458
+      },
+      {
+        "phase": "callback",
+        "start": 34.731458,
+        "end": 34.770917
+      },
+      {
+        "phase": "hello",
+        "start": 34.770917,
+        "end": 38.20675
+      },
+      {
+        "phase": "callback",
+        "start": 38.20675,
+        "end": 38.209708000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.209708000000006,
+        "end": 38.211667000000006
+      },
+      {
+        "phase": "callback",
+        "start": 38.211667000000006,
+        "end": 38.21279199999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.21279199999999,
+        "end": 38.213916999999995
+      },
+      {
+        "phase": "callback",
+        "start": 38.213916999999995,
+        "end": 38.333833
+      },
+      {
+        "phase": "auth",
+        "start": 38.333833,
+        "end": 44.174583
+      },
+      {
+        "phase": "callback",
+        "start": 44.174583,
+        "end": 44.176958
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.176958,
+        "end": 44.17775
+      },
+      {
+        "phase": "callback",
+        "start": 44.17775,
+        "end": 44.178708
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.178708,
+        "end": 44.17937499999999
+      },
+      {
+        "phase": "callback",
+        "start": 44.17937499999999,
+        "end": 44.180417000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.180417000000006,
+        "end": 44.181667000000004
+      },
+      {
+        "phase": "callback",
+        "start": 44.181667000000004,
+        "end": 44.316333
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.316333,
+        "end": 44.317542
+      },
+      {
+        "phase": "callback",
+        "start": 44.317542,
+        "end": 44.319833
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.319833,
+        "end": 44.321332999999996
+      },
+      {
+        "phase": "callback",
+        "start": 44.321332999999996,
+        "end": 44.32816699999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 44.32816699999999,
+        "end": 44.32941700000001
+      },
+      {
+        "phase": "callback",
+        "start": 44.32941700000001,
+        "end": 44.442333000000005
+      },
+      {
+        "phase": "send",
+        "start": 44.442333000000005,
+        "end": 44.924875
+      },
+      {
+        "phase": "receive",
+        "start": 44.924875,
+        "end": 47.217792
+      },
+      {
+        "phase": "callback",
+        "start": 47.217792,
+        "end": 47.22241699999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.22241699999999,
+        "end": 47.223292
+      },
+      {
+        "phase": "callback",
+        "start": 47.223292,
+        "end": 47.392083
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.392083,
+        "end": 47.395332999999994
+      },
+      {
+        "phase": "callback",
+        "start": 47.395332999999994,
+        "end": 47.405167000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.405167000000006,
+        "end": 47.407583
+      },
+      {
+        "phase": "callback",
+        "start": 47.407583,
+        "end": 47.413458000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.413458000000006,
+        "end": 47.414708000000005
+      },
+      {
+        "phase": "callback",
+        "start": 47.414708000000005,
+        "end": 47.416624999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.416624999999996,
+        "end": 47.417792000000006
+      },
+      {
+        "phase": "callback",
+        "start": 47.417792000000006,
+        "end": 47.462582999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.462582999999995,
+        "end": 47.464375000000004
+      },
+      {
+        "phase": "callback",
+        "start": 47.464375000000004,
+        "end": 47.763000000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.763000000000005,
+        "end": 47.764250000000004
+      },
+      {
+        "phase": "callback",
+        "start": 47.764250000000004,
+        "end": 47.766042
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.766042,
+        "end": 47.766791999999995
+      },
+      {
+        "phase": "callback",
+        "start": 47.766791999999995,
+        "end": 47.786208
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.786208,
+        "end": 47.787791999999996
+      },
+      {
+        "phase": "callback",
+        "start": 47.787791999999996,
+        "end": 47.788375
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.788375,
+        "end": 47.789083000000005
+      },
+      {
+        "phase": "callback",
+        "start": 47.789083000000005,
+        "end": 47.789625
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.789625,
+        "end": 47.790542
+      },
+      {
+        "phase": "callback",
+        "start": 47.790542,
+        "end": 47.791833
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.791833,
+        "end": 47.79275
+      },
+      {
+        "phase": "callback",
+        "start": 47.79275,
+        "end": 47.835916999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.835916999999995,
+        "end": 47.837625
+      },
+      {
+        "phase": "callback",
+        "start": 47.837625,
+        "end": 47.956958
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.956958,
+        "end": 47.958167
+      },
+      {
+        "phase": "callback",
+        "start": 47.958167,
+        "end": 47.960792
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.960792,
+        "end": 47.961583000000005
+      },
+      {
+        "phase": "callback",
+        "start": 47.961583000000005,
+        "end": 47.962500000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.962500000000006,
+        "end": 47.96325
+      },
+      {
+        "phase": "callback",
+        "start": 47.96325,
+        "end": 47.963792
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.963792,
+        "end": 47.964583000000005
+      },
+      {
+        "phase": "callback",
+        "start": 47.964583000000005,
+        "end": 47.965125
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.965125,
+        "end": 47.965958
+      },
+      {
+        "phase": "callback",
+        "start": 47.965958,
+        "end": 47.967708
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.967708,
+        "end": 47.968542
+      },
+      {
+        "phase": "callback",
+        "start": 47.968542,
+        "end": 47.969083
+      },
+      {
+        "phase": "dispatch",
+        "start": 47.969083,
+        "end": 47.97024999999999
+      },
+      {
+        "phase": "callback",
+        "start": 47.97024999999999,
+        "end": 47.983958
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 17.347762867216986,
+      "confidence95Percent": [
+        16.353184533557364,
+        18.297747299937793
+      ],
+      "blocks": 100,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 18.343953168680528
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 17.337417105172126
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 17.422098226998862
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 16.295770395299726
+        }
+      ]
+    }
+  },
+  {
+    "operation": "read",
+    "driver": "serverless",
+    "n": 100,
+    "mean": 39.65581502,
+    "median": 39.677792,
+    "medianAbsoluteDeviation": 0.7351039999999998,
+    "p95": 41.320291000000005,
+    "roles": {
+      "SECONDARY": 100
+    },
+    "sockets": {
+      "1": 100
+    },
+    "dnsMeanMs": {
+      "SRV": 0,
+      "TXT": 0,
+      "seedlistWall": 0,
+      "selectedHostname": 0.5679012700000006
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 22.56805918,
+      "checkouts": 0.21277912000000057,
+      "readyToCommand": 2.6547133199999995,
+      "command": 2.84159377,
+      "afterCommand": 0.8854583099999997
+    },
+    "gapMeanMs": {
+      "poolGaps": 6.1464890000000025,
+      "beforeCommand": 2.1916046499999995,
+      "afterReply": 0.6444753699999999,
+      "unclassified": 10.70599044
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.0,
+      "lookup": 0.6599999999999966,
+      "tcp": 1.8787920000000042,
+      "tls": 3.4351249999999993,
+      "hello": 4.4063759999999945,
+      "auth": 6.254709000000005,
+      "send": 0.5175839999999994,
+      "receive": 2.9506250000000023,
+      "monitor": 0.0,
+      "poolGaps": 0.0,
+      "beforeCommand": 0.0,
+      "afterReply": 0.0,
+      "beforeSocket": 0.0,
+      "unattributed": 0.0,
+      "callback": 8.761334999999931,
+      "code:Facade / client construction": 1.1929999999999978,
+      "dispatch": 0.21633100000007488,
+      "code:Read plugin topology": 0.24741599999999409,
+      "code:Direct URI rewrite": 0.9435840000000013,
+      "code:Native client construction": 0.3099989999999977,
+      "code:Native URI/options parsing": 1.5016670000000047,
+      "code:Load runtime adapter": 1.3330839999999995,
+      "code:Load no-monitoring module": 0.4050410000000042,
+      "code:Container metadata probe": 1.017083999999997,
+      "code:Activate no-monitoring patch": 0.154874999999997,
+      "code:Read TLS CA certificate": 0.5352910000000008,
+      "code:Topology construction": 0.22187499999999716,
+      "code:TLS socket/context construction": 2.671791000000006,
+      "code:Await handshake metadata": 0.039249999999995566
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "callback",
+        "start": 0,
+        "end": 0.16529200000000088
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 0.16529200000000088,
+        "end": 1.3582919999999987
+      },
+      {
+        "phase": "callback",
+        "start": 1.3582919999999987,
+        "end": 1.5767079999999964
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.5767079999999964,
+        "end": 1.6337919999999997
+      },
+      {
+        "phase": "callback",
+        "start": 1.6337919999999997,
+        "end": 1.6616670000000013
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.6616670000000013,
+        "end": 1.6713749999999976
+      },
+      {
+        "phase": "callback",
+        "start": 1.6713749999999976,
+        "end": 1.6950420000000008
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.6950420000000008,
+        "end": 1.6993330000000029
+      },
+      {
+        "phase": "callback",
+        "start": 1.6993330000000029,
+        "end": 1.783292000000003
+      },
+      {
+        "phase": "code:Read plugin topology",
+        "start": 1.783292000000003,
+        "end": 2.030707999999997
+      },
+      {
+        "phase": "callback",
+        "start": 2.030707999999997,
+        "end": 2.0331249999999983
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.0331249999999983,
+        "end": 2.040416999999998
+      },
+      {
+        "phase": "callback",
+        "start": 2.040416999999998,
+        "end": 2.1282080000000008
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.1282080000000008,
+        "end": 2.1320830000000015
+      },
+      {
+        "phase": "callback",
+        "start": 2.1320830000000015,
+        "end": 2.1401249999999976
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.1401249999999976,
+        "end": 2.1424579999999978
+      },
+      {
+        "phase": "callback",
+        "start": 2.1424579999999978,
+        "end": 2.1484999999999985
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.1484999999999985,
+        "end": 2.1504169999999974
+      },
+      {
+        "phase": "callback",
+        "start": 2.1504169999999974,
+        "end": 2.1513750000000016
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.1513750000000016,
+        "end": 2.1576669999999964
+      },
+      {
+        "phase": "callback",
+        "start": 2.1576669999999964,
+        "end": 2.160083
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.160083,
+        "end": 2.169125000000001
+      },
+      {
+        "phase": "callback",
+        "start": 2.169125000000001,
+        "end": 2.213583
+      },
+      {
+        "phase": "code:Direct URI rewrite",
+        "start": 2.213583,
+        "end": 3.157167000000001
+      },
+      {
+        "phase": "callback",
+        "start": 3.157167000000001,
+        "end": 3.183791999999997
+      },
+      {
+        "phase": "code:Native client construction",
+        "start": 3.183791999999997,
+        "end": 3.252457999999997
+      },
+      {
+        "phase": "code:Native URI/options parsing",
+        "start": 3.252457999999997,
+        "end": 4.754125000000002
+      },
+      {
+        "phase": "code:Native client construction",
+        "start": 4.754125000000002,
+        "end": 4.995457999999999
+      },
+      {
+        "phase": "code:Load runtime adapter",
+        "start": 4.995457999999999,
+        "end": 6.328541999999999
+      },
+      {
+        "phase": "code:Load no-monitoring module",
+        "start": 6.328541999999999,
+        "end": 6.733583000000003
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 6.733583000000003,
+        "end": 7.655000000000001
+      },
+      {
+        "phase": "code:Activate no-monitoring patch",
+        "start": 7.655000000000001,
+        "end": 7.809874999999998
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 7.809874999999998,
+        "end": 7.905541999999997
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 7.905541999999997,
+        "end": 8.440832999999998
+      },
+      {
+        "phase": "callback",
+        "start": 8.440832999999998,
+        "end": 8.441375
+      },
+      {
+        "phase": "dispatch",
+        "start": 8.441375,
+        "end": 8.442458000000002
+      },
+      {
+        "phase": "callback",
+        "start": 8.442458000000002,
+        "end": 8.444583000000002
+      },
+      {
+        "phase": "code:Topology construction",
+        "start": 8.444583000000002,
+        "end": 8.666457999999999
+      },
+      {
+        "phase": "callback",
+        "start": 8.666457999999999,
+        "end": 10.121125
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.121125,
+        "end": 10.125292000000002
+      },
+      {
+        "phase": "callback",
+        "start": 10.125292000000002,
+        "end": 10.167957999999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.167957999999999,
+        "end": 10.170000000000002
+      },
+      {
+        "phase": "callback",
+        "start": 10.170000000000002,
+        "end": 10.182917000000003
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.182917000000003,
+        "end": 10.184542
+      },
+      {
+        "phase": "callback",
+        "start": 10.184542,
+        "end": 10.195875000000001
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.195875000000001,
+        "end": 10.197208000000003
+      },
+      {
+        "phase": "callback",
+        "start": 10.197208000000003,
+        "end": 12.389792
+      },
+      {
+        "phase": "code:TLS socket/context construction",
+        "start": 12.389792,
+        "end": 15.061583000000006
+      },
+      {
+        "phase": "lookup",
+        "start": 15.061583000000006,
+        "end": 15.721583000000003
+      },
+      {
+        "phase": "tcp",
+        "start": 15.721583000000003,
+        "end": 17.600375000000007
+      },
+      {
+        "phase": "tls",
+        "start": 17.600375000000007,
+        "end": 21.035500000000006
+      },
+      {
+        "phase": "callback",
+        "start": 21.035500000000006,
+        "end": 21.051667000000002
+      },
+      {
+        "phase": "dispatch",
+        "start": 21.051667000000002,
+        "end": 21.057542000000005
+      },
+      {
+        "phase": "callback",
+        "start": 21.057542000000005,
+        "end": 21.069250000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 21.069250000000004,
+        "end": 21.071082999999994
+      },
+      {
+        "phase": "callback",
+        "start": 21.071082999999994,
+        "end": 21.616875
+      },
+      {
+        "phase": "code:Await handshake metadata",
+        "start": 21.616875,
+        "end": 21.656124999999996
+      },
+      {
+        "phase": "callback",
+        "start": 21.656124999999996,
+        "end": 21.656667000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 21.656667000000006,
+        "end": 21.65775
+      },
+      {
+        "phase": "callback",
+        "start": 21.65775,
+        "end": 22.031208
+      },
+      {
+        "phase": "dispatch",
+        "start": 22.031208,
+        "end": 22.033416999999993
+      },
+      {
+        "phase": "callback",
+        "start": 22.033416999999993,
+        "end": 22.146167
+      },
+      {
+        "phase": "dispatch",
+        "start": 22.146167,
+        "end": 22.148999999999994
+      },
+      {
+        "phase": "callback",
+        "start": 22.148999999999994,
+        "end": 22.150957999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 22.150957999999996,
+        "end": 22.152291999999996
+      },
+      {
+        "phase": "callback",
+        "start": 22.152291999999996,
+        "end": 22.230458000000006
+      },
+      {
+        "phase": "hello",
+        "start": 22.230458000000006,
+        "end": 26.636834
+      },
+      {
+        "phase": "callback",
+        "start": 26.636834,
+        "end": 26.639917000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 26.639917000000004,
+        "end": 26.640959000000002
+      },
+      {
+        "phase": "callback",
+        "start": 26.640959000000002,
+        "end": 26.641833999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 26.641833999999996,
+        "end": 26.642834
+      },
+      {
+        "phase": "callback",
+        "start": 26.642834,
+        "end": 26.741499999999995
+      },
+      {
+        "phase": "auth",
+        "start": 26.741499999999995,
+        "end": 32.996209
+      },
+      {
+        "phase": "callback",
+        "start": 32.996209,
+        "end": 32.998292
+      },
+      {
+        "phase": "dispatch",
+        "start": 32.998292,
+        "end": 32.999334
+      },
+      {
+        "phase": "callback",
+        "start": 32.999334,
+        "end": 33.001042000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.001042000000005,
+        "end": 33.00195900000001
+      },
+      {
+        "phase": "callback",
+        "start": 33.00195900000001,
+        "end": 33.042792
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.042792,
+        "end": 33.04425
+      },
+      {
+        "phase": "callback",
+        "start": 33.04425,
+        "end": 33.465542000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.465542000000006,
+        "end": 33.467209000000004
+      },
+      {
+        "phase": "callback",
+        "start": 33.467209000000004,
+        "end": 33.468208999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.468208999999995,
+        "end": 33.469167000000006
+      },
+      {
+        "phase": "callback",
+        "start": 33.469167000000006,
+        "end": 33.470875
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.470875,
+        "end": 33.471792
+      },
+      {
+        "phase": "callback",
+        "start": 33.471792,
+        "end": 33.501124999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.501124999999995,
+        "end": 33.502917000000004
+      },
+      {
+        "phase": "callback",
+        "start": 33.502917000000004,
+        "end": 33.545167
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.545167,
+        "end": 33.546917
+      },
+      {
+        "phase": "callback",
+        "start": 33.546917,
+        "end": 33.547709000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.547709000000005,
+        "end": 33.548584
+      },
+      {
+        "phase": "callback",
+        "start": 33.548584,
+        "end": 33.549209
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.549209,
+        "end": 33.550292000000006
+      },
+      {
+        "phase": "callback",
+        "start": 33.550292000000006,
+        "end": 33.559959
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.559959,
+        "end": 33.561
+      },
+      {
+        "phase": "callback",
+        "start": 33.561,
+        "end": 33.595583999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.595583999999995,
+        "end": 33.59674999999999
+      },
+      {
+        "phase": "callback",
+        "start": 33.59674999999999,
+        "end": 33.598000000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.598000000000006,
+        "end": 33.598834000000004
+      },
+      {
+        "phase": "callback",
+        "start": 33.598834000000004,
+        "end": 33.59954200000001
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.59954200000001,
+        "end": 33.60037500000001
+      },
+      {
+        "phase": "callback",
+        "start": 33.60037500000001,
+        "end": 33.608292
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.608292,
+        "end": 33.609292
+      },
+      {
+        "phase": "callback",
+        "start": 33.609292,
+        "end": 33.613291999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.613291999999994,
+        "end": 33.614250000000006
+      },
+      {
+        "phase": "callback",
+        "start": 33.614250000000006,
+        "end": 33.614959000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.614959000000006,
+        "end": 33.616375
+      },
+      {
+        "phase": "callback",
+        "start": 33.616375,
+        "end": 33.624834
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.624834,
+        "end": 33.625792
+      },
+      {
+        "phase": "callback",
+        "start": 33.625792,
+        "end": 33.767334
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.767334,
+        "end": 33.768584
+      },
+      {
+        "phase": "callback",
+        "start": 33.768584,
+        "end": 33.769749999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.769749999999995,
+        "end": 33.77141700000001
+      },
+      {
+        "phase": "callback",
+        "start": 33.77141700000001,
+        "end": 33.840833999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.840833999999994,
+        "end": 33.843792
+      },
+      {
+        "phase": "callback",
+        "start": 33.843792,
+        "end": 33.849
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.849,
+        "end": 33.850167000000006
+      },
+      {
+        "phase": "callback",
+        "start": 33.850167000000006,
+        "end": 33.851375
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.851375,
+        "end": 33.852375
+      },
+      {
+        "phase": "callback",
+        "start": 33.852375,
+        "end": 33.935334000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.935334000000005,
+        "end": 33.937334
+      },
+      {
+        "phase": "callback",
+        "start": 33.937334,
+        "end": 33.943166999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.943166999999995,
+        "end": 33.9455
+      },
+      {
+        "phase": "callback",
+        "start": 33.9455,
+        "end": 33.946667
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.946667,
+        "end": 33.947624999999995
+      },
+      {
+        "phase": "callback",
+        "start": 33.947624999999995,
+        "end": 33.948417
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.948417,
+        "end": 33.94925
+      },
+      {
+        "phase": "callback",
+        "start": 33.94925,
+        "end": 33.951249999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.951249999999995,
+        "end": 33.952209
+      },
+      {
+        "phase": "callback",
+        "start": 33.952209,
+        "end": 33.95383399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.95383399999999,
+        "end": 33.95475
+      },
+      {
+        "phase": "callback",
+        "start": 33.95475,
+        "end": 33.956334000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.956334000000005,
+        "end": 33.958042
+      },
+      {
+        "phase": "callback",
+        "start": 33.958042,
+        "end": 33.958999999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.958999999999996,
+        "end": 33.96
+      },
+      {
+        "phase": "callback",
+        "start": 33.96,
+        "end": 33.96108400000001
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.96108400000001,
+        "end": 33.962208999999994
+      },
+      {
+        "phase": "callback",
+        "start": 33.962208999999994,
+        "end": 33.963709
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.963709,
+        "end": 33.965959000000005
+      },
+      {
+        "phase": "callback",
+        "start": 33.965959000000005,
+        "end": 33.96729199999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 33.96729199999999,
+        "end": 33.9685
+      },
+      {
+        "phase": "callback",
+        "start": 33.9685,
+        "end": 35.18883399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.18883399999999,
+        "end": 35.192958999999995
+      },
+      {
+        "phase": "callback",
+        "start": 35.192958999999995,
+        "end": 35.202667
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.202667,
+        "end": 35.203959000000005
+      },
+      {
+        "phase": "callback",
+        "start": 35.203959000000005,
+        "end": 35.225874999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.225874999999995,
+        "end": 35.227416999999996
+      },
+      {
+        "phase": "callback",
+        "start": 35.227416999999996,
+        "end": 35.237584000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.237584000000005,
+        "end": 35.238916999999994
+      },
+      {
+        "phase": "callback",
+        "start": 35.238916999999994,
+        "end": 35.244625000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.244625000000006,
+        "end": 35.245709
+      },
+      {
+        "phase": "callback",
+        "start": 35.245709,
+        "end": 35.432708999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.432708999999996,
+        "end": 35.434667
+      },
+      {
+        "phase": "callback",
+        "start": 35.434667,
+        "end": 35.445041999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.445041999999994,
+        "end": 35.446667
+      },
+      {
+        "phase": "callback",
+        "start": 35.446667,
+        "end": 35.447542000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 35.447542000000006,
+        "end": 35.448375000000006
+      },
+      {
+        "phase": "callback",
+        "start": 35.448375000000006,
+        "end": 35.54425
+      },
+      {
+        "phase": "send",
+        "start": 35.54425,
+        "end": 36.061834
+      },
+      {
+        "phase": "receive",
+        "start": 36.061834,
+        "end": 39.012459
+      },
+      {
+        "phase": "callback",
+        "start": 39.012459,
+        "end": 39.018042
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.018042,
+        "end": 39.019124999999995
+      },
+      {
+        "phase": "callback",
+        "start": 39.019124999999995,
+        "end": 39.106084
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.106084,
+        "end": 39.108250000000005
+      },
+      {
+        "phase": "callback",
+        "start": 39.108250000000005,
+        "end": 39.11375
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.11375,
+        "end": 39.121125
+      },
+      {
+        "phase": "callback",
+        "start": 39.121125,
+        "end": 39.127625
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.127625,
+        "end": 39.129625
+      },
+      {
+        "phase": "callback",
+        "start": 39.129625,
+        "end": 39.13125
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.13125,
+        "end": 39.132208999999996
+      },
+      {
+        "phase": "callback",
+        "start": 39.132208999999996,
+        "end": 39.177333999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.177333999999995,
+        "end": 39.178791999999994
+      },
+      {
+        "phase": "callback",
+        "start": 39.178791999999994,
+        "end": 39.447292
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.447292,
+        "end": 39.449042
+      },
+      {
+        "phase": "callback",
+        "start": 39.449042,
+        "end": 39.450917
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.450917,
+        "end": 39.45166699999999
+      },
+      {
+        "phase": "callback",
+        "start": 39.45166699999999,
+        "end": 39.46945899999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.46945899999999,
+        "end": 39.470542
+      },
+      {
+        "phase": "callback",
+        "start": 39.470542,
+        "end": 39.471124999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.471124999999994,
+        "end": 39.471792
+      },
+      {
+        "phase": "callback",
+        "start": 39.471792,
+        "end": 39.472958999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.472958999999996,
+        "end": 39.473625000000006
+      },
+      {
+        "phase": "callback",
+        "start": 39.473625000000006,
+        "end": 39.47474999999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.47474999999999,
+        "end": 39.475458999999994
+      },
+      {
+        "phase": "callback",
+        "start": 39.475458999999994,
+        "end": 39.51779199999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.51779199999999,
+        "end": 39.519042000000006
+      },
+      {
+        "phase": "callback",
+        "start": 39.519042000000006,
+        "end": 39.630292000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.630292000000004,
+        "end": 39.631291999999995
+      },
+      {
+        "phase": "callback",
+        "start": 39.631291999999995,
+        "end": 39.633041999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.633041999999996,
+        "end": 39.63379200000001
+      },
+      {
+        "phase": "callback",
+        "start": 39.63379200000001,
+        "end": 39.634584
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.634584,
+        "end": 39.63595900000001
+      },
+      {
+        "phase": "callback",
+        "start": 39.63595900000001,
+        "end": 39.636500000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.636500000000005,
+        "end": 39.637167
+      },
+      {
+        "phase": "callback",
+        "start": 39.637167,
+        "end": 39.637708999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.637708999999994,
+        "end": 39.638375
+      },
+      {
+        "phase": "callback",
+        "start": 39.638375,
+        "end": 39.63895899999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.63895899999999,
+        "end": 39.63975
+      },
+      {
+        "phase": "callback",
+        "start": 39.63975,
+        "end": 39.64025
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.64025,
+        "end": 39.641541999999994
+      },
+      {
+        "phase": "callback",
+        "start": 39.641541999999994,
+        "end": 39.64216699999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 39.64216699999999,
+        "end": 39.642959
+      },
+      {
+        "phase": "callback",
+        "start": 39.642959,
+        "end": 39.654834
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 17.347762867216986,
+      "confidence95Percent": [
+        16.353184533557364,
+        18.297747299937793
+      ],
+      "blocks": 100,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 18.343953168680528
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 17.337417105172126
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 17.422098226998862
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 16.295770395299726
+        }
+      ]
+    }
+  },
+  {
+    "operation": "write",
+    "driver": "native-cluster",
+    "n": 100,
+    "mean": 61.31392133,
+    "median": 60.949583499999996,
+    "medianAbsoluteDeviation": 1.1886035000000064,
+    "p95": 65.037459,
+    "roles": {
+      "PRIMARY": 100
+    },
+    "sockets": {
+      "4": 100
+    },
+    "dnsMeanMs": {
+      "SRV": 0.35819754,
+      "TXT": 0.5134245699999997,
+      "seedlistWall": 0.5674245599999995,
+      "selectedHostname": 0.7563628799999986
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 23.05407125,
+      "checkouts": 23.275344179999998,
+      "readyToCommand": 0.4142479300000005,
+      "command": 8.5733692,
+      "afterCommand": 0.6635633299999995
+    },
+    "gapMeanMs": {
+      "poolGaps": 1.666834959999999,
+      "beforeCommand": 0.13092785000000062,
+      "afterReply": 0.40435418999999995,
+      "unclassified": 28.42599509
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.5885000000000034,
+      "lookup": 0.7920000000000016,
+      "tcp": 3.674416999999991,
+      "tls": 4.081917000000004,
+      "hello": 4.532499999999999,
+      "auth": 7.775625000000005,
+      "send": 0.45608299999999247,
+      "receive": 8.569834,
+      "monitor": 16.107958000000004,
+      "poolGaps": 0.0,
+      "beforeCommand": 0.0,
+      "afterReply": 0.0,
+      "beforeSocket": 0.0,
+      "unattributed": 0.0,
+      "callback": 4.816500000000005,
+      "code:Facade / client construction": 0.4235830000000007,
+      "code:Native URI/options parsing": 2.3689579999999992,
+      "code:Load runtime adapter": 1.2122089999999943,
+      "code:Read TLS CA certificate": 0.578998999999996,
+      "code:Container metadata probe": 2.298792000000006,
+      "dispatch": 0.04074999999998141,
+      "code:Topology construction": 0.25900000000000034,
+      "code:TLS socket/context construction": 2.3510419999999996,
+      "code:Await handshake metadata": 0.03108300000000952
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "callback",
+        "start": 0,
+        "end": 0.1595000000000013
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 0.1595000000000013,
+        "end": 0.3133750000000006
+      },
+      {
+        "phase": "code:Native URI/options parsing",
+        "start": 0.3133750000000006,
+        "end": 2.682333
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 2.682333,
+        "end": 2.9520410000000012
+      },
+      {
+        "phase": "code:Load runtime adapter",
+        "start": 2.9520410000000012,
+        "end": 4.164249999999996
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 4.164249999999996,
+        "end": 4.529790999999996
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 4.529790999999996,
+        "end": 6.828583000000002
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 6.828583000000002,
+        "end": 7.0420409999999976
+      },
+      {
+        "phase": "callback",
+        "start": 7.0420409999999976,
+        "end": 7.042541
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.042541,
+        "end": 7.043582999999998
+      },
+      {
+        "phase": "callback",
+        "start": 7.043582999999998,
+        "end": 7.160624999999996
+      },
+      {
+        "phase": "clusterDns",
+        "start": 7.160624999999996,
+        "end": 7.749124999999999
+      },
+      {
+        "phase": "callback",
+        "start": 7.749124999999999,
+        "end": 7.7705410000000015
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.7705410000000015,
+        "end": 7.771915999999997
+      },
+      {
+        "phase": "callback",
+        "start": 7.771915999999997,
+        "end": 7.772750000000002
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.772750000000002,
+        "end": 7.77375
+      },
+      {
+        "phase": "callback",
+        "start": 7.77375,
+        "end": 7.779415999999998
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.779415999999998,
+        "end": 7.780457999999996
+      },
+      {
+        "phase": "callback",
+        "start": 7.780457999999996,
+        "end": 7.78125
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.78125,
+        "end": 7.782249999999998
+      },
+      {
+        "phase": "callback",
+        "start": 7.782249999999998,
+        "end": 7.783166000000001
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.783166000000001,
+        "end": 7.784124999999996
+      },
+      {
+        "phase": "callback",
+        "start": 7.784124999999996,
+        "end": 7.9318329999999975
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.9318329999999975,
+        "end": 7.933540999999998
+      },
+      {
+        "phase": "callback",
+        "start": 7.933540999999998,
+        "end": 7.982875
+      },
+      {
+        "phase": "dispatch",
+        "start": 7.982875,
+        "end": 7.984749999999998
+      },
+      {
+        "phase": "callback",
+        "start": 7.984749999999998,
+        "end": 7.989790999999997
+      },
+      {
+        "phase": "code:Topology construction",
+        "start": 7.989790999999997,
+        "end": 8.248790999999997
+      },
+      {
+        "phase": "callback",
+        "start": 8.248790999999997,
+        "end": 11.077416
+      },
+      {
+        "phase": "code:TLS socket/context construction",
+        "start": 11.077416,
+        "end": 13.428458
+      },
+      {
+        "phase": "monitor",
+        "start": 13.428458,
+        "end": 29.536416000000003
+      },
+      {
+        "phase": "lookup",
+        "start": 29.536416000000003,
+        "end": 30.328416000000004
+      },
+      {
+        "phase": "tcp",
+        "start": 30.328416000000004,
+        "end": 34.002832999999995
+      },
+      {
+        "phase": "tls",
+        "start": 34.002832999999995,
+        "end": 38.08475
+      },
+      {
+        "phase": "callback",
+        "start": 38.08475,
+        "end": 38.09070799999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.09070799999999,
+        "end": 38.094458
+      },
+      {
+        "phase": "callback",
+        "start": 38.094458,
+        "end": 38.10508299999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.10508299999999,
+        "end": 38.106666000000004
+      },
+      {
+        "phase": "callback",
+        "start": 38.106666000000004,
+        "end": 38.28783299999999
+      },
+      {
+        "phase": "code:Await handshake metadata",
+        "start": 38.28783299999999,
+        "end": 38.318916
+      },
+      {
+        "phase": "callback",
+        "start": 38.318916,
+        "end": 38.319333
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.319333,
+        "end": 38.320166
+      },
+      {
+        "phase": "callback",
+        "start": 38.320166,
+        "end": 38.773916
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.773916,
+        "end": 38.77583299999999
+      },
+      {
+        "phase": "callback",
+        "start": 38.77583299999999,
+        "end": 38.84308299999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.84308299999999,
+        "end": 38.84454099999999
+      },
+      {
+        "phase": "callback",
+        "start": 38.84454099999999,
+        "end": 38.845375000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 38.845375000000004,
+        "end": 38.84625
+      },
+      {
+        "phase": "callback",
+        "start": 38.84625,
+        "end": 38.87370799999999
+      },
+      {
+        "phase": "hello",
+        "start": 38.87370799999999,
+        "end": 43.40620799999999
+      },
+      {
+        "phase": "callback",
+        "start": 43.40620799999999,
+        "end": 43.408125
+      },
+      {
+        "phase": "dispatch",
+        "start": 43.408125,
+        "end": 43.408916000000005
+      },
+      {
+        "phase": "callback",
+        "start": 43.408916000000005,
+        "end": 43.409707999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 43.409707999999995,
+        "end": 43.4105
+      },
+      {
+        "phase": "callback",
+        "start": 43.4105,
+        "end": 43.50975
+      },
+      {
+        "phase": "auth",
+        "start": 43.50975,
+        "end": 51.285375
+      },
+      {
+        "phase": "callback",
+        "start": 51.285375,
+        "end": 51.287082999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.287082999999996,
+        "end": 51.287875
+      },
+      {
+        "phase": "callback",
+        "start": 51.287875,
+        "end": 51.288540999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.288540999999995,
+        "end": 51.289208
+      },
+      {
+        "phase": "callback",
+        "start": 51.289208,
+        "end": 51.290041
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.290041,
+        "end": 51.290707999999995
+      },
+      {
+        "phase": "callback",
+        "start": 51.290707999999995,
+        "end": 51.411083000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.411083000000005,
+        "end": 51.412166
+      },
+      {
+        "phase": "callback",
+        "start": 51.412166,
+        "end": 51.413624999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.413624999999996,
+        "end": 51.415583
+      },
+      {
+        "phase": "callback",
+        "start": 51.415583,
+        "end": 51.421375
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.421375,
+        "end": 51.42245799999999
+      },
+      {
+        "phase": "callback",
+        "start": 51.42245799999999,
+        "end": 51.515833
+      },
+      {
+        "phase": "send",
+        "start": 51.515833,
+        "end": 51.97191599999999
+      },
+      {
+        "phase": "receive",
+        "start": 51.97191599999999,
+        "end": 60.54174999999999
+      },
+      {
+        "phase": "callback",
+        "start": 60.54174999999999,
+        "end": 60.546541000000005
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.546541000000005,
+        "end": 60.548249999999996
+      },
+      {
+        "phase": "callback",
+        "start": 60.548249999999996,
+        "end": 60.715333
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.715333,
+        "end": 60.717708
+      },
+      {
+        "phase": "callback",
+        "start": 60.717708,
+        "end": 60.726375000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.726375000000004,
+        "end": 60.728125000000006
+      },
+      {
+        "phase": "callback",
+        "start": 60.728125000000006,
+        "end": 60.79466599999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.79466599999999,
+        "end": 60.796291
+      },
+      {
+        "phase": "callback",
+        "start": 60.796291,
+        "end": 60.937124999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.937124999999995,
+        "end": 60.93875
+      },
+      {
+        "phase": "callback",
+        "start": 60.93875,
+        "end": 60.939750000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.939750000000004,
+        "end": 60.94125
+      },
+      {
+        "phase": "callback",
+        "start": 60.94125,
+        "end": 60.942458
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.942458,
+        "end": 60.943540999999996
+      },
+      {
+        "phase": "callback",
+        "start": 60.943540999999996,
+        "end": 60.944208
+      },
+      {
+        "phase": "dispatch",
+        "start": 60.944208,
+        "end": 60.945041
+      },
+      {
+        "phase": "callback",
+        "start": 60.945041,
+        "end": 60.95975
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 15.06392350978345,
+      "confidence95Percent": [
+        14.231634790022174,
+        15.861804654642098
+      ],
+      "blocks": 100,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 14.098630340779472
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 15.28522445274022
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 15.142060184175177
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 15.70781305602792
+        }
+      ]
+    }
+  },
+  {
+    "operation": "write",
+    "driver": "serverless",
+    "n": 100,
+    "mean": 52.07763912,
+    "median": 52.112271,
+    "medianAbsoluteDeviation": 0.941271000000004,
+    "p95": 54.426500000000004,
+    "roles": {
+      "PRIMARY": 100
+    },
+    "sockets": {
+      "1": 100
+    },
+    "dnsMeanMs": {
+      "SRV": 0,
+      "TXT": 0,
+      "seedlistWall": 0,
+      "selectedHostname": 0.5755737300000003
+    },
+    "lifecycleMeanMs": {
+      "connectionSetup": 29.72392586,
+      "checkouts": 0.22962497000000157,
+      "readyToCommand": 2.2907333100000002,
+      "command": 8.692733370000001,
+      "afterCommand": 0.6200911799999997
+    },
+    "gapMeanMs": {
+      "poolGaps": 6.257687570000002,
+      "beforeCommand": 1.8033425399999987,
+      "afterReply": 0.35905079000000045,
+      "unclassified": 10.7501554
+    },
+    "illustratedTraceAccountingMs": {
+      "clusterDns": 0.0,
+      "lookup": 0.5714579999999927,
+      "tcp": 4.136209000000008,
+      "tls": 5.360416000000001,
+      "hello": 6.355291000000008,
+      "auth": 8.190207999999998,
+      "send": 0.5372919999999937,
+      "receive": 8.446750000000009,
+      "monitor": 0.0,
+      "poolGaps": 0.0,
+      "beforeCommand": 0.0,
+      "afterReply": 0.0,
+      "beforeSocket": 0.0,
+      "unattributed": 0.0,
+      "callback": 7.919507999999986,
+      "code:Facade / client construction": 1.2732079999999968,
+      "dispatch": 0.18895200000000045,
+      "code:Read plugin topology": 0.26745800000000486,
+      "code:Direct URI rewrite": 0.9605419999999967,
+      "code:Native client construction": 0.32483299999999815,
+      "code:Native URI/options parsing": 1.6166669999999996,
+      "code:Load runtime adapter": 1.311791999999997,
+      "code:Load no-monitoring module": 0.4038330000000059,
+      "code:Container metadata probe": 0.9984999999999928,
+      "code:Activate no-monitoring patch": 0.16062500000000313,
+      "code:Read TLS CA certificate": 0.4937919999999991,
+      "code:Topology construction": 0.2075409999999991,
+      "code:TLS socket/context construction": 2.358457999999999,
+      "code:Await handshake metadata": 0.04183400000000859
+    },
+    "illustratedTraceSegments": [
+      {
+        "phase": "callback",
+        "start": 0,
+        "end": 0.1509590000000003
+      },
+      {
+        "phase": "code:Facade / client construction",
+        "start": 0.1509590000000003,
+        "end": 1.424166999999997
+      },
+      {
+        "phase": "callback",
+        "start": 1.424166999999997,
+        "end": 1.6579589999999982
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.6579589999999982,
+        "end": 1.7056669999999983
+      },
+      {
+        "phase": "callback",
+        "start": 1.7056669999999983,
+        "end": 1.7508750000000006
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.7508750000000006,
+        "end": 1.7621249999999975
+      },
+      {
+        "phase": "callback",
+        "start": 1.7621249999999975,
+        "end": 1.7824999999999989
+      },
+      {
+        "phase": "dispatch",
+        "start": 1.7824999999999989,
+        "end": 1.7866669999999942
+      },
+      {
+        "phase": "callback",
+        "start": 1.7866669999999942,
+        "end": 1.8722919999999945
+      },
+      {
+        "phase": "code:Read plugin topology",
+        "start": 1.8722919999999945,
+        "end": 2.1397499999999994
+      },
+      {
+        "phase": "callback",
+        "start": 2.1397499999999994,
+        "end": 2.142208999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.142208999999994,
+        "end": 2.150041999999999
+      },
+      {
+        "phase": "callback",
+        "start": 2.150041999999999,
+        "end": 2.2422089999999955
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.2422089999999955,
+        "end": 2.246083999999996
+      },
+      {
+        "phase": "callback",
+        "start": 2.246083999999996,
+        "end": 2.2542919999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.2542919999999995,
+        "end": 2.2566249999999997
+      },
+      {
+        "phase": "callback",
+        "start": 2.2566249999999997,
+        "end": 2.262625
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.262625,
+        "end": 2.264458999999995
+      },
+      {
+        "phase": "callback",
+        "start": 2.264458999999995,
+        "end": 2.2653339999999957
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.2653339999999957,
+        "end": 2.271583999999997
+      },
+      {
+        "phase": "callback",
+        "start": 2.271583999999997,
+        "end": 2.2740419999999943
+      },
+      {
+        "phase": "dispatch",
+        "start": 2.2740419999999943,
+        "end": 2.2829169999999976
+      },
+      {
+        "phase": "callback",
+        "start": 2.2829169999999976,
+        "end": 2.3237919999999974
+      },
+      {
+        "phase": "code:Direct URI rewrite",
+        "start": 2.3237919999999974,
+        "end": 3.284333999999994
+      },
+      {
+        "phase": "callback",
+        "start": 3.284333999999994,
+        "end": 3.311
+      },
+      {
+        "phase": "code:Native client construction",
+        "start": 3.311,
+        "end": 3.3768749999999983
+      },
+      {
+        "phase": "code:Native URI/options parsing",
+        "start": 3.3768749999999983,
+        "end": 4.993541999999998
+      },
+      {
+        "phase": "code:Native client construction",
+        "start": 4.993541999999998,
+        "end": 5.252499999999998
+      },
+      {
+        "phase": "code:Load runtime adapter",
+        "start": 5.252499999999998,
+        "end": 6.564291999999995
+      },
+      {
+        "phase": "code:Load no-monitoring module",
+        "start": 6.564291999999995,
+        "end": 6.968125000000001
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 6.968125000000001,
+        "end": 7.869166999999997
+      },
+      {
+        "phase": "code:Activate no-monitoring patch",
+        "start": 7.869166999999997,
+        "end": 8.029792
+      },
+      {
+        "phase": "code:Container metadata probe",
+        "start": 8.029792,
+        "end": 8.127249999999997
+      },
+      {
+        "phase": "code:Read TLS CA certificate",
+        "start": 8.127249999999997,
+        "end": 8.621041999999996
+      },
+      {
+        "phase": "callback",
+        "start": 8.621041999999996,
+        "end": 8.621417000000001
+      },
+      {
+        "phase": "dispatch",
+        "start": 8.621417000000001,
+        "end": 8.622374999999998
+      },
+      {
+        "phase": "callback",
+        "start": 8.622374999999998,
+        "end": 8.624209
+      },
+      {
+        "phase": "code:Topology construction",
+        "start": 8.624209,
+        "end": 8.83175
+      },
+      {
+        "phase": "callback",
+        "start": 8.83175,
+        "end": 10.343708999999997
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.343708999999997,
+        "end": 10.347166999999999
+      },
+      {
+        "phase": "callback",
+        "start": 10.347166999999999,
+        "end": 10.387333999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.387333999999996,
+        "end": 10.389333999999998
+      },
+      {
+        "phase": "callback",
+        "start": 10.389333999999998,
+        "end": 10.401708999999997
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.401708999999997,
+        "end": 10.403208999999997
+      },
+      {
+        "phase": "callback",
+        "start": 10.403208999999997,
+        "end": 10.413416999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 10.413416999999995,
+        "end": 10.414666999999994
+      },
+      {
+        "phase": "callback",
+        "start": 10.414666999999994,
+        "end": 12.358584
+      },
+      {
+        "phase": "code:TLS socket/context construction",
+        "start": 12.358584,
+        "end": 14.717042
+      },
+      {
+        "phase": "lookup",
+        "start": 14.717042,
+        "end": 15.288499999999992
+      },
+      {
+        "phase": "tcp",
+        "start": 15.288499999999992,
+        "end": 19.424709
+      },
+      {
+        "phase": "tls",
+        "start": 19.424709,
+        "end": 24.785125
+      },
+      {
+        "phase": "callback",
+        "start": 24.785125,
+        "end": 24.811833999999998
+      },
+      {
+        "phase": "dispatch",
+        "start": 24.811833999999998,
+        "end": 24.820666999999993
+      },
+      {
+        "phase": "callback",
+        "start": 24.820666999999993,
+        "end": 24.836209000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 24.836209000000004,
+        "end": 24.838374999999992
+      },
+      {
+        "phase": "callback",
+        "start": 24.838374999999992,
+        "end": 25.407999999999994
+      },
+      {
+        "phase": "code:Await handshake metadata",
+        "start": 25.407999999999994,
+        "end": 25.449834000000003
+      },
+      {
+        "phase": "callback",
+        "start": 25.449834000000003,
+        "end": 25.450584
+      },
+      {
+        "phase": "dispatch",
+        "start": 25.450584,
+        "end": 25.451709
+      },
+      {
+        "phase": "callback",
+        "start": 25.451709,
+        "end": 25.869834000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 25.869834000000004,
+        "end": 25.872042
+      },
+      {
+        "phase": "callback",
+        "start": 25.872042,
+        "end": 25.975458999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 25.975458999999994,
+        "end": 25.977541999999993
+      },
+      {
+        "phase": "callback",
+        "start": 25.977541999999993,
+        "end": 25.97858399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 25.97858399999999,
+        "end": 25.979583999999996
+      },
+      {
+        "phase": "callback",
+        "start": 25.979583999999996,
+        "end": 26.055333999999995
+      },
+      {
+        "phase": "hello",
+        "start": 26.055333999999995,
+        "end": 32.410625
+      },
+      {
+        "phase": "callback",
+        "start": 32.410625,
+        "end": 32.414083999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 32.414083999999995,
+        "end": 32.415167000000004
+      },
+      {
+        "phase": "callback",
+        "start": 32.415167000000004,
+        "end": 32.416166999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 32.416166999999994,
+        "end": 32.41741699999999
+      },
+      {
+        "phase": "callback",
+        "start": 32.41741699999999,
+        "end": 32.53041699999999
+      },
+      {
+        "phase": "auth",
+        "start": 32.53041699999999,
+        "end": 40.72062499999999
+      },
+      {
+        "phase": "callback",
+        "start": 40.72062499999999,
+        "end": 40.722709
+      },
+      {
+        "phase": "dispatch",
+        "start": 40.722709,
+        "end": 40.72424999999999
+      },
+      {
+        "phase": "callback",
+        "start": 40.72424999999999,
+        "end": 40.726209000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 40.726209000000004,
+        "end": 40.727084
+      },
+      {
+        "phase": "callback",
+        "start": 40.727084,
+        "end": 40.780334
+      },
+      {
+        "phase": "dispatch",
+        "start": 40.780334,
+        "end": 40.782875
+      },
+      {
+        "phase": "callback",
+        "start": 40.782875,
+        "end": 41.182624999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.182624999999994,
+        "end": 41.184625000000004
+      },
+      {
+        "phase": "callback",
+        "start": 41.184625000000004,
+        "end": 41.186209
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.186209,
+        "end": 41.187125
+      },
+      {
+        "phase": "callback",
+        "start": 41.187125,
+        "end": 41.187999999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.187999999999995,
+        "end": 41.18883399999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.18883399999999,
+        "end": 41.211166999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.211166999999996,
+        "end": 41.213041999999994
+      },
+      {
+        "phase": "callback",
+        "start": 41.213041999999994,
+        "end": 41.24475
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.24475,
+        "end": 41.246084
+      },
+      {
+        "phase": "callback",
+        "start": 41.246084,
+        "end": 41.246834
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.246834,
+        "end": 41.248167
+      },
+      {
+        "phase": "callback",
+        "start": 41.248167,
+        "end": 41.248833999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.248833999999995,
+        "end": 41.249874999999996
+      },
+      {
+        "phase": "callback",
+        "start": 41.249874999999996,
+        "end": 41.258374999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.258374999999994,
+        "end": 41.259375
+      },
+      {
+        "phase": "callback",
+        "start": 41.259375,
+        "end": 41.293541999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.293541999999995,
+        "end": 41.29458399999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.29458399999999,
+        "end": 41.295167
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.295167,
+        "end": 41.295959
+      },
+      {
+        "phase": "callback",
+        "start": 41.295959,
+        "end": 41.296584
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.296584,
+        "end": 41.29820899999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.29820899999999,
+        "end": 41.306000000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.306000000000004,
+        "end": 41.30691699999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.30691699999999,
+        "end": 41.310584
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.310584,
+        "end": 41.312209
+      },
+      {
+        "phase": "callback",
+        "start": 41.312209,
+        "end": 41.312875
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.312875,
+        "end": 41.313667
+      },
+      {
+        "phase": "callback",
+        "start": 41.313667,
+        "end": 41.321209
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.321209,
+        "end": 41.322584
+      },
+      {
+        "phase": "callback",
+        "start": 41.322584,
+        "end": 41.450667
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.450667,
+        "end": 41.451792000000005
+      },
+      {
+        "phase": "callback",
+        "start": 41.451792000000005,
+        "end": 41.452459
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.452459,
+        "end": 41.454084
+      },
+      {
+        "phase": "callback",
+        "start": 41.454084,
+        "end": 41.523834
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.523834,
+        "end": 41.525917
+      },
+      {
+        "phase": "callback",
+        "start": 41.525917,
+        "end": 41.53208399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.53208399999999,
+        "end": 41.533667
+      },
+      {
+        "phase": "callback",
+        "start": 41.533667,
+        "end": 41.534541999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.534541999999995,
+        "end": 41.535374999999995
+      },
+      {
+        "phase": "callback",
+        "start": 41.535374999999995,
+        "end": 41.598834000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.598834000000004,
+        "end": 41.600249999999996
+      },
+      {
+        "phase": "callback",
+        "start": 41.600249999999996,
+        "end": 41.604667
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.604667,
+        "end": 41.60595899999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.60595899999999,
+        "end": 41.606958999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.606958999999996,
+        "end": 41.60854199999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.60854199999999,
+        "end": 41.60937499999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.60937499999999,
+        "end": 41.61020899999999
+      },
+      {
+        "phase": "callback",
+        "start": 41.61020899999999,
+        "end": 41.61154199999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.61154199999999,
+        "end": 41.612417
+      },
+      {
+        "phase": "callback",
+        "start": 41.612417,
+        "end": 41.61375
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.61375,
+        "end": 41.615125
+      },
+      {
+        "phase": "callback",
+        "start": 41.615125,
+        "end": 41.61675
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.61675,
+        "end": 41.617667000000004
+      },
+      {
+        "phase": "callback",
+        "start": 41.617667000000004,
+        "end": 41.618625
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.618625,
+        "end": 41.619542
+      },
+      {
+        "phase": "callback",
+        "start": 41.619542,
+        "end": 41.621041999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.621041999999996,
+        "end": 41.621917
+      },
+      {
+        "phase": "callback",
+        "start": 41.621917,
+        "end": 41.622959
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.622959,
+        "end": 41.624249999999996
+      },
+      {
+        "phase": "callback",
+        "start": 41.624249999999996,
+        "end": 41.625291999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 41.625291999999995,
+        "end": 41.626833999999995
+      },
+      {
+        "phase": "callback",
+        "start": 41.626833999999995,
+        "end": 42.452999999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.452999999999996,
+        "end": 42.455125
+      },
+      {
+        "phase": "callback",
+        "start": 42.455125,
+        "end": 42.46595899999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.46595899999999,
+        "end": 42.467999999999996
+      },
+      {
+        "phase": "callback",
+        "start": 42.467999999999996,
+        "end": 42.48158399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.48158399999999,
+        "end": 42.483208999999995
+      },
+      {
+        "phase": "callback",
+        "start": 42.483208999999995,
+        "end": 42.49058399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.49058399999999,
+        "end": 42.491542
+      },
+      {
+        "phase": "callback",
+        "start": 42.491542,
+        "end": 42.495416999999996
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.495416999999996,
+        "end": 42.496209
+      },
+      {
+        "phase": "callback",
+        "start": 42.496209,
+        "end": 42.684625000000004
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.684625000000004,
+        "end": 42.68637499999999
+      },
+      {
+        "phase": "callback",
+        "start": 42.68637499999999,
+        "end": 42.705459
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.705459,
+        "end": 42.70716699999999
+      },
+      {
+        "phase": "callback",
+        "start": 42.70716699999999,
+        "end": 42.708334
+      },
+      {
+        "phase": "dispatch",
+        "start": 42.708334,
+        "end": 42.709416999999995
+      },
+      {
+        "phase": "callback",
+        "start": 42.709416999999995,
+        "end": 42.791667
+      },
+      {
+        "phase": "send",
+        "start": 42.791667,
+        "end": 43.32895899999999
+      },
+      {
+        "phase": "receive",
+        "start": 43.32895899999999,
+        "end": 51.775709
+      },
+      {
+        "phase": "callback",
+        "start": 51.775709,
+        "end": 51.78083399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.78083399999999,
+        "end": 51.781749999999995
+      },
+      {
+        "phase": "callback",
+        "start": 51.781749999999995,
+        "end": 51.871625
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.871625,
+        "end": 51.8735
+      },
+      {
+        "phase": "callback",
+        "start": 51.8735,
+        "end": 51.87825
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.87825,
+        "end": 51.879292
+      },
+      {
+        "phase": "callback",
+        "start": 51.879292,
+        "end": 51.960958999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 51.960958999999995,
+        "end": 51.962375
+      },
+      {
+        "phase": "callback",
+        "start": 51.962375,
+        "end": 52.103041999999995
+      },
+      {
+        "phase": "dispatch",
+        "start": 52.103041999999995,
+        "end": 52.104209000000004
+      },
+      {
+        "phase": "callback",
+        "start": 52.104209000000004,
+        "end": 52.104959
+      },
+      {
+        "phase": "dispatch",
+        "start": 52.104959,
+        "end": 52.105792
+      },
+      {
+        "phase": "callback",
+        "start": 52.105792,
+        "end": 52.10658399999999
+      },
+      {
+        "phase": "dispatch",
+        "start": 52.10658399999999,
+        "end": 52.107375
+      },
+      {
+        "phase": "callback",
+        "start": 52.107375,
+        "end": 52.108459
+      },
+      {
+        "phase": "dispatch",
+        "start": 52.108459,
+        "end": 52.109709
+      },
+      {
+        "phase": "callback",
+        "start": 52.109709,
+        "end": 52.110291999999994
+      },
+      {
+        "phase": "dispatch",
+        "start": 52.110291999999994,
+        "end": 52.111208999999995
+      },
+      {
+        "phase": "callback",
+        "start": 52.111208999999995,
+        "end": 52.125167
+      }
+    ],
+    "comparison": {
+      "reductionPercent": 15.06392350978345,
+      "confidence95Percent": [
+        14.231634790022174,
+        15.861804654642098
+      ],
+      "blocks": 100,
+      "bootstrapResamples": 2000,
+      "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch",
+      "batches": [
+        {
+          "batch": 1,
+          "reductionPercent": 14.098630340779472
+        },
+        {
+          "batch": 2,
+          "reductionPercent": 15.28522445274022
+        },
+        {
+          "batch": 3,
+          "reductionPercent": 15.142060184175177
+        },
+        {
+          "batch": 4,
+          "reductionPercent": 15.70781305602792
+        }
+      ]
+    }
+  }
+]

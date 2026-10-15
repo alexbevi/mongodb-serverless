@@ -5,15 +5,15 @@ driver, measured against a local three-member TLS replica set.
 
 ![Local connection timings](benchmark/results/local/latency.png)
 
-The diagram compares 48 cold invocations per driver/operation, using socket and
-client-event timings without diagnostic code probes or async-hook stack capture.
-Each illustrated trace is the sample nearest its driver/operation median;
-headings report cohort means. The first operation connects automatically.
+The diagram shows four cold invocations per driver/operation, with code probes,
+callback tracing and socket/client events recording the full breakdown.
+Each illustrated trace is the sample nearest its driver/operation median.
+Headings report means and percentage reductions from that same measured cohort.
+The first operation connects automatically, and the local client has no CPU quota.
 
-The local client has no CPU quota. A separate [workflow diagram](benchmark/README.md#reading-the-diagram)
-uses diagnostic probes to explain setup, connection and operation intervals.
-Its timings include profiling overhead and are excluded from these statistics.
-Both runs are retained in the same local result set.
+Timings include profiling overhead, so the percentages describe this instrumented
+run. The [legend definitions](benchmark/README.md#reading-the-diagram) explain
+the measured setup, connection and operation intervals.
 
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
@@ -24,7 +24,7 @@ Both runs are retained in the same local result set.
 From the repository root, with Docker running:
 
 ```sh
-npm run benchmark -- --no-monitoring --samples 48
+npm run benchmark -- --diagnostics --no-monitoring --samples 4
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
 /tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json --environment local
@@ -32,7 +32,6 @@ python3 -m venv /tmp/mongodb-benchmark-report
 
 The benchmark replaces `benchmark/results/local/samples.json`. The report command
 replaces the local diagram and summary. It does not read or change the AWS snapshot.
-See the [harness instructions](benchmark/README.md#usage) to refresh the separate diagnostic trace.
 Only one local result set and one AWS result set are retained; replace those
 files instead of adding run folders. SVGs and other generated result files are ignored.
 

@@ -547,7 +547,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     axis.set_ylim(-1.2, 4)
 
 
-def render(data, environment, output, image_name="latency.png", save_summary=True):
+def render(data, environment, output):
     rows = local_samples(data) if environment == "local" else data["samples"]
     summary = summarize(rows)
     representatives = {}
@@ -611,8 +611,7 @@ def render(data, environment, output, image_name="latency.png", save_summary=Tru
         }
         reduction = 100 * (1 - means["serverless"] / means["native-cluster"])
         axis.set_title(
-            (f"{operation.title()} · cold invocation with diagnostic probes" if diagnostic else
-             f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)"),
+            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)",
             loc="left",
             fontsize=15,
             weight="bold",
@@ -666,10 +665,9 @@ def render(data, environment, output, image_name="latency.png", save_summary=Tru
         fontsize=10,
     )
     output.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output / image_name, dpi=160, facecolor="white")
+    figure.savefig(output / "latency.png", dpi=160, facecolor="white")
     plt.close(figure)
-    if save_summary:
-        (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 
 if __name__ == "__main__":
@@ -681,5 +679,3 @@ if __name__ == "__main__":
     data = json.loads(arguments.samples.read_text())
     output = arguments.output_dir or arguments.samples.parent
     render(data, arguments.environment, output)
-    if "diagnostic" in data:
-        render(data["diagnostic"], arguments.environment, output, "workflow.png", save_summary=False)

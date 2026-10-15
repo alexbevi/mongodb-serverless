@@ -8,17 +8,24 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
-    def test_retained_local_performance_excludes_diagnostic_probes(self):
+    def test_local_diagram_uses_one_measured_cohort_with_percentage_headings(self):
+        import importlib.util
+        from unittest.mock import patch
         root = Path(__file__).parents[1]
         data = json.loads((root / "results/local/samples.json").read_text())
-        self.assertFalse(data["configuration"].get("diagnostics"))
+        cohort = data.get("diagnostic", data)
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(report.plt, "close") as close:
+                report.render(cohort, "local", Path(directory))
+            for axis in close.call_args.args[0].axes:
+                self.assertIn("% less time", axis.get_title(loc="left"))
+        self.assertTrue(data["configuration"]["diagnostics"])
+        self.assertNotIn("diagnostic", data)
         self.assertEqual(data["environment"]["cpuMax"].split()[0], "max")
         for sample in data["samples"]:
-            self.assertNotIn("execution", sample["trace"])
-        diagnostic = data["diagnostic"]
-        self.assertTrue(diagnostic["configuration"]["diagnostics"])
-        self.assertEqual(diagnostic["environment"]["cpuMax"].split()[0], "max")
-        for sample in diagnostic["samples"]:
             trace = sample["trace"]
             self.assertEqual(trace["execution"]["start"], trace["start"])
             self.assertEqual(trace["execution"]["end"], trace["end"])
@@ -304,7 +311,7 @@ class ReportTest(unittest.TestCase):
             self.assertEqual(hashlib.sha256(snapshot.read_bytes()).hexdigest(), before)
             self.assertEqual(
                 {p.name for p in (output / "local").iterdir()},
-                {"latency.png", "summary.json", "workflow.png"},
+                {"latency.png", "summary.json"},
             )
             summary = json.loads((output / "local/summary.json").read_text())
             self.assertEqual(len(summary), 4)

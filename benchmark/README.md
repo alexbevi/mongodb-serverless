@@ -6,18 +6,16 @@ constructs a client, and completes its first operation against a three-member
 TLS replica set. The operation connects automatically; the benchmark does not
 call `client.connect()` first.
 
-The [performance comparison](../BENCHMARK.md) uses 48 samples per driver/operation
-with socket and client-event instrumentation. The workflow below uses a separate
-24-invocation diagnostic cohort, with code probes and callback tracing enabled.
-Neither run imposes a container CPU quota. Diagnostic timings include tracing
-overhead and are excluded from the performance statistics.
+The [local results](../BENCHMARK.md) retain 24 cold invocations: four per
+read/write and driver variant, including the monitoring-enabled control.
+Code probes and callback tracing measure the breakdown below. There is no
+container CPU quota. Timings and percentage reductions include profiling overhead.
 
 ### Reading the diagram
 
-![Local diagnostic workflow](results/local/workflow.png)
+![Measured local connection breakdown](results/local/latency.png)
 
-The diagnostic cohort is retained under `diagnostic` in `results/local/samples.json`;
-`summary.json` and `latency.png` use only the performance cohort.
+The bars, percentage headings and summary use the same measured cohort.
 
 Timing runs from [handler invocation to its return](handler-base.ts#L98).
 The headings above the bars describe elapsed sections:
@@ -194,30 +192,16 @@ Use Node 24.18 or later, installed workspace dependencies, and Docker Compose wi
 ## Usage
 
 ```sh
-npm run benchmark -- --no-monitoring --samples 48
-# Include code scopes, callback stacks and CPU counters:
-npm run benchmark -- --diagnostics --no-monitoring --samples 4 --output /tmp/mongodb-workflow.json
+npm run benchmark -- --diagnostics --no-monitoring --samples 4
+python3 benchmark/report.py benchmark/results/local/samples.json --environment local
 npm run benchmark:test
 pnpm lint
 ```
 
-After both runs, attach the diagnostic cohort and render the two diagrams:
-
-```sh
-python3 - <<'PY'
-import json
-from pathlib import Path
-path = Path("benchmark/results/local/samples.json")
-data = json.loads(path.read_text())
-data["diagnostic"] = json.loads(Path("/tmp/mongodb-workflow.json").read_text())
-path.write_text(json.dumps(data, indent=2) + "\n")
-PY
-python3 benchmark/report.py benchmark/results/local/samples.json --environment local
-```
-
 Install the [report dependencies](requirements-report.txt) in a Python virtual
-environment first. Rendering replaces `latency.png`, `workflow.png` and
-`summary.json`; it never combines the two cohorts' statistics.
+environment first. Rendering replaces the single `latency.png` and `summary.json`.
+Omit `--diagnostics` to measure without code probes and callback tracing; that
+run will not provide the detailed setup breakdown.
 
 The command builds the harness and driver dependencies before starting Docker.
 `run.ts` manages the cluster and launches `benchmark.ts` in a fresh process for each

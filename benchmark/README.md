@@ -68,6 +68,35 @@ resource type and the resource's creation stack. That stack identifies where the
 async work was scheduled; it is not a sampled stack of every instruction executed.
 This colour has the same meaning in all three legends.
 
+The parenthesized names list the three largest identified work categories in each
+stage from a separate local CPU profile: 20 cold invocations per driver/operation,
+80 analyzed invocations across the native and no-monitoring clients. They describe
+sampled work, not every callback or exact shares of the illustrated bars. Unclassified
+stacks remain in the retained evidence; the legend ranks named categories only.
+The performance statistics still use the original 100 iterations per cohort.
+
+- **IP validation:** `isIPv4` / `isIPv6`, called from the driver's
+  [TLS option parsing](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts).
+- **Server creation:** construction of the driver's
+  [Server objects](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/server.ts).
+- **SCRAM preparation:** nonce generation, including lazy loading of Node crypto
+  helpers, beneath [SCRAM's prepare method](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/auth/scram.ts).
+- **Connection creation / handshake setup:** the
+  [Connection constructor](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connection.ts)
+  and [performInitialHandshake](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/cmap/connect.ts),
+  outside separately timed wire phases.
+- **Command handling / operation execution:** continuations in
+  [Server.command](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/sdam/server.ts)
+  and [executeOperation](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/operations/execute_operation.ts).
+- **Tracing overhead:** the benchmark's own [async-hook recorder](execution.ts),
+  particularly creation-stack capture and formatting. This cost belongs to the
+  diagnostic instrumentation, not normal driver operation.
+
+The sampled stacks and counts are stored in `callbackProfile` in the local
+`samples.json`. The [classifier](report.py) gives tracing overhead priority over
+its caller and groups the remaining named functions by their work. AWS has no
+corresponding CPU profile; these local labels are not applied to AWS.
+
 **Client & topology initialization.** Related scopes for creating the wrapper and
 native client, parsing URI/options, reading the plugin's topology, rewriting a
 direct member URI and constructing the native topology. See the

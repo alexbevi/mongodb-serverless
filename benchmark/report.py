@@ -2,6 +2,7 @@
 """Render one environment's measured connection traces and summary statistics."""
 
 import argparse
+import textwrap
 from collections import Counter
 import json
 import math
@@ -438,6 +439,37 @@ def section_spans(row):
     return result
 
 
+def callback_work(stack):
+    if any("/benchmark/dist/execution.js" in frame["url"] and frame["function"] in
+           {"init", "before", "after", "transition", "start", "stop"} for frame in stack):
+        return "tracing overhead"
+    names = {frame["function"] for frame in stack}
+    if "parseSslOptions" in names and names.intersection({"isIP", "isIPv4", "isIPv6"}):
+        return "IP validation"
+    if any("/cmap/auth/scram.js" in frame["url"] for frame in stack):
+        return "SCRAM preparation"
+    labels = {"Server": "server creation", "ConnectionPool": "pool creation",
+              "Monitor": "monitor creation", "Connection": "connection creation",
+              "performInitialHandshake": "handshake setup", "executeHandshake": "handshake setup",
+              "serverUpdateHandler": "topology updates", "command": "command handling",
+              "executeOperationWithRetries": "operation execution", "executeOperation": "operation execution",
+              "checkIn": "pool check-in", "Db": "database handle", "db": "database handle"}
+    for frame in stack:
+        if "/mongodb/lib/" in frame["url"] and frame["function"] in labels:
+            return labels[frame["function"]]
+    return "other work"
+
+
+def callback_legend(data, group):
+    counts = {}
+    for entry in data.get("callbackProfile", {}).get("stacks", []):
+        if entry["group"] == group:
+            name = callback_work(entry["stack"])
+            counts[name] = counts.get(name, 0) + entry["samples"]
+    names = sorted((name for name in counts if name != "other work"), key=lambda name: -counts[name])[:3]
+    return "Callbacks (" + ", ".join(names or ["not sampled"]) + ")"
+
+
 def legend_order(rows, group):
     first_seen = {}
     for row in rows:
@@ -716,8 +748,8 @@ def render(data, environment, output):
                 group = "Connection" if name in ("TLS socket/context construction", "Await handshake metadata") else "Setup"
                 groups[group].append(Patch(facecolor=color, label=name, gid="code:" + name))
         groups["Connection"].append(Patch(facecolor=phase_color("monitor"), label="Replica-set monitor activity", gid="monitor"))
-        for group in groups.values():
-            group.extend([Patch(facecolor=phase_color("callback"), label="Callback execution", gid="callback"),
+        for title, group in groups.items():
+            group.extend([Patch(facecolor=phase_color("callback"), label=textwrap.fill(callback_legend(data, title), width=48), gid="callback"),
                           Patch(facecolor=phase_color("dispatch"), label="Event-loop wait / dispatch", gid="dispatch")])
     else:
         if show_gaps:
@@ -737,6 +769,7 @@ def render(data, environment, output):
         0.025,
         "MAD = median absolute deviation. CI = hierarchical paired bootstrap interval for the mean reduction (2,000 resamples).\n"
         "Concurrent node lanes overlap in time and must not be added.\n"
+        + (f"Callback names: largest named sampled work per stage in a separate {data['callbackProfile']['invocations']}-invocation local profile; not a complete attribution of these bars.\n" if data.get("callbackProfile") else "")
         + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
            "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
         ha="center",

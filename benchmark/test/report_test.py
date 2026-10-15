@@ -8,6 +8,27 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_callback_legend_names_measured_work_and_keeps_probe_overhead(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        data = {"callbackProfile": {"stacks": [
+            {"group": "Setup", "samples": 50, "stack": [
+                {"function": "isIPv6", "url": "node:internal/net"},
+                {"function": "parseSslOptions", "url": "/mongodb/lib/cmap/connect.js"}]},
+            {"group": "Setup", "samples": 20, "stack": [
+                {"function": "defaultPrepareStackTrace", "url": "node:internal/errors"},
+                {"function": "init", "url": "/benchmark/dist/execution.js"},
+                {"function": "Server", "url": "/mongodb/lib/sdam/server.js"}]},
+            {"group": "Operation", "samples": 100, "stack": [
+                {"function": "command", "url": "/mongodb/lib/sdam/server.js"}]}]}}
+        self.assertEqual(report.callback_legend(data, "Setup"),
+                         "Callbacks (IP validation, tracing overhead)")
+        self.assertEqual(report.callback_legend(data, "Connection"), "Callbacks (not sampled)")
+        self.assertEqual(report.callback_legend({}, "Setup"), "Callbacks (not sampled)")
+
     def test_cpu_annotation_omits_zero_throttling(self):
         import importlib.util
         root = Path(__file__).parents[1]

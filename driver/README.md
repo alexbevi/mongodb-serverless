@@ -126,7 +126,9 @@ Docker and OpenSSL.
 TLS and SCRAM-SHA-256. It alternates 100 fresh processes per mode, then measures
 100 operations on each reused client. Both modes use a pool limit of one and
 disable retries. The report includes median and p95 timings, plus TCP socket
-counts, in `tools/benchmarks/no-monitoring-results.json`. These are local Docker
+counts, in the ignored scratch file `tools/benchmarks/no-monitoring-results.json`.
+The retained [local benchmark](../BENCHMARK.md) has the current comparison data.
+These are local Docker
 measurements; Lambda cold starts need their own measurements.
 
 ### Cursors and bulk writes

@@ -15,7 +15,7 @@ created on first use.
 
 ## Benchmark
 
-![Replica-set discovery and direct member connections](benchmark/baseline/latency.png)
+![Local replica-set discovery and direct member connections](benchmark/results/local/latency.png)
 See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
 
 ## Components

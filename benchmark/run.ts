@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 process.chdir(root);
 
-const { values } = parseArgs({ options: { 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/latest.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
+const { values } = parseArgs({ options: { 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
 const count = Number(values.samples);
 const localRtt = Number(values['local-rtt']);
 const crossRtt = Number(values['cross-rtt']);

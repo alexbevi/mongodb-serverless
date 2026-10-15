@@ -5,7 +5,7 @@ to a watcher-selected replica-set member. Each sample creates a fresh Node proce
 constructs a client, connects, and completes one operation against a three-member
 TLS replica set.
 
-See the [connection diagram and measured results](../BENCHMARK.md#connection-selection-and-timings).
+See the [connection diagram and measured results](../BENCHMARK.md).
 
 ## Install
 
@@ -15,7 +15,7 @@ Use Node 20.19 or later, installed workspace dependencies, and Docker Compose wi
 ## Usage
 
 ```sh
-npm run benchmark -- --no-monitoring --samples 48 --output benchmark/results/run.json
+npm run benchmark -- --no-monitoring --samples 48
 npm run benchmark:test
 pnpm lint
 ```
@@ -77,7 +77,7 @@ some overhead and is verified against MongoDB driver 7.7.0.
 
 The local DNS resolver, CPU quota, certificates, MongoDB deployment and network
 scheduler differ from AWS. Local results test the connection sequence; they are
-not an AWS latency prediction. The historical charts in `baseline/` retain their original configurations.
-The older `report.py` assumes one application connection and should only be used
-with those historical datasets. Each plotted sample must show every socket it opened. If a diagram illustrates
-a subset, label that subset and keep its sample timings distinct from all-sample means.
+not an AWS latency prediction. Saved measurements live only in `results/local/`
+and `results/aws/`. The [local report](../BENCHMARK.md) describes how to replace
+the local samples, diagram and summary. The
+[AWS snapshot](results/aws/sample-10-2026.md) records a separate October 2026 run.

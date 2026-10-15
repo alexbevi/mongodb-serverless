@@ -547,7 +547,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     axis.set_ylim(-1.2, 4)
 
 
-def render(data, environment, output):
+def render(data, environment, output, image_name="latency.png", save_summary=True):
     rows = local_samples(data) if environment == "local" else data["samples"]
     summary = summarize(rows)
     representatives = {}
@@ -661,14 +661,15 @@ def render(data, environment, output):
         0.025,
         "Every interval is drawn; concurrent node lanes overlap in time and must not be added.\n"
         + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
-           "~ marks rounded timings; amber rows identify unmeasured causes. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
+           "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),
         ha="center",
         fontsize=10,
     )
     output.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output / "latency.png", dpi=160, facecolor="white")
+    figure.savefig(output / image_name, dpi=160, facecolor="white")
     plt.close(figure)
-    (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    if save_summary:
+        (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 
 if __name__ == "__main__":
@@ -677,8 +678,8 @@ if __name__ == "__main__":
     parser.add_argument("--environment", choices=("local", "aws"), required=True)
     parser.add_argument("--output-dir", type=Path)
     arguments = parser.parse_args()
-    render(
-        json.loads(arguments.samples.read_text()),
-        arguments.environment,
-        arguments.output_dir or arguments.samples.parent,
-    )
+    data = json.loads(arguments.samples.read_text())
+    output = arguments.output_dir or arguments.samples.parent
+    render(data, arguments.environment, output)
+    if "diagnostic" in data:
+        render(data["diagnostic"], arguments.environment, output, "workflow.png", save_summary=False)

@@ -8,11 +8,17 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
-    def test_retained_local_diagram_has_matching_diagnostic_measurements(self):
+    def test_retained_local_performance_excludes_diagnostic_probes(self):
         root = Path(__file__).parents[1]
         data = json.loads((root / "results/local/samples.json").read_text())
-        self.assertTrue(data["configuration"].get("diagnostics"))
+        self.assertFalse(data["configuration"].get("diagnostics"))
+        self.assertEqual(data["environment"]["cpuMax"].split()[0], "max")
         for sample in data["samples"]:
+            self.assertNotIn("execution", sample["trace"])
+        diagnostic = data["diagnostic"]
+        self.assertTrue(diagnostic["configuration"]["diagnostics"])
+        self.assertEqual(diagnostic["environment"]["cpuMax"].split()[0], "max")
+        for sample in diagnostic["samples"]:
             trace = sample["trace"]
             self.assertEqual(trace["execution"]["start"], trace["start"])
             self.assertEqual(trace["execution"]["end"], trace["end"])
@@ -298,7 +304,7 @@ class ReportTest(unittest.TestCase):
             self.assertEqual(hashlib.sha256(snapshot.read_bytes()).hexdigest(), before)
             self.assertEqual(
                 {p.name for p in (output / "local").iterdir()},
-                {"latency.png", "summary.json"},
+                {"latency.png", "summary.json", "workflow.png"},
             )
             summary = json.loads((output / "local/summary.json").read_text())
             self.assertEqual(len(summary), 4)

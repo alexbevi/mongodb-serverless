@@ -6,12 +6,18 @@ constructs a client, and completes its first operation against a three-member
 TLS replica set. The operation connects automatically; the benchmark does not
 call `client.connect()` first.
 
-![Local connection timings](results/local/latency.png)
-
-This is the retained diagnostic run: 24 cold invocations, with tracing overhead
-included. The image, raw samples and summary are kept together in `results/local/`.
+The [performance comparison](../BENCHMARK.md) uses 48 samples per driver/operation
+with socket and client-event instrumentation. The workflow below uses a separate
+24-invocation diagnostic cohort, with code probes and callback tracing enabled.
+Neither run imposes a container CPU quota. Diagnostic timings include tracing
+overhead and are excluded from the performance statistics.
 
 ### Reading the diagram
+
+![Local diagnostic workflow](results/local/workflow.png)
+
+The diagnostic cohort is retained under `diagnostic` in `results/local/samples.json`;
+`summary.json` and `latency.png` use only the performance cohort.
 
 Timing runs from [handler invocation to its return](handler-base.ts#L98).
 The headings above the bars describe elapsed sections:
@@ -190,10 +196,28 @@ Use Node 24.18 or later, installed workspace dependencies, and Docker Compose wi
 ```sh
 npm run benchmark -- --no-monitoring --samples 48
 # Include code scopes, callback stacks and CPU counters:
-npm run benchmark -- --diagnostics --no-monitoring --samples 4
+npm run benchmark -- --diagnostics --no-monitoring --samples 4 --output /tmp/mongodb-workflow.json
 npm run benchmark:test
 pnpm lint
 ```
+
+After both runs, attach the diagnostic cohort and render the two diagrams:
+
+```sh
+python3 - <<'PY'
+import json
+from pathlib import Path
+path = Path("benchmark/results/local/samples.json")
+data = json.loads(path.read_text())
+data["diagnostic"] = json.loads(Path("/tmp/mongodb-workflow.json").read_text())
+path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+python3 benchmark/report.py benchmark/results/local/samples.json --environment local
+```
+
+Install the [report dependencies](requirements-report.txt) in a Python virtual
+environment first. Rendering replaces `latency.png`, `workflow.png` and
+`summary.json`; it never combines the two cohorts' statistics.
 
 The command builds the harness and driver dependencies before starting Docker.
 `run.ts` manages the cluster and launches `benchmark.ts` in a fresh process for each

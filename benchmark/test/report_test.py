@@ -37,6 +37,16 @@ class ReportTest(unittest.TestCase):
                     for row in data["samples"]
                     if row["mode"] == "native-cluster" and row["operation"] == operation
                 ]
+                group = [
+                    row
+                    for row in group
+                    if sum(
+                        c["kind"] == "application"
+                        for c in row["timeline"]["connections"]
+                    )
+                    == 1
+                ]
+                self.assertEqual(len(braces), 1)
                 middle = report.median(row["timeline"]["total"] for row in group)
                 sample = min(
                     group, key=lambda row: abs(row["timeline"]["total"] - middle)

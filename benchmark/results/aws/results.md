@@ -26,10 +26,13 @@ writes reached primaries.
 
 In 20 of 30 MongoDB reads, `connect()` and `findOne()` used different members,
 opening two authenticated application connections. Every serverless sample opened
-one authenticated application socket and no monitor socket. The diagram shows
-individual samples nearest their cohort medians, including every socket opened by
-those samples. Its headings report all-sample means; bar-end labels report the
-illustrated sample's duration. Overlapping monitor durations must not be added.
+one authenticated application socket and no monitor socket. For clarity, the diagram illustrates the single-application-connection case,
+which occurred in 10 of 30 MongoDB reads. Each illustrated trace is a real sample
+nearest the median within its single-application-connection subset, with every
+socket from that sample shown. The table and diagram headings still report means
+across all 30 samples per driver/operation, including the two-connection reads.
+Bar-end labels report the illustrated sample's duration. Overlapping monitor
+durations must not be added.
 
 Lambda placement, CPU scheduling, DNS, TLS and database load affect these timings.
 The results do not establish current performance or the behavior of long-lived

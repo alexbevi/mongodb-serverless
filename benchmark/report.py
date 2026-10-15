@@ -244,6 +244,20 @@ def render(data, environment, output):
                 for row in rows
                 if (row["operation"], row["mode"]) == (operation, mode)
             ]
+            if environment == "aws":
+                group = [
+                    row
+                    for row in group
+                    if sum(
+                        connection["kind"] == "application"
+                        for connection in row["timeline"]["connections"]
+                    )
+                    == 1
+                ]
+                if not group:
+                    raise ValueError(
+                        f"No single-application-connection AWS sample for {mode} {operation}"
+                    )
             middle = median(row["timeline"]["total"] for row in group)
             representatives[operation, mode] = min(
                 group, key=lambda row: abs(row["timeline"]["total"] - middle)
@@ -264,10 +278,15 @@ def render(data, environment, output):
         weight="bold",
         y=0.97,
     )
+    sample_caption = (
+        "Single-application-connection examples nearest subset medians"
+        if environment == "aws"
+        else "Individual traces nearest cohort medians"
+    )
     figure.text(
         0.5,
         0.89,
-        f"Measured {date}. Individual traces nearest cohort medians; headings report all-sample means.",
+        f"Measured {date}. {sample_caption}; headings report all-sample means.",
         ha="center",
         fontsize=11,
     )

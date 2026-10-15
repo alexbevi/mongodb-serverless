@@ -387,3 +387,9 @@ The checker rejects missing, duplicate, unverified or invalid measurements.
 CI uploads the raw measurements for seven days, including when the threshold
 fails. Results remain outside the committed local/AWS snapshots. Shared-runner
 contention can affect this gate; a failure needs inspection of the measurements.
+
+Named source probes measure TLS option/IP validation, server and connection object
+construction, handshake preparation, topology updates, command construction and
+result processing. The execution recorder also measures its own creation-stack
+capture. These spans provide direct timing boundaries for work first identified
+by CPU sampling; they do not assign sampled percentages to unrelated traces.

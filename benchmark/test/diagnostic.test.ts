@@ -18,6 +18,11 @@ test('records code scopes and continuous execution evidence against the real rep
     expect(sample.trace.execution.end).toBe(sample.trace.end);
     expect(sample.trace.activities.some(span => span.name === 'Native URI/options parsing')).toBe(true);
     expect(sample.trace.activities.some(span => span.name === 'Read TLS CA certificate')).toBe(true);
+
+    for (const name of ['TLS options / IP validation', 'Connection object construction', 'Handshake preparation', 'Trace stack capture']) {
+      expect(sample.trace.activities.some(span => span.name === name && span.end > span.start), name).toBe(true);
+    }
+
     let boundary = sample.trace.start;
 
     for (const segment of sample.trace.execution.segments) {

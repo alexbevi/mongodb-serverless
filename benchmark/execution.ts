@@ -1,3 +1,4 @@
+import { activities } from './activities.js';
 import { createHook, executionAsyncId, executionAsyncResource } from 'node:async_hooks';
 import { threadCpuUsage } from './cpu.js';
 
@@ -47,9 +48,9 @@ export function executionRecorder() {
     init(id, resource, trigger) {
       if (!enabled) return;
 
-      const frames = new Error().stack?.split('\n').slice(1).filter(line =>
+      const frames = activities.sync('Trace stack capture', () => new Error().stack?.split('\n').slice(1).filter(line =>
         !line.includes('/execution.') && !line.includes('node:internal/async_hooks') &&
-        !line.includes('node:internal/promise_hooks')) ?? [];
+        !line.includes('node:internal/promise_hooks')) ?? []);
 
       resources.set(id, { resource, source: frames.slice(0, 6).join('\n') || resources.get(trigger)?.source || handler.source });
     },

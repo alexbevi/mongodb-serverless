@@ -51,13 +51,21 @@ class ReportTest(unittest.TestCase):
         spec.loader.exec_module(report)
         local = json.loads((root / "results/local/samples.json").read_text())
         local["environment"]["host"] = {"cpu": "Apple M4 Max", "memoryBytes": 64 * 1024**3}
+        local["samples"] = [{"variant": mode, "operation": operation}
+                            for mode in ("native", "serverless", "serverless-no-monitoring")
+                            for operation in ("read", "write") for _ in range(100)]
+        local["runDurationSeconds"] = 125
+        local["batches"] = [1, 2, 3, 4]
         caption = report.run_caption(local, "local")
-        for expected in ("4 iterations per driver/operation", "24 total", "Local host", "Apple M4 Max", "64 GiB", "1 GiB", "no CPU quota"):
+        for expected in ("100 iterations per driver/operation", "600 total", "elapsed ~2m 05s", "4 batches", "Local host", "Apple M4 Max", "64 GiB", "1 GiB", "no CPU quota"):
             self.assertIn(expected, caption)
         aws = json.loads((root / "results/aws/samples.json").read_text())
         aws["architecture"] = "arm64"
+        aws["samples"] = [{"mode": mode, "operation": operation}
+                          for mode in ("native-cluster", "serverless")
+                          for operation in ("read", "write") for _ in range(120)]
         caption = report.run_caption(aws, "aws")
-        for expected in ("30 iterations per driver/operation", "120 total", "ap-southeast-2", "ARM64", "1024 MB"):
+        for expected in ("120 iterations per driver/operation", "480 total", "ap-southeast-2", "ARM64", "1024 MB"):
             self.assertIn(expected, caption)
 
     def test_local_diagram_uses_one_measured_cohort_with_percentage_headings(self):
@@ -218,7 +226,7 @@ class ReportTest(unittest.TestCase):
             {"kind": "SRV", "start": start + 1, "end": start + 6},
             {"kind": "TXT", "start": start + 2, "end": start + 4},
         ]
-        row = report.local_samples({"samples": [sample]})[0]
+        row = report.local_samples({**data, "samples": [sample]})[0]
         for actual, expected in zip(row["timeline"]["dns"], [
             {"kind": "SRV", "start": 1, "end": 6},
             {"kind": "TXT", "start": 2, "end": 4},

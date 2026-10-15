@@ -5,15 +5,22 @@ driver, measured against a local three-member TLS replica set.
 
 ![Local connection timings](benchmark/results/local/latency.png)
 
-The diagram shows four cold invocations per driver/operation, with code probes,
+The diagram shows 100 cold invocations per driver/operation across four batches
+of 25, with code probes,
 callback tracing and socket/client events recording the full breakdown.
 Each illustrated trace is the sample nearest its driver/operation median.
 Headings report means and percentage reductions from that same measured cohort.
 The first operation connects automatically, and the local client has no CPU quota.
+The complete four-batch run took approximately 3m 29s, including compilation,
+cluster setup and teardown. The command below collects one 100-iteration batch.
 
 Timings include profiling overhead, so the percentages describe this instrumented
 run. The [legend definitions](benchmark/README.md#reading-the-diagram) explain
-the measured setup, connection and operation intervals.
+the measured setup, connection and operation intervals. MAD is the median absolute
+distance from the median. The 95% interval for the percentage reduction uses
+2,000 bootstrap resamples, first sampling batches and then paired iterations
+within each batch. The batch range shows the observed variation between runs;
+four batches do not establish performance across all machines or workloads.
 
 [Raw samples](benchmark/results/local/samples.json) ·
 [Summary statistics](benchmark/results/local/summary.json) ·
@@ -24,7 +31,7 @@ the measured setup, connection and operation intervals.
 From the repository root, with Docker running:
 
 ```sh
-npm run benchmark -- --diagnostics --no-monitoring --samples 4
+npm run benchmark -- --diagnostics --no-monitoring --samples 100
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
 /tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json --environment local
@@ -34,6 +41,9 @@ The benchmark replaces `benchmark/results/local/samples.json`. The report comman
 replaces the local diagram and summary. It does not read or change the AWS snapshot.
 Only one local result set and one AWS result set are retained; replace those
 files instead of adding run folders. SVGs and other generated result files are ignored.
+
+Repeated execution stacks are stored once in `executionSources`; each segment
+retains a `sourceId` and its original timing measurements.
 
 The raw local data includes the monitoring-enabled serverless control. The diagram
 compares the MongoDB driver with the serverless driver with monitoring disabled.

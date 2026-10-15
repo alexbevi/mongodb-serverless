@@ -6,8 +6,9 @@ constructs a client, and completes its first operation against a three-member
 TLS replica set. The operation connects automatically; the benchmark does not
 call `client.connect()` first.
 
-The [local results](../BENCHMARK.md) retain 24 cold invocations: four per
-read/write and driver variant, including the monitoring-enabled control.
+The [local results](../BENCHMARK.md) retain 600 cold invocations: 100 per
+read/write and driver variant, including the monitoring-enabled control, collected
+in four batches of 25.
 Code probes and callback tracing measure the breakdown below. There is no
 container CPU quota. Timings and percentage reductions include profiling overhead.
 
@@ -16,6 +17,17 @@ container CPU quota. Timings and percentage reductions include profiling overhea
 ![Measured local connection breakdown](results/local/latency.png)
 
 The bars, percentage headings and summary use the same measured cohort.
+Headers show median and median absolute deviation (MAD), the typical distance
+from the median. Percentage-reduction intervals use 2,000 hierarchical paired
+bootstrap resamples: batches first, then iterations within each batch. AWS uses
+paired five-worker rounds within each batch. Batch ranges show the observed
+variation in mean reduction. The intervals describe uncertainty within these
+recorded runs, not performance across other deployments.
+
+Elapsed benchmark time covers the full collection process, including setup/reset
+and teardown. The saved `runTiming` records its scope and clock precision.
+Repeated execution stacks are stored in `executionSources`; segment `sourceId`
+values refer to that list without discarding any measurements.
 
 Timing runs from [handler invocation to its return](handler-base.ts#L98).
 The headings above the bars describe elapsed sections:
@@ -192,7 +204,8 @@ Use Node 24.18 or later, installed workspace dependencies, and Docker Compose wi
 ## Usage
 
 ```sh
-npm run benchmark -- --diagnostics --no-monitoring --samples 4
+npm run benchmark -- --diagnostics --no-monitoring --samples 100
+python3 benchmark/compact.py benchmark/results/local/samples.json
 python3 benchmark/report.py benchmark/results/local/samples.json --environment local
 npm run benchmark:test
 pnpm lint

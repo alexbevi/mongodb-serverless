@@ -288,14 +288,20 @@ def comparison_stats(rows):
         means = {mode: sum(block[mode][0] for block in selected) / sum(block[mode][1] for block in selected) for mode in MODES}
         return 100 * (1 - means["serverless"] / means["native-cluster"])
 
+    grouped = {}
+    for key, value in zip(blocks, totals):
+        grouped.setdefault(key[0], []).append(value)
     rng = random.Random(0)
-    estimates = sorted(reduction(rng.choices(totals, k=len(totals))) for _ in range(2000))
-    batches = []
-    for batch in sorted({key[0] for key in blocks}):
-        selected = [value for key, value in zip(blocks, totals) if key[0] == batch]
-        batches.append({"batch": batch, "reductionPercent": reduction(selected)})
+    estimates = []
+    for _ in range(2000):
+        selected_batches = rng.choices(list(grouped.values()), k=len(grouped))
+        selected = [block for batch in selected_batches for block in rng.choices(batch, k=len(batch))]
+        estimates.append(reduction(selected))
+    estimates.sort()
+    batches = [{"batch": batch, "reductionPercent": reduction(values)} for batch, values in sorted(grouped.items())]
     return {"reductionPercent": reduction(totals), "confidence95Percent": [estimates[49], estimates[1949]],
-            "blocks": len(blocks), "bootstrapResamples": 2000, "batches": batches}
+            "blocks": len(blocks), "bootstrapResamples": 2000,
+            "bootstrapMethod": "resample batches, then paired iterations/rounds within each batch", "batches": batches}
 
 
 def summarize(rows):
@@ -598,7 +604,7 @@ def run_caption(data, environment):
         quota = "no CPU quota" if metadata["cpuMax"].startswith("max ") else "CPU quota " + metadata["cpuMax"]
         hardware = f"Local host · {cpu}{memory} · Docker {docker['Arch'].upper()} · {int(metadata['memoryMax']) / 1024**3:g} GiB client RAM · {quota}"
         if data["configuration"].get("noMonitoringComparison"):
-            count += " (including control)"
+            count = count.replace("total cold invocations", "total cold invocations (including control)")
     return count + "\n" + hardware
 
 
@@ -721,7 +727,7 @@ def render(data, environment, output):
     figure.text(
         0.5,
         0.025,
-        "MAD = median absolute deviation. CI = paired-block bootstrap interval for the mean reduction (2,000 resamples).\n"
+        "MAD = median absolute deviation. CI = hierarchical paired bootstrap interval for the mean reduction (2,000 resamples).\n"
         "Concurrent node lanes overlap in time and must not be added.\n"
         + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
            "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),

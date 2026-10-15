@@ -638,8 +638,19 @@ def run_caption(data, environment):
     return count + "\n" + hardware
 
 
+def result_rows(data, environment):
+    if environment == "local":
+        return local_samples(data)
+    if not any(sample.get("trace", {}).get("execution") for sample in data["samples"]):
+        return data["samples"]
+    normalized = local_samples({**data, "samples": [
+        {**sample, "variant": "native" if sample["mode"] == "native-cluster" else "serverless-no-monitoring",
+         "timings": sample["phases"]} for sample in data["samples"]]})
+    return [{**row, "block": sample["block"]} for row, sample in zip(normalized, data["samples"])]
+
+
 def render(data, environment, output):
-    rows = local_samples(data) if environment == "local" else data["samples"]
+    rows = result_rows(data, environment)
     summary = summarize(rows)
     representatives = {}
     for operation in ("read", "write"):

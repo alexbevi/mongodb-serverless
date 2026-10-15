@@ -8,6 +8,25 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_aws_diagnostics_use_measured_scopes_and_preserve_batch_pairing(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        sample = json.loads((root / 'results/aws/samples.json').read_text())['samples'][0]
+        trace = sample['trace']
+        trace['execution'] = {'threadCpuMs': 1, 'segments': [
+            {'start': trace['start'], 'end': trace['end'], 'kind': 'callback', 'threadCpuMs': 1}]}
+        trace['activities'] = [{'name': 'Native URI/options parsing', 'kind': 'sync',
+                                'start': trace['start'], 'end': trace['start'] + 1, 'threadCpuMs': 1}]
+        sample['block'] = [3, 2]
+        rows = report.result_rows({'samples': [sample]}, 'aws')
+        self.assertEqual(rows[0]['block'], [3, 2])
+        self.assertEqual(rows[0]['timeline']['execution'][0]['start'], 0)
+        self.assertEqual(rows[0]['timeline']['activities'][0]['name'], 'Native URI/options parsing')
+        self.assertEqual(report.accounting_totals(rows[0]['timeline'])['unattributed'], 0)
+
     def test_measured_callback_chunks_have_distinct_colours(self):
         import importlib.util
         root = Path(__file__).parents[1]

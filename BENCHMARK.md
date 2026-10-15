@@ -32,6 +32,7 @@ From the repository root, with Docker running:
 
 ```sh
 npm run benchmark -- --diagnostics --no-monitoring --samples 100
+python3 benchmark/compact.py benchmark/results/local/samples.json
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
 /tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json --environment local

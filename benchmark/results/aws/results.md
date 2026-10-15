@@ -8,6 +8,16 @@ data, diagram and report in this folder, keeping the same links.
 
 ![AWS connection timings from 15 October 2026](latency.png)
 
+**Read comparison:** the diagram illustrates a real sample with one application
+connection, but the 29.5% headline includes all reads. In 20 of 30 MongoDB reads,
+`connect()` and `findOne()` selected different members and opened two application
+connections. The 10 one-connection reads averaged 244.7 ms, compared with 204.7 ms
+across all serverless reads: a 16.4% reduction. Including the two-connection reads
+raises the MongoDB mean to 290.3 ms, so that behavior accounts for roughly half
+the observed read-time gap. This subgroup comparison does not isolate the causal
+cost of the extra connection. Writes used one application connection and showed
+a 16.5% reduction.
+
 | Operation | MongoDB mean | Serverless mean | Reduction |
 | --- | ---: | ---: | ---: |
 | Read | 290.3 ms | 204.7 ms | 29.5% |
@@ -24,10 +34,8 @@ secondary/read and primary/write URIs with monitoring disabled. Writes used
 majority acknowledgement. All reads in this cohort reached secondaries; all
 writes reached primaries.
 
-In 20 of 30 MongoDB reads, `connect()` and `findOne()` used different members,
-opening two authenticated application connections. Every serverless sample opened
-one authenticated application socket and no monitor socket. For clarity, the diagram illustrates the single-application-connection case,
-which occurred in 10 of 30 MongoDB reads. Each illustrated trace is a real sample
+Every serverless sample opened one authenticated application socket and no monitor
+socket. Each illustrated trace is a real sample
 nearest the median within its single-application-connection subset, with every
 socket from that sample shown. The table and diagram headings still report means
 across all 30 samples per driver/operation, including the two-connection reads.

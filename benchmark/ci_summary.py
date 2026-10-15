@@ -30,7 +30,7 @@ def render_summary(data, node_version, outcome, image_url, result_url):
     if image_url:
         image = urlparse(image_url)
         if image.hostname == 'github.com' and '/actions/runs/' in image.path and '/artifacts/' in image.path:
-            lines.extend(['The latency PNG is retained in Artifacts. Inline display requires a public image URL.', ''])
+            lines.extend([f'[View latency diagram]({image_url})', ''])
         else:
             lines.extend([f'![Latency diagram]({image_url})', ''])
     if result_url:

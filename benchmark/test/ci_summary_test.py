@@ -36,7 +36,7 @@ class CiSummaryTest(unittest.TestCase):
         summary = render_summary(None, '24', 'failure',
                                  'https://github.com/owner/repo/actions/runs/1/artifacts/2', '')
         self.assertNotIn('![Latency diagram]', summary)
-        self.assertIn('Inline display requires a public image URL', summary)
+        self.assertIn('[View latency diagram](https://github.com/owner/repo/actions/runs/1/artifacts/2)', summary)
 
 
 if __name__ == '__main__':

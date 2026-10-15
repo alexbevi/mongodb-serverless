@@ -61,7 +61,7 @@ jobs:
           "
 
   benchmark:
-    name: Benchmark (Node 24)
+    name: benchmark (Node 24)
     runs-on: ubuntu-latest
 
     steps:

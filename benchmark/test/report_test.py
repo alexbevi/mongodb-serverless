@@ -8,6 +8,23 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_run_caption_reports_iterations_location_and_hardware(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        local = json.loads((root / "results/local/samples.json").read_text())
+        local["environment"]["host"] = {"cpu": "Apple M4 Max", "memoryBytes": 64 * 1024**3}
+        caption = report.run_caption(local, "local")
+        for expected in ("4 iterations per driver/operation", "24 total", "Local host", "Apple M4 Max", "64 GiB", "1 GiB", "no CPU quota"):
+            self.assertIn(expected, caption)
+        aws = json.loads((root / "results/aws/samples.json").read_text())
+        aws["architecture"] = "arm64"
+        caption = report.run_caption(aws, "aws")
+        for expected in ("30 iterations per driver/operation", "120 total", "ap-southeast-2", "ARM64", "1024 MB"):
+            self.assertIn(expected, caption)
+
     def test_local_diagram_uses_one_measured_cohort_with_percentage_headings(self):
         import importlib.util
         from unittest.mock import patch

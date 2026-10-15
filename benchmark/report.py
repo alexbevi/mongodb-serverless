@@ -547,6 +547,29 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     axis.set_ylim(-1.2, 4)
 
 
+def run_caption(data, environment):
+    groups = Counter((sample.get("variant", sample.get("mode")), sample["operation"])
+                     for sample in data["samples"])
+    counts = sorted(set(groups.values()))
+    iterations = str(counts[0]) if len(counts) == 1 else f"{counts[0]}–{counts[-1]}"
+    count = f"{iterations} iterations per driver/operation · {len(data['samples'])} total cold invocations"
+    if environment == "aws":
+        region = data.get("region", "region not recorded")
+        location = "Sydney (ap-southeast-2)" if region == "ap-southeast-2" else region
+        hardware = f"AWS Lambda · {location} · {data.get('architecture', 'architecture not recorded').upper()} · {data['memoryMB']} MB memory"
+    else:
+        metadata = data["environment"]
+        host = metadata.get("host", {})
+        cpu = host.get("cpu", "host CPU not recorded")
+        memory = f" · {host['memoryBytes'] / 1024**3:g} GiB host RAM" if "memoryBytes" in host else ""
+        docker = json.loads(metadata["docker"])
+        quota = "no CPU quota" if metadata["cpuMax"].startswith("max ") else "CPU quota " + metadata["cpuMax"]
+        hardware = f"Local host · {cpu}{memory} · Docker {docker['Arch'].upper()} · {int(metadata['memoryMax']) / 1024**3:g} GiB client RAM · {quota}"
+        if data["configuration"].get("noMonitoringComparison"):
+            count += " (including control)"
+    return count + "\n" + hardware
+
+
 def render(data, environment, output):
     rows = local_samples(data) if environment == "local" else data["samples"]
     summary = summarize(rows)
@@ -582,15 +605,16 @@ def render(data, environment, output):
     sample_caption = "Individual traces nearest cohort medians"
     figure.text(
         0.5,
-        0.90,
-        f"Measured {date}. {sample_caption}. " + ("Diagnostic probes enabled; timings include tracing overhead." if diagnostic else "Headings report all-sample means."),
+        0.93,
+        run_caption(data, environment) + "\n" + f"Measured {date}. {sample_caption}. " + ("Diagnostic probes enabled; timings include tracing overhead." if diagnostic else "Headings report all-sample means."),
+        va="top",
         ha="center",
         fontsize=11,
     )
     if environment == "aws":
         figure.text(
             0.5,
-            0.85,
+            0.83,
             "Point-in-time snapshot; not a statement of current performance.",
             ha="center",
             fontsize=11,
@@ -648,7 +672,7 @@ def render(data, environment, output):
                 groups["Connection" if phase == "poolGaps" else "Operation"].append(Patch(facecolor=color, label=name, gid=phase))
         groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured", gid="beforeSocket"))
         groups["Operation"].append(Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured", gid="unattributed"))
-    for (title, handles), x, columns in zip(groups.items(), (0.12, 0.48, 0.81), (1, 1, 1)):
+    for (title, handles), x, columns in zip(groups.items(), (0.20, 0.45, 0.70), (1, 1, 1)):
         order = legend_order(representatives.values(), title)
         handles.sort(key=lambda handle: order.index(handle.get_gid()) if handle.get_gid() in order else len(order))
         legend = figure.legend(handles=handles, title=title, loc="upper left", bbox_to_anchor=(x, 0.28),

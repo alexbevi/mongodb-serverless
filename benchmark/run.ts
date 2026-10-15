@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { cpus, totalmem } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -69,7 +70,7 @@ try {
   }
   const output = resolve(values.output!);
   mkdirSync(dirname(output), { recursive: true });
-  const environment = { cpuMax: inside('client', 'cat', '/sys/fs/cgroup/cpu.max').trim(), memoryMax: inside('client', 'cat', '/sys/fs/cgroup/memory.max').trim(), docker: execFileSync('docker', ['version', '--format', '{{json .Server}}'], { encoding: 'utf8' }).trim(), client: inside('client', 'uname', '-a').trim(), mongo: inside('mongo-a', 'mongod', '--version').trim(), images: compose('images', '--format', 'json').trim(), gitDirty: execFileSync('git', ['status', '--porcelain', '--', 'benchmark', 'driver', 'plugins'], { encoding: 'utf8' }).trim().length > 0, git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() };
+  const environment = { host: { cpu: cpus()[0]?.model, memoryBytes: totalmem() }, cpuMax: inside('client', 'cat', '/sys/fs/cgroup/cpu.max').trim(), memoryMax: inside('client', 'cat', '/sys/fs/cgroup/memory.max').trim(), docker: execFileSync('docker', ['version', '--format', '{{json .Server}}'], { encoding: 'utf8' }).trim(), client: inside('client', 'uname', '-a').trim(), mongo: inside('mongo-a', 'mongod', '--version').trim(), images: compose('images', '--format', 'json').trim(), gitDirty: execFileSync('git', ['status', '--porcelain', '--', 'benchmark', 'driver', 'plugins'], { encoding: 'utf8' }).trim().length > 0, git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() };
   writeFileSync(output, JSON.stringify({ createdAt: new Date().toISOString(), configuration: { diagnostics: values.diagnostics, noMonitoringComparison: values['no-monitoring'], seedOrder: 'DNS SRV resolver order', count, localRtt, crossRtt, tls: true, auth: 'SCRAM-SHA-1', readPreference: 'secondaryPreferred', writeConcern: 'majority' }, environment, network, samples }, null, 2) + '\n');
   console.log(`Saved ${samples.length} cold samples to ${output}`);
 } finally {

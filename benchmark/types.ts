@@ -4,6 +4,7 @@ export interface SocketTrace {
   host: string;
   port: number;
   start: number;
+  lookup?: Interval;
   tcp?: Interval;
   tls?: Interval;
   hello?: Interval;

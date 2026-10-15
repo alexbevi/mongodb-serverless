@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { SocketTrace, CommandTrace, Interval, RecordedCommand, LifecycleEvent } from './types.js';
 
-export function breakdown(start: number, end: number, socket: Pick<SocketTrace, 'tcp' | 'tls' | 'hello' | 'auth'>, command: Pick<CommandTrace, 'start' | 'sent' | 'end'>) {
+export function breakdown(start: number, end: number, socket: Pick<SocketTrace, 'lookup' | 'tcp' | 'tls' | 'hello' | 'auth'>, command: Pick<CommandTrace, 'start' | 'sent' | 'end'>) {
   const duration = (interval: Interval | undefined): number => {
     assert.ok(interval, 'Missing timing interval');
 
@@ -11,6 +11,7 @@ export function breakdown(start: number, end: number, socket: Pick<SocketTrace, 
   assert.ok(command.sent !== undefined && command.end !== undefined, 'Incomplete command trace');
 
   const phases = {
+    ...(socket.lookup ? { lookup: duration(socket.lookup) } : {}),
     tcp: duration(socket.tcp), tls: duration(socket.tls),
     hello: duration(socket.hello), auth: duration(socket.auth),
     send: command.sent - command.start, receive: command.end - command.sent

@@ -29,3 +29,11 @@ test('matches lifecycle windows by pool, connection and request without treating
     command: [15, 23], afterCommand: [23, 25]
   });
 });
+
+test('counts hostname resolution separately from TCP without double counting', () => {
+  const socket = { lookup: [1, 4] as [number, number], tcp: [4, 6] as [number, number], tls: [6, 8] as [number, number], hello: [8, 9] as [number, number], auth: [9, 11] as [number, number] };
+  const result = breakdown(0, 15, socket, { start: 12, sent: 13, end: 14 });
+
+  expect(result).toMatchObject({ lookup: 3, tcp: 2, other: 3, total: 15 });
+  expect(Object.entries(result).filter(([key]) => key !== 'total').reduce((sum, [, value]) => sum + value, 0)).toBe(15);
+});

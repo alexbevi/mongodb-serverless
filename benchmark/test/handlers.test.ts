@@ -25,7 +25,11 @@ test.each(['native', 'serverless', 'serverless-no-monitoring'])('%s handlers cre
         const originalCollection = database.collection.bind(database);
         database.collection = (...args) => {
           const collection = originalCollection(...args);
-          collection.findOne = async () => ({ _id: 'seed', payload: 'benchmark' });
+          collection.findOne = async (_filter, options) => {
+            assert.equal(options.readPreference, 'secondary');
+            assert.equal(this.options.readPreference.mode, 'secondary');
+            return { _id: 'seed', payload: 'benchmark' };
+          };
           collection.updateOne = async () => ({ acknowledged: true, matchedCount: 1 });
           return collection;
         };

@@ -263,7 +263,7 @@ alternates. All results are verified; failures stop the run.
 
 The MongoDB driver receives a `mongodb+srv` cluster URI. A local DNS service returns
 three member addresses and the replica-set TXT record. Reads use
-`secondaryPreferred`; writes use the default primary preference. The serverless
+`secondary`; writes use the default primary preference. The serverless
 driver receives separate read and write member URIs with `directConnection=true`.
 The read member is a secondary and the write member is the primary. The topology
 snapshot is prepared outside the timed operation.
@@ -300,9 +300,9 @@ is narrower than a complete Lambda cold start. The recorded samples are cold;
 handler reuse is tested separately. Database processes and OS caches remain warm
 across samples.
 
-`secondaryPreferred` can fall back to a primary when no secondary is known.
-Discovery does not wait for every monitor. The saved socket roles identify
-where each operation actually ran.
+Reads wait for an eligible secondary and fail if none becomes available.
+The benchmark verifies that every read ran on a secondary. Previously saved
+results used `secondaryPreferred`; their recorded roles and timings are unchanged.
 
 Public events record connection creation/readiness, checkout start/success/failure,
 check-in, connection closure, and command start/success/failure. Each callback

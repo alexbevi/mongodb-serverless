@@ -8,5 +8,5 @@ export async function handler() {
   client ??= createServerlessMongoClientForBenchmark('read');
 
   return client.db('bench').collection<BenchmarkDocument>('documents')
-    .findOne({ _id: 'seed' }, { readPreference: 'secondaryPreferred' });
+    .findOne({ _id: 'seed' }, { readPreference: 'secondary' });
 }

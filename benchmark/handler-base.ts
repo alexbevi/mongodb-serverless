@@ -81,7 +81,7 @@ export function createServerlessMongoClientForBenchmark(operation: BenchmarkOper
   const uri = variant === 'native' ? CONNECTION_STRING : operation === 'read' ? READ_CONNECTION_STRING : WRITE_CONNECTION_STRING;
   const options: MongoClientOptions = { monitorCommands: true, authMechanism: 'SCRAM-SHA-1', tlsCAFile: '/certs/ca.crt', maxPoolSize: 1, minPoolSize: 0, serverSelectionTimeoutMS: 15000, connectTimeoutMS: 10000, retryReads: false, retryWrites: false, writeConcern: { w: 'majority', wtimeoutMS: 10000 } };
 
-  if (operation === 'read') options.readPreference = 'secondaryPreferred';
+  if (operation === 'read') options.readPreference = 'secondary';
 
   const client = activities.sync("Facade / client construction", () => variant === 'native'
     ? new NativeClient(uri, options)
@@ -126,8 +126,7 @@ export async function measureBenchmark(
   assert.ok(command, 'The operation must produce a measured wire command');
   assert.ok(command.socket.authorized, 'TLS must verify the certificate');
 
-  if (variant === 'native' && operation === 'read') assert.ok(['SECONDARY', 'PRIMARY'].includes(command.socket.role!));
-  else assert.equal(command.socket.role, operation === 'read' ? 'SECONDARY' : 'PRIMARY');
+  assert.equal(command.socket.role, operation === 'read' ? 'SECONDARY' : 'PRIMARY');
   const timings = breakdown(start, end, command.socket, command);
   const lifecycleEvents = events.slice(eventIndex);
   const lifecycle = lifecycleWindows(command, lifecycleEvents, end);

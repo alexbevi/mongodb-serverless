@@ -364,3 +364,8 @@ The analyzer counts executing stacks only when their sample timestamp falls insi
 that colour's measured intervals, excluding already named connection, operation
 and setup scopes. It separates Setup, Connection and Operation at the same
 boundaries as the diagram. Stack counts describe sampled work, not exact durations.
+
+Thread CPU diagnostics require `process.threadCpuUsage`, available in the pinned
+Node 24 benchmark container. The handlers can still load on Node 20 when diagnostic
+recording is disabled. Tests skip the real thread-CPU assertion on unsupported
+runtimes; recorder tests with supplied clocks still run.

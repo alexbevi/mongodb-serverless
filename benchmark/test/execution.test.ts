@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { executionRecorder } from '../execution.js';
 
-test('partitions a cold operation into callback execution and measured dispatch waits', async () => {
+test.skipIf(!process.threadCpuUsage)('partitions a cold operation into callback execution and measured dispatch waits', async () => {
   const recorder = executionRecorder();
   const start = recorder.start();
 

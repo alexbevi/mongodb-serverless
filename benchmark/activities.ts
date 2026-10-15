@@ -1,4 +1,4 @@
-import { threadCpuUsage } from 'node:process';
+import { threadCpuUsage } from './cpu.js';
 
 export interface Activity {
   name: string;

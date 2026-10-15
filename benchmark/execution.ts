@@ -1,5 +1,5 @@
 import { createHook, executionAsyncId, executionAsyncResource } from 'node:async_hooks';
-import { threadCpuUsage } from 'node:process';
+import { threadCpuUsage } from './cpu.js';
 
 interface Resource {
   resource: string;

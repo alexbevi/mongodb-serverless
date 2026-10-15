@@ -3,7 +3,7 @@ import { activityRecorder } from '../activities.js';
 
 test('records nested synchronous work and pending async scopes without changing promise identity', async () => {
   let now = 0;
-  const recorder = activityRecorder(() => now);
+  const recorder = activityRecorder(() => now, () => now);
   let finish!: (value: number) => void;
   const pending = new Promise<number>(resolve => { finish = resolve; });
   recorder.start();

@@ -17,7 +17,8 @@ class CiSummaryTest(unittest.TestCase):
         summary = render_summary(data, '24', 'success', 'https://example.com/png', 'https://example.com/json')
         self.assertIn('✅ Benchmark passed', summary)
         self.assertIn('| Read | 100.00 ms | 80.00 ms | **20.00%** | ✅ |', summary)
-        self.assertIn('[Open latency diagram](https://example.com/png)', summary)
+        self.assertIn('![Latency diagram](https://example.com/png)', summary)
+        self.assertGreater(summary.index('![Latency diagram]'), summary.index('| Write |'))
         self.assertIn('[Download result JSON](https://example.com/json)', summary)
         for sample in data['samples']:
             if sample['operation'] == 'write' and sample['variant'] == 'serverless-no-monitoring':

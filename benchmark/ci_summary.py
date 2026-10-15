@@ -26,13 +26,12 @@ def render_summary(data, node_version, outcome, image_url, result_url):
     except (ValueError, KeyError, TypeError) as error:
         lines.extend(['**⚠️ Benchmark incomplete**', '', f'Invalid benchmark result: {error}'])
     lines.append('')
-    links = []
     if image_url:
-        links.append(f'**[Open latency diagram]({image_url})**')
+        lines.extend([f'![Latency diagram]({image_url})', ''])
     if result_url:
-        links.append(f'[Download result JSON]({result_url})')
-    if links:
-        lines.extend([' · '.join(links), '', 'Artifacts expire after 7 days. The PNG opens directly in the browser when signed in.'])
+        lines.extend([f'[Download result JSON]({result_url})', ''])
+    if image_url or result_url:
+        lines.append('Artifacts expire after 7 days; viewing them requires signing in to GitHub.')
     return '\n'.join(lines) + '\n'
 
 

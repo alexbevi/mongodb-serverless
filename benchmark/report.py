@@ -16,6 +16,7 @@ from matplotlib.patches import Patch, PathPatch
 from matplotlib.path import Path as PlotPath
 
 COLORS = {
+    "lookup": "#854d0e",
     "tcp": "#2563eb",
     "tls": "#38bdf8",
     "hello": "#a78bfa",
@@ -40,7 +41,7 @@ def event_gap_segments(sample):
         return []
     command = trace["command"]
     socket = command["socket"]
-    covered = [socket[phase] for phase in ("tcp", "tls", "hello", "auth")]
+    covered = [socket[phase] for phase in ("lookup", "tcp", "tls", "hello", "auth") if phase in socket]
     covered.append([command["start"], command["end"]])
     segments = []
     categories = [
@@ -77,11 +78,18 @@ def local_samples(data):
         trace = sample["trace"]
         start = trace["start"]
         command = trace["command"]
+        dns = [{"kind": q["kind"], "start": q["start"] - start, "end": q["end"] - start}
+               for q in trace.get("dns", [])]
+        dns_durations = {kind: sum(q["end"] - q["start"] for q in dns if q["kind"] == kind)
+                         for kind in ("SRV", "TXT")}
+        dns_durations["seedlistWall"] = max(q["end"] for q in dns) - min(q["start"] for q in dns) if dns else 0
+        lookup = command["socket"].get("lookup")
+        dns_durations["selectedHostname"] = lookup[1] - lookup[0] if lookup else 0
         connections = []
         for socket in trace["sockets"]:
             phases = {
                 phase: [value - start for value in socket[phase]]
-                for phase in ("tcp", "tls", "hello", "auth")
+                for phase in ("lookup", "tcp", "tls", "hello", "auth")
                 if phase in socket
             }
             connections.append(
@@ -119,10 +127,12 @@ def local_samples(data):
                 "operation": sample["operation"],
                 "servedRole": sample["servedRole"],
                 "lifecycleDurations": lifecycle_durations,
+                "dnsDurations": dns_durations,
                 "gapDurations": gap_durations,
                 "timeline": {
                     "total": sample["timings"]["total"],
                     "gaps": gaps,
+                    "dns": dns,
                     "connections": connections,
                     "command": {
                         "send": [command["start"] - start, command["sent"] - start],
@@ -164,6 +174,11 @@ def summarize(rows):
                     ),
                 }
             )
+            if group[0].get("dnsDurations"):
+                result[-1]["dnsMeanMs"] = {
+                    name: mean(row["dnsDurations"][name] for row in group)
+                    for name in group[0]["dnsDurations"]
+                }
             if group[0].get("lifecycleDurations"):
                 result[-1]["lifecycleMeanMs"] = {
                     name: mean(row["lifecycleDurations"][name] for row in group)
@@ -306,7 +321,17 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     for label in axis.get_yticklabels():
         if "Primary" in label.get_text():
             label.set_fontweight("bold")
-    axis.set_ylim(-1.2, 4)
+    dns = timeline.get("dns", [])
+    if dns:
+        for kind, y, color in [("TXT", 4.15, "#be123c"), ("SRV", 4.7, "#4338ca")]:
+            queries = [q for q in dns if q["kind"] == kind]
+            for query in queries:
+                axis.barh(y, query["end"] - query["start"], left=query["start"], height=0.28, color=color, zorder=4)
+            if queries:
+                finish = max(q["end"] for q in queries)
+                duration = sum(q["end"] - q["start"] for q in queries)
+                axis.text(finish + totalmax * 0.015, y, f"{kind} DNS · {duration:.1f} ms", va="center", fontsize=9, color=color)
+    axis.set_ylim(-1.2, 5.25 if dns else 4)
 
 
 def render(data, environment, output):
@@ -330,7 +355,7 @@ def render(data, environment, output):
             sorted({c["host"] for row in rows for c in row["timeline"]["connections"]})
         )
     }
-    figure, axes = plt.subplots(1, 2, figsize=(22, 8))
+    figure, axes = plt.subplots(1, 2, figsize=(22, 9))
     figure.subplots_adjust(left=0.12, right=0.97, top=0.76, bottom=0.22, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
@@ -385,7 +410,7 @@ def render(data, environment, output):
         handles=[
             Patch(
                 facecolor=color,
-                label=phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
+                label="Host DNS" if phase == "lookup" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
             )
             for phase, color in COLORS.items()
         ]

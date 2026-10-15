@@ -8,6 +8,28 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_dns_intervals_remain_separate_and_parallel_queries_are_not_added(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        data = json.loads((root / "results/local/samples.json").read_text())
+        sample = next(s for s in data["samples"] if s["variant"] == "native")
+        start = sample["trace"]["start"]
+        sample["trace"]["dns"] = [
+            {"kind": "SRV", "start": start + 1, "end": start + 6},
+            {"kind": "TXT", "start": start + 2, "end": start + 4},
+        ]
+        row = report.local_samples({"samples": [sample]})[0]
+        self.assertEqual(row["timeline"]["dns"], [
+            {"kind": "SRV", "start": 1, "end": 6},
+            {"kind": "TXT", "start": 2, "end": 4},
+        ])
+        self.assertEqual(row["dnsDurations"]["SRV"], 5)
+        self.assertEqual(row["dnsDurations"]["TXT"], 2)
+        self.assertEqual(row["dnsDurations"]["seedlistWall"], 5)
+
     def test_lifecycle_colours_only_unmeasured_gaps_without_double_counting(self):
         import importlib.util
 

@@ -13,6 +13,7 @@ interface InstrumentedClient {
 }
 
 interface InstrumentedConnection {
+  id: number;
   socket: TLSSocket;
   address: string;
   writeCommand(...args: unknown[]): Promise<unknown>;
@@ -111,7 +112,9 @@ export function instrument() {
         const reply = result as { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean };
         trace.role = reply.isWritablePrimary || reply.ismaster ? 'PRIMARY' : reply.secondary ? 'SECONDARY' : 'UNKNOWN';
       }
-      if (active.get(this) === command) commands.push({ ...command, socket: trace });
+      if (active.get(this) === command) {
+        commands.push({ ...command, connectionId: this.id, socket: trace });
+      }
       return result;
     } finally { if (active.get(this) === command) active.delete(this); }
   };

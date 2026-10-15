@@ -23,5 +23,17 @@ export interface CommandTrace {
 }
 
 export interface RecordedCommand extends CommandTrace {
+  connectionId: number;
   socket: SocketTrace;
+}
+
+export interface LifecycleEvent {
+  name: string;
+  at: number;
+  address: string;
+  connectionId?: number | string;
+  requestId?: number;
+  commandName?: string;
+  durationMS?: number;
+  reason?: string;
 }

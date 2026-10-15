@@ -8,37 +8,32 @@ data, diagram and report in this folder, keeping the same links.
 
 ![AWS connection timings from 15 October 2026](latency.png)
 
-**Read comparison:** the diagram illustrates a real sample with one application
-connection, but the 29.5% headline includes all reads. In 20 of 30 MongoDB reads,
-`connect()` and `findOne()` selected different members and opened two application
-connections. The 10 one-connection reads averaged 244.7 ms, compared with 204.7 ms
-across all serverless reads: a 16.4% reduction. Including the two-connection reads
-raises the MongoDB mean to 290.3 ms, so that behavior accounts for roughly half
-the observed read-time gap. This subgroup comparison does not isolate the causal
-cost of the extra connection. Writes used one application connection and showed
-a 16.5% reduction.
-
 | Operation | MongoDB mean | Serverless mean | Reduction |
 | --- | ---: | ---: | ---: |
-| Read | 290.3 ms | 204.7 ms | 29.5% |
-| Write | 261.7 ms | 218.4 ms | 16.5% |
+| Read | 253.8 ms | 206.0 ms | 18.8% |
+| Write | 248.5 ms | 205.5 ms | 17.3% |
 
 Percentages use unrounded means. Each driver/operation has 30 verified cold Lambda
-invocations. Timing starts at client construction and ends at the operation result;
+invocations. Timing starts before handler invocation, including lazy client construction,
+and ends at the operation result;
 imports, Lambda INIT, watcher work and client close are excluded.
 
 AWS results were collected on a sample application using MongoDB driver 7.7.0
 and serverless driver 0.2.0. The MongoDB driver used the cluster SRV URI and
 `secondaryPreferred` for reads. The serverless driver used watcher-provided direct
 secondary/read and primary/write URIs with monitoring disabled. Writes used
-majority acknowledgement. All reads in this cohort reached secondaries; all
-writes reached primaries.
+majority acknowledgement. MongoDB reads reached secondaries in 17 of 30 samples
+and fell back to the primary in 13, as permitted by `secondaryPreferred` during
+discovery. All serverless reads reached secondaries; all writes reached primaries.
 
 Every serverless sample opened one authenticated application socket and no monitor
-socket. Each illustrated trace is a real sample
-nearest the median within its single-application-connection subset, with every
-socket from that sample shown. The table and diagram headings still report means
-across all 30 samples per driver/operation, including the two-connection reads.
+socket. Each illustrated trace is a real sample nearest its driver/operation
+median, with every socket from that sample shown. The table and diagram headings
+report means across all 30 samples per driver/operation.
+Magenta marks gaps within connection setup or pool checkout, teal marks the
+remaining interval before command start, and pink marks time after command success.
+These intervals exclude the measured socket phases and do not overlap.
+
 Bar-end labels report the illustrated sample's duration. Overlapping monitor
 durations must not be added.
 

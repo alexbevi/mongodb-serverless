@@ -8,6 +8,41 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_lifecycle_colours_only_unmeasured_gaps_without_double_counting(self):
+        import importlib.util
+
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        sample = {
+            "trace": {
+                "start": 100,
+                "end": 125,
+                "command": {
+                    "start": 117, "end": 124,
+                    "socket": {"tcp": [104, 106], "tls": [106, 109],
+                               "hello": [110, 112], "auth": [112, 114]},
+                },
+                "lifecycle": {
+                    "connectionSetup": [103, 115], "checkouts": [[102, 116]],
+                    "readyToCommand": [115, 118], "command": [118, 123],
+                    "afterCommand": [123, 125],
+                },
+            }
+        }
+        gaps = report.event_gap_segments(sample)
+        self.assertEqual(gaps, [
+            {"phase": "poolGaps", "start": 3, "end": 4},
+            {"phase": "poolGaps", "start": 9, "end": 10},
+            {"phase": "poolGaps", "start": 14, "end": 15},
+            {"phase": "poolGaps", "start": 2, "end": 3},
+            {"phase": "poolGaps", "start": 15, "end": 16},
+            {"phase": "beforeCommand", "start": 16, "end": 17},
+            {"phase": "afterReply", "start": 24, "end": 25},
+        ])
+        self.assertEqual(sum(gap["end"] - gap["start"] for gap in gaps), 7)
+
     def test_node_lanes_show_selection_braces_and_bold_primary_labels(self):
         import importlib.util
         from unittest.mock import patch
@@ -37,16 +72,6 @@ class ReportTest(unittest.TestCase):
                     for row in data["samples"]
                     if row["mode"] == "native-cluster" and row["operation"] == operation
                 ]
-                group = [
-                    row
-                    for row in group
-                    if sum(
-                        c["kind"] == "application"
-                        for c in row["timeline"]["connections"]
-                    )
-                    == 1
-                ]
-                self.assertEqual(len(braces), 1)
                 middle = report.median(row["timeline"]["total"] for row in group)
                 sample = min(
                     group, key=lambda row: abs(row["timeline"]["total"] - middle)
@@ -98,7 +123,13 @@ class ReportTest(unittest.TestCase):
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
             self.assertEqual(read["n"], 48)
-            self.assertAlmostEqual(read["mean"], 48.2, delta=0.05)
+            samples = json.loads((root / "results/local/samples.json").read_text())
+            totals = [
+                sample["timings"]["total"]
+                for sample in samples["samples"]
+                if sample["variant"] == "native" and sample["operation"] == "read"
+            ]
+            self.assertAlmostEqual(read["mean"], sum(totals) / len(totals))
             self.assertEqual(sum(read["sockets"].values()), 48)
             self.assertTrue(
                 (output / "local/latency.png").read_bytes().startswith(b"\x89PNG")
@@ -123,7 +154,10 @@ class ReportTest(unittest.TestCase):
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
             self.assertEqual(read["n"], 30)
-            self.assertAlmostEqual(read["mean"], 290.3, delta=0.05)
+            data = json.loads((root / "results/aws/samples.json").read_text())
+            totals = [s["phases"]["total"] for s in data["samples"]
+                      if s["mode"] == "native-cluster" and s["operation"] == "read"]
+            self.assertAlmostEqual(read["mean"], sum(totals) / len(totals))
             self.assertEqual(snapshot.read_text(), "Historical AWS snapshot\n")
             self.assertFalse(list(output.rglob("*.svg")))
             evidence = (root / "results/aws/samples.json").read_text()

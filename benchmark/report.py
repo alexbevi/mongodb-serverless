@@ -26,6 +26,49 @@ COLORS = {
 MODES = ("native-cluster", "serverless")
 
 
+GAP_COLORS = {
+    "poolGaps": ("#c026d3", "Connection / pool gaps"),
+    "beforeCommand": ("#0e7490", "Before command"),
+    "afterReply": ("#fb7185", "After reply"),
+}
+
+
+def event_gap_segments(sample):
+    trace = sample["trace"]
+    windows = trace.get("lifecycle")
+    if not windows:
+        return []
+    command = trace["command"]
+    socket = command["socket"]
+    covered = [socket[phase] for phase in ("tcp", "tls", "hello", "auth")]
+    covered.append([command["start"], command["end"]])
+    segments = []
+    categories = [
+        ("poolGaps", [windows["connectionSetup"], *windows["checkouts"]]),
+        ("beforeCommand", [windows["readyToCommand"]]),
+        ("afterReply", [windows["afterCommand"]]),
+    ]
+    for phase, intervals in categories:
+        for begin, end in intervals:
+            pieces = [(max(trace["start"], begin), min(trace["end"], end))]
+            for left, right in covered:
+                remaining = []
+                for a, b in pieces:
+                    if right <= a or left >= b:
+                        remaining.append((a, b))
+                    else:
+                        if a < left:
+                            remaining.append((a, left))
+                        if right < b:
+                            remaining.append((right, b))
+                pieces = remaining
+            for a, b in pieces:
+                if b > a:
+                    segments.append({"phase": phase, "start": a - trace["start"], "end": b - trace["start"]})
+                    covered.append((a, b))
+    return segments
+
+
 def local_samples(data):
     rows = []
     for sample in data["samples"]:
@@ -55,6 +98,19 @@ def local_samples(data):
                     "phases": phases,
                 }
             )
+        gaps = event_gap_segments(sample)
+        lifecycle = trace.get("lifecycle", {})
+        lifecycle_durations = {
+            name: sum(end - begin for begin, end in interval) if name == "checkouts" else interval[1] - interval[0]
+            for name, interval in lifecycle.items()
+        }
+        gap_durations = {
+            phase: sum(gap["end"] - gap["start"] for gap in gaps if gap["phase"] == phase)
+            for phase in GAP_COLORS
+        }
+        gap_durations["unclassified"] = sample["timings"]["other"] - sum(gap_durations.values())
+        if gap_durations["unclassified"] < -1e-6:
+            raise ValueError("Lifecycle windows double-count measured phases")
         rows.append(
             {
                 "mode": "native-cluster"
@@ -62,8 +118,11 @@ def local_samples(data):
                 else "serverless",
                 "operation": sample["operation"],
                 "servedRole": sample["servedRole"],
+                "lifecycleDurations": lifecycle_durations,
+                "gapDurations": gap_durations,
                 "timeline": {
                     "total": sample["timings"]["total"],
+                    "gaps": gaps,
                     "connections": connections,
                     "command": {
                         "send": [command["start"] - start, command["sent"] - start],
@@ -105,7 +164,22 @@ def summarize(rows):
                     ),
                 }
             )
+            if group[0].get("lifecycleDurations"):
+                result[-1]["lifecycleMeanMs"] = {
+                    name: mean(row["lifecycleDurations"][name] for row in group)
+                    for name in group[0]["lifecycleDurations"]
+                }
+                result[-1]["gapMeanMs"] = {
+                    name: mean(row["gapDurations"][name] for row in group)
+                    for name in group[0]["gapDurations"]
+                }
     return result
+
+
+def draw_gaps(axis, timeline, y):
+    for gap in timeline.get("gaps", []):
+        axis.barh(y, gap["end"] - gap["start"], left=gap["start"], height=0.36,
+                  color=GAP_COLORS[gap["phase"]][0], zorder=4)
 
 
 def draw_connection(axis, connection, y):
@@ -197,6 +271,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
                 zorder=5,
             )
         )
+    draw_gaps(axis, timeline, lanes[selected["host"]])
     draw_command(axis, timeline, lanes[selected["host"]])
     first = min(connection["start"] for connection in connections)
     axis.axvspan(0, first, ymin=0.31, ymax=0.94, color="#94a3b8", alpha=0.32, zorder=0)
@@ -218,6 +293,7 @@ def draw_node_lanes(axis, native, serverless, member_letters):
             ha="center",
             fontsize=9,
         )
+    draw_gaps(axis, direct, -0.55)
     draw_command(axis, direct, -0.55)
     direct_host = direct["connections"][0]["host"]
     labels = [
@@ -244,20 +320,6 @@ def render(data, environment, output):
                 for row in rows
                 if (row["operation"], row["mode"]) == (operation, mode)
             ]
-            if environment == "aws":
-                group = [
-                    row
-                    for row in group
-                    if sum(
-                        connection["kind"] == "application"
-                        for connection in row["timeline"]["connections"]
-                    )
-                    == 1
-                ]
-                if not group:
-                    raise ValueError(
-                        f"No single-application-connection AWS sample for {mode} {operation}"
-                    )
             middle = median(row["timeline"]["total"] for row in group)
             representatives[operation, mode] = min(
                 group, key=lambda row: abs(row["timeline"]["total"] - middle)
@@ -278,11 +340,7 @@ def render(data, environment, output):
         weight="bold",
         y=0.97,
     )
-    sample_caption = (
-        "Single-application-connection examples nearest subset medians"
-        if environment == "aws"
-        else "Individual traces nearest cohort medians"
-    )
+    sample_caption = "Individual traces nearest cohort medians"
     figure.text(
         0.5,
         0.89,
@@ -318,10 +376,11 @@ def render(data, environment, output):
         axis.set_xlim(
             0, max(native["timeline"]["total"], serverless["timeline"]["total"]) * 1.15
         )
-        axis.set_xlabel("Milliseconds since client construction")
+        axis.set_xlabel("Milliseconds since handler invocation")
         axis.grid(axis="x", alpha=0.15)
         axis.set_axisbelow(True)
         axis.spines[["top", "right", "left"]].set_visible(False)
+    show_gaps = any(row["timeline"].get("gaps") for row in rows)
     figure.legend(
         handles=[
             Patch(
@@ -330,19 +389,21 @@ def render(data, environment, output):
             )
             for phase, color in COLORS.items()
         ]
+        + ([Patch(facecolor=color, label=label) for color, label in GAP_COLORS.values()] if show_gaps else [])
         + [
             Patch(facecolor="#94a3b8", label="Before first socket"),
             Patch(facecolor="#e2e8f0", label="Other / gaps"),
         ],
         loc="lower center",
         bbox_to_anchor=(0.5, 0.09),
-        ncol=8,
+        ncol=6 if show_gaps else 8,
         frameon=False,
     )
     figure.text(
         0.5,
         0.045,
-        "Every socket in each illustrated sample is shown. Watcher work, imports, client close and Lambda INIT are excluded.",
+        ("Gap colours mark event-bounded intervals, not their CPU/network cause. Every illustrated socket is shown." if show_gaps else
+         "Every socket in each illustrated sample is shown. Watcher work, imports, client close and Lambda INIT are excluded."),
         ha="center",
         fontsize=10,
     )

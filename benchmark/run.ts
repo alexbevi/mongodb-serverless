@@ -62,7 +62,7 @@ try {
       else variants.push('serverless-no-monitoring');
     }
     for (const operation of ['read', 'write']) {
-      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'node', 'benchmark/dist/sample.js', variant, operation, String(iteration))) });
+      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'node', 'benchmark/dist/benchmark.js', variant, operation, String(iteration))) });
     }
   }
   const output = resolve(values.output!);

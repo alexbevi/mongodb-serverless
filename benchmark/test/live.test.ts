@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { instrument } from '../instrument.js';
-import type { breakdown } from '../metrics.js';
-import type { SocketTrace } from '../types.js';
+import type { breakdown, lifecycleWindows } from '../metrics.js';
+import type { SocketTrace, LifecycleEvent } from '../types.js';
 
 interface BenchmarkResult {
   environment: { cpuMax: string; memoryMax: string };
@@ -20,9 +20,12 @@ interface BenchmarkResult {
     verified: boolean;
     processId: number;
     driverVersion: string;
+    applicationConnectionReadyMs: number;
+    commandStartedMs: number;
+    readyToCommandMs: number;
     address: string;
     connections: ReturnType<ReturnType<typeof instrument>['connections']>;
-    trace: { sockets: SocketTrace[]; command: { name: string; socket: { authMechanism: string } } };
+    trace: { events: LifecycleEvent[]; lifecycle: ReturnType<typeof lifecycleWindows>; sockets: SocketTrace[]; command: { name: string; socket: { authMechanism: string } } };
     timings: ReturnType<typeof breakdown>;
   }[];
   network: { source: string; target: string; measuredRttMs: number; configuredRttMs: number }[];
@@ -36,8 +39,19 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
   assert.equal(result.environment.memoryMax, '1073741824');
   const [quota, period] = result.environment.cpuMax.split(' ').map(Number);
   assert.ok(Math.abs(quota! / period! - 1024 / 1769) < 0.001);
+
   for (const sample of result.samples) {
     assert.ok(sample.verified);
+    assert.ok(sample.trace.lifecycle.connectionSetup[1] > sample.trace.lifecycle.connectionSetup[0]);
+    assert.ok(sample.trace.lifecycle.checkouts.length > 0);
+    assert.ok(sample.trace.lifecycle.command[1] > sample.trace.lifecycle.command[0]);
+    assert.ok(sample.trace.events.every(event => event.name !== 'commandFailed' && event.name !== 'connectionCheckOutFailed'));
+    assert.equal(sample.trace.events.filter(event => event.name === 'commandSucceeded').length, 1);
+    assert.ok(sample.applicationConnectionReadyMs > 0, 'Record readiness of the connection serving the operation');
+    assert.ok(sample.commandStartedMs >= sample.applicationConnectionReadyMs);
+    assert.ok(sample.commandStartedMs < sample.timings.total);
+    assert.equal(sample.readyToCommandMs, sample.commandStartedMs - sample.applicationConnectionReadyMs);
+    assert.equal(sample.trace.sockets.filter(socket => socket.auth).length, 1, 'First operation must not preconnect to another member');
     assert.equal(sample.trace.command.name, sample.operation === 'read' ? 'find' : 'update');
     assert.equal(sample.trace.command.socket.authMechanism, 'SCRAM-SHA-1');
 
@@ -75,7 +89,9 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
       assert.equal(connection.replicaSet, 'benchmark');
       assert.ok(['ReplicaSetWithPrimary', 'ReplicaSetNoPrimary'].includes(connection.topologyType));
     }
+
     assert.ok(!connection.uri.includes('benchmark-only'));
+
     for (const phase of ['tcp', 'tls', 'hello', 'auth', 'send', 'receive'] as const) assert.ok(sample.timings[phase] > 0, phase);
     assert.ok(sample.timings.other >= 0);
     assert.equal(sample.driverVersion, '7.7.0');
@@ -89,6 +105,7 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
   assert.ok(readLink.configuredRttMs < writeLink.configuredRttMs, 'Model the measured AWS ordering: a secondary is closer than the primary');
   assert.ok(result.network.every(link => link.measuredRttMs >= link.configuredRttMs * 0.8));
   const ownership = 'label=com.docker.compose.project=mongodb-latency-benchmark';
+
   for (const args of [
     ['container', 'ls', '-aq'],
     ['image', 'ls', '-aq'],

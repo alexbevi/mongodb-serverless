@@ -38,6 +38,22 @@ jobs:
       # start their own replica set rather than skipping.
       - run: pnpm test
 
+      - name: Require 10% benchmark improvement (100 iterations)
+        timeout-minutes: 5
+        run: |
+          python3 -m unittest discover -s benchmark/test -p performance_test.py
+          pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
+          python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+
+      - name: Upload benchmark measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-node-${{ matrix.node }}
+          path: ${{ runner.temp }}/benchmark/samples.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Check the packages are installable
         run: |
           set -euo pipefail

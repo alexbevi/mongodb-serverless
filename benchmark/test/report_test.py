@@ -327,6 +327,10 @@ class ReportTest(unittest.TestCase):
                 {"kind": "SRV", "start": 1, "end": 4},
                 {"kind": "TXT", "start": 2, "end": 3},
             ] if sample["mode"] == "native-cluster" else []
+            sample["trace"]["dns"] = [
+                {**query, "start": query["start"] + sample["trace"]["start"],
+                 "end": query["end"] + sample["trace"]["start"]}
+                for query in sample["timeline"]["dns"]]
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(report.plt, "close") as close:
                 report.render(data, "aws", Path(directory))

@@ -54,7 +54,7 @@ client skips replica-set monitoring. `~` denotes rounded milliseconds.
 The definitions below cover the diagnostic legend. Collect those additional
 measurements with `--diagnostics`; ordinary runs retain socket and lifecycle
 measurements but do not record the code scopes or callback CPU counters.
-[Source probes](source-probes.ts#L3) modify only the Docker copies of the built
+[Source probes](source-probes.ts#L3) modify only the benchmark copies of the built
 packages. The [activity recorder](activities.ts) measures their boundaries;
 [display grouping](report.py#L165) merges adjacent related spans without absorbing
 intervening waits. Detailed spans remain in the raw JSON. The legend follows first
@@ -90,14 +90,14 @@ counts across the bars:
   [executeOperation](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/src/operations/execute_operation.ts).
 - **Trace stack capture:** the benchmark's own [async-hook recorder](execution.ts)
   capturing and formatting creation stacks. This is diagnostic overhead, not normal
-  driver work. Its elapsed time remains in the measured totals. Across the 400 native/direct
+  driver work. Its elapsed time remains in the measured totals. Across the 400 local native/direct
   samples, stack capture alone took a median 6.9 ms per invocation
   (median share 13.4%); it is too large to omit.
 
 These colours appear in each stage where their measured spans occur. **Other
 callbacks** retains the remaining callback intervals; the named probes do not
-claim to explain every instruction. AWS has no corresponding source probes, so
-these local categories are not applied to its diagram.
+claim to explain every instruction. AWS diagnostic runs use the same source probes
+and recorders; each diagram uses measurements from its own environment.
 
 **Client & topology initialization.** Related scopes for creating the wrapper and
 native client, parsing URI/options, reading the plugin's topology, rewriting a
@@ -368,6 +368,31 @@ Thread CPU diagnostics require `process.threadCpuUsage`, available in the pinned
 Node 24 benchmark container. The handlers can still load on Node 20 when diagnostic
 recording is disabled. Tests skip the real thread-CPU assertion on unsupported
 runtimes; recorder tests with supplied clocks still run.
+
+### AWS diagnostics
+
+The [diagnostic worker builder](build-aws-diagnostics.mjs) takes a checkout of the
+AWS benchmark application and builds a separate worker ZIP. It applies the shared
+[source probes](source-probes.ts) to copies of the installed packages and wraps the
+existing operation handler with the [AWS recorder](aws-diagnostics.ts). The
+application source and published driver packages are unchanged.
+
+```sh
+node benchmark/build-aws-diagnostics.mjs /path/to/aws-benchmark-app /tmp/aws-diagnostics/worker
+```
+
+Use Node 24 and a new output directory. The builder checks the worker source and pinned driver
+expressions before applying probes; a changed expression fails the build.
+Deploy the resulting `worker.zip` to the benchmark workers for diagnostic runs.
+Invoke freshly published worker versions with Lambda log tails to verify cold
+starts. Download diagnostic responses directly: full traces can exceed DynamoDB's
+400 KB item limit used by the application's ordinary sample cache.
+
+AWS traces retain named code scopes, callback/dispatch intervals, main-thread CPU
+and stack-capture overhead. They do not collect the local Docker cgroup counters.
+Imports and Lambda INIT remain outside the measured operation. Restore the
+ordinary worker build after collecting diagnostic samples; instrumented timings
+include recording overhead and are not the unprofiled CI performance gate.
 
 ### CI performance gate
 

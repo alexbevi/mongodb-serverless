@@ -8,21 +8,21 @@ data, diagram and report in this folder, keeping the same links.
 
 ![AWS connection timings from 15 October 2026](latency.png)
 
-Median read time was **249.6 → 204.2 ms (18.2% less time)**; median write time was
-**256.7 → 205.9 ms (19.8% less time)**.
+Median read time was **372.2 → 306.2 ms (17.7% less time)**; median write time was
+**382.8 → 303.5 ms (20.7% less time)**.
 
 Percentages use unrounded medians. Each driver/operation has 120 verified cold Lambda
 invocations, collected in four batches of 30. The complete run took approximately
-7m 48s, including authentication, worker resets and logout. Timing starts before handler invocation, including lazy client construction,
+7m 14s, including authentication, worker resets and logout. Timing starts before handler invocation, including lazy client construction,
 and ends at the operation result;
 imports, Lambda INIT, watcher work and client close are excluded.
 
 AWS results were collected on a sample application using MongoDB driver 7.7.0
-and serverless driver 0.2.0. The MongoDB driver used the cluster SRV URI and
+and serverless driver 0.2.0 on Node.js 24.21.0. Diagnostic probes were enabled. The MongoDB driver used the cluster SRV URI and
 `secondaryPreferred` for reads. The serverless driver used watcher-provided direct
 secondary/read and primary/write URIs with monitoring disabled. Writes used
-majority acknowledgement. MongoDB reads reached secondaries in 91 of 120 samples
-and fell back to the primary in 29, as permitted by `secondaryPreferred` during
+majority acknowledgement. MongoDB reads reached secondaries in 89 of 120 samples
+and fell back to the primary in 31, as permitted by `secondaryPreferred` during
 discovery. All serverless reads reached secondaries; all writes reached primaries.
 
 Every serverless sample opened one authenticated application socket and no monitor
@@ -30,17 +30,26 @@ socket. Each illustrated trace is a real sample nearest its driver/operation
 median, with every socket from that sample shown. The diagram headings
 compare medians across all 120 samples per driver/operation.
 Cluster DNS is the shared SRV/TXT discovery stage, shown as one block spanning
-all three node lanes before sockets open. Its elapsed time averaged 13.23 ms for MongoDB reads and 13.85 ms for writes.
+all three node lanes before sockets open. Its elapsed time averaged 20.88 ms for MongoDB reads and 20.96 ms for writes.
 The requests overlap; their individual durations must not be added. Host DNS
 segments show hostname resolution before TCP on each socket. For the selected
-application socket, this averaged 13.32/8.26 ms for MongoDB reads/writes and
-8.28/6.99 ms for serverless reads/writes. Direct clients skip cluster discovery
+application socket, this averaged 21.19/11.89 ms for MongoDB reads/writes and
+9.84/10.39 ms for serverless reads/writes. Direct clients skip cluster discovery
 DNS but still resolve the member hostname. Detailed means are in `dnsMeanMs` in
 the summary; individual requests are retained in `trace.dns`.
 
-Magenta marks gaps within connection setup or pool checkout, teal marks the
-remaining interval before command start, and pink marks time after command success.
-These intervals exclude the measured socket phases and do not overlap.
+The diagram uses the same [code probes and legend definitions](../../README.md#reading-the-diagram)
+as the local benchmark. Setup, connection and operation colours come from measured
+code scopes, DNS/socket phases and callback/dispatch boundaries. Every invocation
+has continuous execution coverage from handler invocation through its result;
+there are no unclassified elapsed-time intervals. Remaining callback work is
+labelled **Other callbacks**, without claiming to identify every instruction.
+
+Hatching marks callbacks whose elapsed time exceeded their measured thread CPU
+by at least 2 ms. The annotation beneath each client gives main-thread CPU and
+cumulative callback time off CPU. Hatching covers the callback's interval; it does
+not locate individual scheduling pauses or establish why the thread was off CPU.
+Lambda cgroup counters were not collected.
 
 Bar-end labels report the illustrated sample's duration. Overlapping monitor
 durations must not be added.
@@ -60,11 +69,15 @@ The diagram separates Setup, Connection and Operation. Application phases take
 precedence over concurrent monitor phases; overlapping monitor intervals count
 once in the summary. `~` marks rounded values.
 
-This run uses socket and client-event instrumentation without diagnostic code
-probes or async-hook stack capture. Grey intervals retain measured elapsed time
-whose internal cause was not profiled on Lambda. The [local diagnostic workflow](../../README.md#reading-the-diagram)
-measures code scopes separately; its durations are not substituted into AWS bars.
-The summary retains the unrounded accounting and interval boundaries.
+Recording overhead remains in the timings. Creation-stack capture alone took a
+median **51.2 ms per invocation**, with a median share of **15.4%** of elapsed time.
+That is too large to omit. These diagnostic results are not directly comparable
+to earlier AWS runs without code probes and callback tracing. The ordinary
+workers were restored after collection; the CI performance gate remains unprofiled.
+
+The raw JSON retains each code scope, callback/dispatch interval and thread CPU
+measurement. Repeated creation stacks are stored once in `executionSources` and
+referenced by `sourceId`; no timing segments are discarded.
 
 [Raw samples](samples.json) · [Summary statistics](summary.json) ·
 [Current local benchmark](../../../BENCHMARK.md)

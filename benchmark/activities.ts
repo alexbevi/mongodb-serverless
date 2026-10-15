@@ -49,5 +49,5 @@ export function activityRecorder(clock = () => performance.now(), cpuClock = cpu
 
 export const activities = activityRecorder();
 
-// The Docker-only source probes call this recorder; production packages are untouched.
+// Benchmark source probes call this recorder; published packages are untouched.
 Object.assign(globalThis, { __benchmarkActivities: activities });

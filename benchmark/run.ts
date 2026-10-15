@@ -8,7 +8,7 @@ import { parseArgs } from 'node:util';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 process.chdir(root);
 
-const { values } = parseArgs({ options: { diagnostics: { type: 'boolean', default: false }, 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
+const { values } = parseArgs({ options: { 'cpu-profile': { type: 'boolean', default: false }, diagnostics: { type: 'boolean', default: false }, 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
 const count = Number(values.samples);
 const localRtt = Number(values['local-rtt']);
 const crossRtt = Number(values['cross-rtt']);
@@ -65,7 +65,7 @@ try {
       else variants.push('serverless-no-monitoring');
     }
     for (const operation of ['read', 'write']) {
-      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'env', `BENCHMARK_DIAGNOSTICS=${values.diagnostics ? '1' : '0'}`, 'node', 'benchmark/dist/benchmark.js', variant, operation, String(iteration))) });
+      for (const variant of variants) samples.push({ iteration, ...JSON.parse(inside('client', 'env', `BENCHMARK_DIAGNOSTICS=${values.diagnostics ? '1' : '0'}`, `BENCHMARK_CPU_PROFILE=${values['cpu-profile'] ? '1' : '0'}`, 'node', 'benchmark/dist/benchmark.js', variant, operation, String(iteration))) });
     }
   }
   const output = resolve(values.output!);

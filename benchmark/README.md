@@ -317,3 +317,11 @@ not an AWS latency prediction. Saved measurements live only in `results/local/`
 and `results/aws/`. The [local report](../BENCHMARK.md) describes how to replace
 the local samples, diagram and summary. The
 [AWS results](results/aws/results.md) record a separate AWS run and its measurement date.
+
+### Sampling callback work
+
+For a separate CPU profiling run, add `--cpu-profile --diagnostics` to the local
+benchmark command and send `--output` to a temporary file. The
+[Node CPU profiler](https://nodejs.org/api/inspector.html#cpu-profiler) samples
+executing stacks at a requested 100 µs interval around the handler. Sampling adds
+overhead; keep these diagnostic timings separate from the performance results.

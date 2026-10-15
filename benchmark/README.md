@@ -220,8 +220,7 @@ the generated CA and member hostname. Each pool allows one application connectio
 per member; retries are disabled. Socket traces record the member role and negotiated
 authentication mechanism.
 
-The client container has 1 GiB memory and a 0.579 CPU quota. This approximates the
-CPU share associated with the default 1024 MB Lambda configuration; it does not
+The client container has 1 GiB memory and no CPU quota. Local runs do not
 reproduce Lambda scheduling or processor speed. The JSON records actual cgroup limits.
 The client and read secondary share simulated AZ B; the primary is in AZ A and
 the other secondary is in AZ C. This models the measured AWS ordering, where a
@@ -289,7 +288,7 @@ receive includes network transit and server work. Without diagnostics, internal 
 runs subdivide them into the measured scopes and execution intervals defined above. Instrumentation adds
 some overhead and is verified against MongoDB driver 7.7.0.
 
-The local DNS resolver, CPU quota, certificates, MongoDB deployment and network
+The local DNS resolver, host CPU, certificates, MongoDB deployment and network
 scheduler differ from AWS. Local results test the connection sequence; they are
 not an AWS latency prediction. Saved measurements live only in `results/local/`
 and `results/aws/`. The [local report](../BENCHMARK.md) describes how to replace

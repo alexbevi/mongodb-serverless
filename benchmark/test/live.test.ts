@@ -37,8 +37,7 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
   const result: BenchmarkResult = JSON.parse(readFileSync(output, 'utf8'));
   assert.equal(result.samples.length, 72);
   assert.equal(result.environment.memoryMax, '1073741824');
-  const [quota, period] = result.environment.cpuMax.split(' ').map(Number);
-  assert.ok(Math.abs(quota! / period! - 1024 / 1769) < 0.001);
+  assert.equal(result.environment.cpuMax.split(' ')[0], 'max');
 
   for (const sample of result.samples) {
     assert.ok(sample.verified);

@@ -15,3 +15,9 @@ test('npm benchmark compiles the harness before validating arguments', () => {
   expect(result.stderr).toMatch(/--samples must be an integer/);
   expect(existsSync('benchmark/dist/run.js')).toBe(true);
 }, 30_000);
+
+test('does not impose an artificial CPU quota on local benchmarks', () => {
+  const compose = readFileSync(new URL('../docker/compose.yaml', import.meta.url), 'utf8');
+
+  expect(compose).not.toMatch(/cpus:|cpu_quota:|cpu_period:/);
+});

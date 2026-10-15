@@ -35,7 +35,6 @@ services:
     networks:
       bench: {ipv4_address: 172.30.91.14}
   client:
-    cpus: 0.579
     mem_limit: 1024m
     dns: [172.30.91.14]
     build:

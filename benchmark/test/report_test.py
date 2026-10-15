@@ -93,6 +93,7 @@ class ReportTest(unittest.TestCase):
             for axis in close.call_args.args[0].axes:
                 self.assertIn("% less time", axis.get_title(loc="left"))
         self.assertTrue(data["configuration"]["diagnostics"])
+        self.assertGreaterEqual(data["configuration"]["count"], 100)
         self.assertNotIn("diagnostic", data)
         self.assertEqual(data["environment"]["cpuMax"].split()[0], "max")
         for sample in data["samples"]:
@@ -421,7 +422,7 @@ class ReportTest(unittest.TestCase):
                 for s in summary
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
-            self.assertEqual(read["n"], 30)
+            self.assertGreaterEqual(read["n"], 100)
             data = json.loads((root / "results/aws/samples.json").read_text())
             totals = [s["phases"]["total"] for s in data["samples"]
                       if s["mode"] == "native-cluster" and s["operation"] == "read"]

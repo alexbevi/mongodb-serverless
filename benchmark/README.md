@@ -43,7 +43,7 @@ The headings above the bars describe elapsed sections:
   checkout/dispatch, the command exchange and completion processing, not just
   database execution.
 
-These boundaries are defined in [section_spans](report.py#L394), using
+These boundaries are defined in [section_spans](report.py#L427), using
 [connection and command event matching](metrics.ts#L57). Braces show the transition
 from replica-set discovery to the selected application connection. The direct
 client skips replica-set monitoring. `~` denotes rounded milliseconds.
@@ -53,7 +53,7 @@ measurements with `--diagnostics`; ordinary runs retain socket and lifecycle
 measurements but do not record the code scopes or callback CPU counters.
 [Source probes](source-probes.ts#L3) modify only the Docker copies of the built
 packages. The [activity recorder](activities.ts) measures their boundaries;
-[display grouping](report.py#L141) merges adjacent related spans without absorbing
+[display grouping](report.py#L165) merges adjacent related spans without absorbing
 intervening waits. Detailed spans remain in the raw JSON. The legend follows first
 appearance within each stage; parallel work can make the order differ across traces.
 
@@ -131,7 +131,7 @@ Both drivers resolve member hostnames.
 **Replica-set monitor activity.** The union of measured monitor DNS, TCP, TLS and
 hello intervals, used on the selected path where application phases do not already
 cover the time. The individual monitor lanes retain their detailed phases.
-[Accounting precedence](report.py#L92) prevents concurrent monitors from being
+[Accounting precedence](report.py#L93) prevents concurrent monitors from being
 counted multiple times. This is elapsed discovery activity, not a CPU-cost total.
 
 **TCP.** From hostname lookup completion to the socket's `connect` event.
@@ -182,13 +182,15 @@ time. Both endpoints are recorded by the same [command instrumentation](instrume
 invocation. **Off CPU** within a callback is its elapsed wall time minus its measured
 thread CPU time. Worker threads can still be running. The
 [execution recorder](execution.ts#L27) captures both counters, and the
-[renderer](report.py#L377) hatches callbacks with more than 2 ms of this difference.
+[renderer](report.py#L409) hatches callbacks with more than 2 ms of this difference.
 The hatch spans the whole callback; it does not locate each pause inside it.
 SCRAM, handshake and pool-ready labels identify the recorded continuation's origin.
 
-**Cgroup throttled Δ** is the change in Linux `cpu.stat`'s `throttled_usec`, read
+**Cgroup throttled** is the change in Linux `cpu.stat`'s `throttled_usec`, read
 [around the invocation](handler-base.ts#L107). It covers the container's threads,
 not just the JavaScript thread, and cannot be assigned exactly to one callback.
+It appears on the diagram only when non-zero at the displayed precision;
+zero-valued counters remain in the raw measurements.
 A similar-sized off-CPU interval supports throttling as an explanation but does not
 prove that every part of the pause had that cause. Diagnostic probes add overhead
 and can themselves increase throttling; their runs explain execution rather than

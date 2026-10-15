@@ -1,28 +1,60 @@
 # Releasing
 
-## Day to day
+## Existing packages
 
-Add a changeset in the same commit as the change it describes:
+Add a changeset with the change it describes:
 
 ```sh
 pnpm changeset
 ```
 
-On merge to `main`, the release workflow opens a "Version Packages" PR that
-applies every pending changeset. Merging that PR publishes to npm and creates
-the GitHub Releases.
+Merging to `main` opens a "Version Packages" PR. Merging that PR publishes to
+npm and creates the GitHub Releases after CI passes.
 
-`@mongodb-serverless/watcher` is `private: true`, so it is not published. The
-`ignore` list in `.changeset/config.json` keeps it out of version PRs; remove
-it from both when the watcher is ready to ship.
+The watcher is private and ignored by Changesets. Remove both restrictions
+when it is ready to publish.
 
-## One-time setup
+## First publish of a new package
 
-### Let Actions open the version PR
+Add the package to `pnpm-workspace.yaml` and the root TypeScript build
+references. Set a release version, ensure it is neither private nor ignored by
+Changesets, and verify that its `npm pack` tarball installs.
 
-Changesets pushes a `changeset-release/main` branch and opens a PR from it.
-GitHub blocks that by default, with *"GitHub Actions is not permitted to
-create or approve pull requests"*, so enable it once:
+Replace `example` with the plugin's directory and package suffix:
+
+```sh
+package_dir=plugins/example
+package_name=@mongodb-serverless/plugin-example
+npm login
+pnpm build
+( cd "$package_dir" && npm publish --access public )
+npm view "$package_name" version
+```
+
+Complete npm's 2FA prompt. An authenticator code can be supplied with `--otp`;
+passkeys and security keys use browser authentication. Wait for the package to
+appear in `npm view` before configuring trust.
+
+Each package needs its own trusted publisher. Use npm 11.15 or later with
+package write access:
+
+```sh
+npm trust github "$package_name" \
+  --repo alexbevi/mongodb-serverless --file release.yml --allow-publish
+npm trust list "$package_name"
+```
+
+This authorizes `.github/workflows/release.yml` to publish directly. The
+workflow already requests `id-token: write` and publishes without `NPM_TOKEN`.
+After a successful CI publish, delete any old repository token secret and
+revoke its npm token.
+
+See [npm's trusted publishing guide](https://docs.npmjs.com/trusted-publishers/)
+for setup through the npm website.
+
+## Repository setup
+
+Allow GitHub Actions to open version PRs:
 
 ```sh
 gh api --method PUT repos/alexbevi/mongodb-serverless/actions/permissions/workflow \
@@ -30,54 +62,4 @@ gh api --method PUT repos/alexbevi/mongodb-serverless/actions/permissions/workfl
   -F can_approve_pull_request_reviews=true
 ```
 
-Or tick **Settings > Actions > General > Workflow permissions > Allow GitHub
-Actions to create and approve pull requests**.
-
-Without it the release job fails *after* pushing the branch, so the PR can
-still be opened by hand from the link in the log.
-
-### Trusted publishing
-
-CI publishes with no stored credential. pnpm 12 exchanges the workflow's OIDC
-token for a short-lived npm one, and the release job already requests
-`id-token: write`.
-
-Both workflows select pnpm 12.8.1 explicitly. Keep those versions aligned when
-upgrading the release tooling.
-
-Each package needs a trusted publisher on npm, which can only be added to a
-package that already exists. So the first publish of a new package is manual:
-
-```sh
-npm login
-pnpm build
-( cd driver        && npm publish --access public --otp=CODE )
-( cd plugins/local && npm publish --access public --otp=CODE )
-```
-
-`--otp` satisfies the account's 2FA requirement directly. Do not create a
-token with 2FA bypass for this; npm has announced restrictions on those, and
-trusted publishing removes the need.
-
-Then register the publisher for each package:
-
-```sh
-npm trust github @mongodb-serverless/driver \
-  --repo alexbevi/mongodb-serverless --file release.yml --allow-publish
-npm trust github @mongodb-serverless/plugin-local \
-  --repo alexbevi/mongodb-serverless --file release.yml --allow-publish
-```
-
-Check it with `npm trust list @mongodb-serverless/driver`. After that, merging
-a version PR publishes with no secret involved, and npm records provenance.
-
-## No token to monitor
-
-The release workflow no longer reads `NPM_TOKEN`. After verifying a trusted
-publish, delete any old repository secret and revoke its npm token. The
-token-health workflow is no longer needed.
-
-If a token is ever reintroduced, note that **npm does not expose a token's
-expiry date**: `npm token list` reports `created` but no expiry, and granular
-tokens do not appear there at all. Validity can be checked against
-`GET /-/whoami`; remaining lifetime cannot.
+Keep the pnpm versions in `ci.yml` and `release.yml` aligned.

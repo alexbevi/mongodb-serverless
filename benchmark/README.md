@@ -369,3 +369,21 @@ Thread CPU diagnostics require `process.threadCpuUsage`, available in the pinned
 Node 24 benchmark container. The handlers can still load on Node 20 when diagnostic
 recording is disabled. Tests skip the real thread-CPU assertion on unsupported
 runtimes; recorder tests with supplied clocks still run.
+
+### CI performance gate
+
+The CI test job runs 100 cold iterations per driver/operation, with diagnostic
+probes and CPU profiling disabled. It compares the native driver with the
+serverless driver with monitoring disabled. Each read and write median must be
+at least 10% lower than the corresponding native median; exactly 10% passes.
+The monitoring-enabled control is collected but does not decide the gate.
+
+```sh
+pnpm benchmark --no-monitoring --samples 100 --output /tmp/benchmark-ci/samples.json
+python3 benchmark/performance.py /tmp/benchmark-ci/samples.json
+```
+
+The checker rejects missing, duplicate, unverified or invalid measurements.
+CI uploads the raw measurements for seven days, including when the threshold
+fails. Results remain outside the committed local/AWS snapshots. Shared-runner
+contention can affect this gate; a failure needs inspection of the measurements.

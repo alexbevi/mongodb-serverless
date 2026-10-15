@@ -5,6 +5,8 @@
     "n": 100,
     "mean": 47.97911877,
     "median": 47.9507915,
+    "standardDeviation": 1.7124631411832274,
+    "coefficientOfVariationPercent": 3.5691842307324384,
     "medianAbsoluteDeviation": 1.0985629999999986,
     "p95": 50.924333,
     "roles": {
@@ -655,6 +657,8 @@
     "n": 100,
     "mean": 39.65581502,
     "median": 39.677792,
+    "standardDeviation": 1.1027978523401465,
+    "coefficientOfVariationPercent": 2.780923432752452,
     "medianAbsoluteDeviation": 0.7351039999999998,
     "p95": 41.320291000000005,
     "roles": {
@@ -1765,6 +1769,8 @@
     "n": 100,
     "mean": 61.31392133,
     "median": 60.949583499999996,
+    "standardDeviation": 2.099854092744975,
+    "coefficientOfVariationPercent": 3.4247590876520033,
     "medianAbsoluteDeviation": 1.1886035000000064,
     "p95": 65.037459,
     "roles": {
@@ -2295,6 +2301,8 @@
     "n": 100,
     "mean": 52.07763912,
     "median": 52.112271,
+    "standardDeviation": 1.3561588772621875,
+    "coefficientOfVariationPercent": 2.6041097487872977,
     "medianAbsoluteDeviation": 0.941271000000004,
     "p95": 54.426500000000004,
     "roles": {

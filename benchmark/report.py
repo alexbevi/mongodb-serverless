@@ -8,7 +8,7 @@ import json
 import math
 import random
 from pathlib import Path
-from statistics import mean, median
+from statistics import mean, median, stdev
 
 import matplotlib
 
@@ -328,6 +328,8 @@ def summarize(rows):
                     "n": len(group),
                     "mean": mean(totals),
                     "median": median(totals),
+                    "standardDeviation": stdev(totals) if len(totals) > 1 else None,
+                    "coefficientOfVariationPercent": 100 * stdev(totals) / mean(totals) if len(totals) > 1 else None,
                     "medianAbsoluteDeviation": median(abs(value - median(totals)) for value in totals),
                     "p95": totals[math.ceil(0.95 * len(totals)) - 1],
                     "roles": dict(Counter(row["servedRole"] for row in group)),
@@ -437,6 +439,17 @@ def section_spans(row):
                        "connection": connection})
     result.append({"label": "Operation", "start": ready, "end": timeline["total"]})
     return result
+
+
+def chart_heading(operation, native, serverless):
+    reduction = 100 * (1 - serverless["median"] / native["median"])
+
+    def pair(field, approximate=True):
+        return "→".join(("~" if approximate else "") + f"{stats[field]:.1f}"
+                        if stats[field] is not None else "n/a" for stats in (native, serverless))
+
+    return (f"{operation.title()} · median {pair('median')} ms ({reduction:.1f}% less) · "
+            f"mean {pair('mean')} · SD {pair('standardDeviation')} · CV {pair('coefficientOfVariationPercent', False)}%")
 
 
 def callback_work(stack):
@@ -684,7 +697,7 @@ def render(data, environment, output):
     figure.text(
         0.5,
         0.93,
-        run_caption(data, environment) + "\n" + f"Measured {date}. {sample_caption}. " + ("Diagnostic probes enabled; timings include tracing overhead." if diagnostic else "Headings report all-sample means."),
+        run_caption(data, environment) + "\n" + f"Measured {date}. {sample_caption}. " + ("Diagnostic probes enabled; timings include tracing overhead." if diagnostic else "Headings compare cohort medians."),
         va="top",
         ha="center",
         fontsize=11,
@@ -706,26 +719,13 @@ def render(data, environment, output):
                 row = native if item["driver"] == "native-cluster" else serverless
                 item["illustratedTraceAccountingMs"] = accounting_totals(row["timeline"])
                 item["illustratedTraceSegments"] = accounting_segments(row["timeline"])
-        means = {
-            item["driver"]: item["mean"]
-            for item in summary
-            if item["operation"] == operation
-        }
         comparison = comparison_stats([row for row in rows if row["operation"] == operation])
         for item in summary:
             if item["operation"] == operation:
                 item["comparison"] = comparison
-        reduction = comparison["reductionPercent"]
-        low, high = comparison["confidence95Percent"]
-        batch_values = [batch["reductionPercent"] for batch in comparison["batches"]]
         distributions = {item["driver"]: item for item in summary if item["operation"] == operation}
-        native_stats, serverless_stats = (distributions[mode] for mode in MODES)
-        axis.set_title(
-            f"{operation.title()} · mean ~{means['native-cluster']:.1f} → ~{means['serverless']:.1f} ms ({reduction:.1f}% less time)\n"
-            f"Median ~{native_stats['median']:.1f} (MAD ~{native_stats['medianAbsoluteDeviation']:.1f}) → ~{serverless_stats['median']:.1f} (MAD ~{serverless_stats['medianAbsoluteDeviation']:.1f}) ms\n"
-            f"Reduction 95% CI: {low:.1f}–{high:.1f}% · batch range: {min(batch_values):.1f}–{max(batch_values):.1f}%",
-            loc="left", fontsize=12, weight="bold", pad=15,
-        )
+        axis.set_title(chart_heading(operation, distributions["native-cluster"], distributions["serverless"]),
+                       loc="left", fontsize=9.5, weight="bold", pad=15)
         axis.set_xlim(
             0, max(native["timeline"]["total"], serverless["timeline"]["total"]) * 1.15
         )
@@ -767,8 +767,7 @@ def render(data, environment, output):
     figure.text(
         0.5,
         0.025,
-        "MAD = median absolute deviation. CI = hierarchical paired bootstrap interval for the mean reduction (2,000 resamples).\n"
-        "Concurrent node lanes overlap in time and must not be added.\n"
+        "Mean and SD are in ms; CV = SD / mean. Arrows compare MongoDB → serverless. Concurrent node lanes must not be added.\n"
         + (f"Callback names: largest named sampled work per stage in a separate {data['callbackProfile']['invocations']}-invocation local profile; not a complete attribution of these bars.\n" if data.get("callbackProfile") else "")
         + ("Hatching spans callbacks with measured off-CPU time; it does not locate individual pauses. Cgroup counters cover all threads. ~ marks rounded timings." if diagnostic else
            "~ marks rounded timings; grey spans retain elapsed time whose cause is not profiled. Imports, watcher work, client close and Lambda INIT are outside the measurement."),

@@ -9,15 +9,16 @@ The diagram shows 100 cold invocations per driver/operation across four batches
 of 25, with code probes,
 callback tracing and socket/client events recording the full breakdown.
 Each illustrated trace is the sample nearest its driver/operation median.
-Headings report means and percentage reductions from that same measured cohort.
+Headings report medians and the percentage reduction between those medians.
 The first operation connects automatically, and the local client has no CPU quota.
 The complete four-batch run took approximately 3m 29s, including compilation,
 cluster setup and teardown. The command below collects one 100-iteration batch.
 
 Timings include profiling overhead, so the percentages describe this instrumented
 run. The [legend definitions](benchmark/README.md#reading-the-diagram) explain
-the measured setup, connection and operation intervals. MAD is the median absolute
-distance from the median. The 95% interval for the percentage reduction uses
+the measured setup, connection and operation intervals. The summary retains
+means, p95 and variability. MAD is the median absolute
+distance from the median. The 95% interval for the mean reduction uses
 2,000 bootstrap resamples, first sampling batches and then paired iterations
 within each batch. The batch range shows the observed variation between runs;
 four batches do not establish performance across all machines or workloads.

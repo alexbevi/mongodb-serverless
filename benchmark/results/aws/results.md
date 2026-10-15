@@ -8,10 +8,10 @@ data, diagram and report in this folder, keeping the same links.
 
 ![AWS connection timings from 15 October 2026](latency.png)
 
-Mean read time was **250.9 → 202.0 ms (19.5% less time)**; mean write time was
-**260.2 → 208.3 ms (19.9% less time)**.
+Median read time was **249.6 → 204.2 ms (18.2% less time)**; median write time was
+**256.7 → 205.9 ms (19.8% less time)**.
 
-Percentages use unrounded means. Each driver/operation has 120 verified cold Lambda
+Percentages use unrounded medians. Each driver/operation has 120 verified cold Lambda
 invocations, collected in four batches of 30. The complete run took approximately
 7m 48s, including authentication, worker resets and logout. Timing starts before handler invocation, including lazy client construction,
 and ends at the operation result;
@@ -28,7 +28,7 @@ discovery. All serverless reads reached secondaries; all writes reached primarie
 Every serverless sample opened one authenticated application socket and no monitor
 socket. Each illustrated trace is a real sample nearest its driver/operation
 median, with every socket from that sample shown. The diagram headings
-report means across all 120 samples per driver/operation.
+compare medians across all 120 samples per driver/operation.
 Cluster DNS is the shared SRV/TXT discovery stage, shown as one block spanning
 all three node lanes before sockets open. Its elapsed time averaged 13.23 ms for MongoDB reads and 13.85 ms for writes.
 The requests overlap; their individual durations must not be added. Host DNS
@@ -49,8 +49,8 @@ Lambda placement, CPU scheduling, DNS, TLS and database load affect these timing
 The results do not establish current performance or the behavior of long-lived
 pools, elections or failover.
 
-The headings also show medians and median absolute deviations (MAD), the typical
-distance from the median. The reduction's 95% confidence interval uses 2,000
+The summary retains means, p95 and median absolute deviations (MAD), the typical
+distance from the median. The mean reduction's 95% confidence interval uses 2,000
 hierarchical bootstrap resamples: batches first, then paired five-worker rounds
 within each batch. The batch range shows observed variation in mean reduction.
 Four batches describe these runs; they do not establish performance across other

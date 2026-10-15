@@ -8,6 +8,23 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_chart_heading_uses_median_reduction_on_one_line(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        rows = [{"operation": operation, "mode": mode, "servedRole": "PRIMARY",
+                 "timeline": {"total": value, "connections": []}}
+                for operation in ("read", "write") for mode in report.MODES for value in (1, 2, 3)]
+        stats = report.summarize(rows)[0]
+        self.assertEqual(stats["standardDeviation"], 1)
+        self.assertEqual(stats["coefficientOfVariationPercent"], 50)
+        native = {"median": 250, "mean": 300, "standardDeviation": 30, "coefficientOfVariationPercent": 10}
+        direct = {"median": 200, "mean": 270, "standardDeviation": 27, "coefficientOfVariationPercent": 10}
+        self.assertEqual(report.chart_heading("read", native, direct),
+                         "Read · median ~250.0→~200.0 ms (20.0% less) · mean ~300.0→~270.0 · SD ~30.0→~27.0 · CV 10.0→10.0%")
+
     def test_callback_legend_names_measured_work_and_keeps_probe_overhead(self):
         import importlib.util
         root = Path(__file__).parents[1]
@@ -112,7 +129,8 @@ class ReportTest(unittest.TestCase):
             with patch.object(report.plt, "close") as close:
                 report.render(cohort, "local", Path(directory))
             for axis in close.call_args.args[0].axes:
-                self.assertIn("% less time", axis.get_title(loc="left"))
+                self.assertIn("% less)", axis.get_title(loc="left"))
+                self.assertNotIn("\n", axis.get_title(loc="left"))
         self.assertTrue(data["configuration"]["diagnostics"])
         self.assertGreaterEqual(data["configuration"]["count"], 100)
         self.assertNotIn("diagnostic", data)

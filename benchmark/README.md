@@ -17,8 +17,11 @@ container CPU quota. Timings and percentage reductions include profiling overhea
 ![Measured local connection breakdown](results/local/latency.png)
 
 The bars, percentage headings and summary use the same measured cohort.
-Headers show median and median absolute deviation (MAD), the typical distance
-from the median. Percentage-reduction intervals use 2,000 hierarchical paired
+Headers compare cohort medians; the percentage is `100 × (1 − serverless median / native median)`.
+Following [Google Benchmark](https://google.github.io/benchmark/user_guide.html),
+the same header line also shows mean, sample standard deviation (SD) and coefficient
+of variation (CV = SD / mean). The summary retains p95, median absolute deviation
+(MAD) and uncertainty for the mean reduction. These intervals use 2,000 hierarchical paired
 bootstrap resamples: batches first, then iterations within each batch. AWS uses
 paired five-worker rounds within each batch. Batch ranges show the observed
 variation in mean reduction. The intervals describe uncertainty within these

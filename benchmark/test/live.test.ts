@@ -25,7 +25,7 @@ interface BenchmarkResult {
     readyToCommandMs: number;
     address: string;
     connections: ReturnType<ReturnType<typeof instrument>['connections']>;
-    trace: { events: LifecycleEvent[]; lifecycle: ReturnType<typeof lifecycleWindows>; sockets: SocketTrace[]; command: { name: string; socket: { authMechanism: string } } };
+    trace: { dns: { kind: string; start: number; end: number }[]; events: LifecycleEvent[]; lifecycle: ReturnType<typeof lifecycleWindows>; sockets: SocketTrace[]; command: { name: string; socket: { authMechanism: string } } };
     timings: ReturnType<typeof breakdown>;
   }[];
   network: { source: string; target: string; measuredRttMs: number; configuredRttMs: number }[];
@@ -42,6 +42,21 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
 
   for (const sample of result.samples) {
     assert.ok(sample.verified);
+    assert.ok(Array.isArray(sample.trace.dns), 'Record SRV/TXT timing spans');
+
+    if (sample.variant === 'native') {
+      assert.deepEqual(sample.trace.dns.map(query => query.kind).sort(), ['SRV', 'TXT']);
+      const firstSocket = Math.min(...sample.trace.sockets.map(socket => socket.start));
+      assert.ok(sample.trace.dns.every(query => query.end > query.start && query.end <= firstSocket));
+    } else assert.equal(sample.trace.dns.length, 0);
+
+    for (const socket of sample.trace.sockets) {
+      if (!socket.tcp) continue;
+      assert.ok(socket.lookup && socket.lookup[1] > socket.lookup[0], 'Record actual hostname lookup');
+      assert.ok(socket.lookup[0] >= socket.start);
+      assert.equal(socket.tcp[0], socket.lookup[1], 'TCP excludes hostname resolution');
+    }
+
     assert.ok(sample.trace.lifecycle.connectionSetup[1] > sample.trace.lifecycle.connectionSetup[0]);
     assert.ok(sample.trace.lifecycle.checkouts.length > 0);
     assert.ok(sample.trace.lifecycle.command[1] > sample.trace.lifecycle.command[0]);

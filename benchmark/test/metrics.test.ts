@@ -31,7 +31,7 @@ test('matches lifecycle windows by pool, connection and request without treating
 });
 
 test('counts hostname resolution separately from TCP without double counting', () => {
-  const socket = { lookup: [1, 4] as [number, number], tcp: [4, 6] as [number, number], tls: [6, 8] as [number, number], hello: [8, 9] as [number, number], auth: [9, 11] as [number, number] };
+  const socket: Parameters<typeof breakdown>[2] = { lookup: [1, 4], tcp: [4, 6], tls: [6, 8], hello: [8, 9], auth: [9, 11] };
   const result = breakdown(0, 15, socket, { start: 12, sent: 13, end: 14 });
 
   expect(result).toMatchObject({ lookup: 3, tcp: 2, other: 3, total: 15 });

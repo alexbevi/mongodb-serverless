@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { LookupFunction } from 'node:net';
 import type { TLSSocket, ConnectionOptions } from 'node:tls';
 import type { CommandTrace, RecordedCommand, SocketTrace } from './types.js';
 import { createRequire } from 'node:module';
@@ -45,6 +46,19 @@ export function instrument() {
       servers: [...client.topology.description.servers.keys()]
     };
   });
+
+  const dns: typeof import('node:dns') = require('node:dns');
+  const dnsQueries: { kind: 'SRV' | 'TXT'; start: number; end: number }[] = [];
+  const resolve = dns.promises.resolve;
+
+  // SAFETY: Forward every DNS record type unchanged; the overload's result is preserved.
+  dns.promises.resolve = ((hostname: string, kind: string = 'A') => {
+    const start = performance.now();
+
+    return resolve(hostname, kind).finally(() => {
+      if (kind === 'SRV' || kind === 'TXT') dnsQueries.push({ kind, start, end: performance.now() });
+    });
+  }) as typeof dns.promises.resolve;
   const tls = require('node:tls') as { connect(options: ConnectionOptions & { host: string; port: number }): TLSSocket };
   const { Connection } = require('mongodb/lib/cmap/connection.js') as { Connection: { prototype: InstrumentedConnection } };
   // SAFETY: These provider exports and their auth signature are verified against the pinned driver version.
@@ -60,11 +74,21 @@ export function instrument() {
   const originalTls = tls.connect;
   tls.connect = function (...args) {
     const start = performance.now();
-    const socket = originalTls.apply(this, args);
     const trace: SocketTrace = { host: args[0].host, port: args[0].port, start };
+    const lookup: LookupFunction = args[0].lookup ?? dns.lookup;
+
+    const options = { ...args[0], lookup: ((hostname, options, callback) => {
+      const begin = performance.now();
+      lookup(hostname, options, (error, address, family) => {
+        trace.lookup = [begin, performance.now()];
+        callback(error, address, family);
+      });
+    }) satisfies LookupFunction };
+
+    const socket = originalTls.call(this, options);
     traces.push(trace);
     sockets.set(socket, trace);
-    socket.once('connect', () => { trace.tcp = [start, performance.now()]; });
+    socket.once('connect', () => { trace.tcp = [trace.lookup?.[1] ?? start, performance.now()]; });
     socket.once('secureConnect', () => {
       if (!trace.tcp) throw new Error('Missing TCP connect event');
       trace.tls = [trace.tcp[1], performance.now()];
@@ -118,5 +142,5 @@ export function instrument() {
       return result;
     } finally { if (active.get(this) === command) active.delete(this); }
   };
-  return { traces, commands, version, connections };
+  return { traces, commands, version, connections, dns: dnsQueries };
 }

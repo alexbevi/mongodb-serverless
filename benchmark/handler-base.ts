@@ -123,7 +123,7 @@ export async function measureBenchmark(
   assert.ok(connectionReady >= command.socket.auth![1], 'Readiness must follow authentication');
   assert.ok(readyToCommandMs >= 0 && commandStartedMs < timings.total, 'Invalid operation event order');
 
-  return { variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, servedRole: command.socket.role, connections: telemetry.connections(), timings, applicationConnectionReadyMs, commandStartedMs, readyToCommandMs, trace: { start, end, command, lifecycle, events: lifecycleEvents, sockets: [...telemetry.traces] } };
+  return { variant, operation, processId: process.pid, driverVersion: telemetry.version, nodeVersion: process.version, address: command.address, verified: true, servedRole: command.socket.role, connections: telemetry.connections(), timings, applicationConnectionReadyMs, commandStartedMs, readyToCommandMs, trace: { start, end, dns: telemetry.dns, command, lifecycle, events: lifecycleEvents, sockets: [...telemetry.traces] } };
 }
 
 export async function closeBenchmarkClients() {

@@ -98,7 +98,16 @@ and the non-overlapping gap categories as `gapMeanMs`, including the remaining
 unclassified time. Readiness includes discovery and authentication; it is not
 the duration of a `connect()` call.
 
-TCP timing includes hostname lookup and event-loop scheduling. Hello can include
+SRV and TXT DNS requests appear on separate rows above the node lanes. They run
+concurrently, so their durations must not be added. `dnsMeanMs.seedlistWall` records
+the elapsed interval from the first request starting to the last finishing.
+Each socket's Host DNS segment measures its hostname lookup callback interval;
+TCP begins after that callback. This includes resolver/cache and scheduling time,
+not just time spent waiting for a DNS server. Direct connections skip SRV/TXT
+but still resolve their member hostname. `dnsMeanMs.selectedHostname` reports
+the lookup on the application socket serving the operation.
+
+TCP timing excludes hostname resolution but includes event-loop scheduling. Hello can include
 speculative authentication. Send measures serialization and socket buffering;
 receive includes network transit and server work. Internal gaps remain elapsed-time
 residuals rather than a claim to identify every CPU activity. Instrumentation adds

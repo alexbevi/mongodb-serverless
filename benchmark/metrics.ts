@@ -10,12 +10,13 @@ export function breakdown(start: number, end: number, socket: Pick<SocketTrace, 
 
   assert.ok(command.sent !== undefined && command.end !== undefined, 'Incomplete command trace');
 
-  const phases = {
-    ...(socket.lookup ? { lookup: duration(socket.lookup) } : {}),
+  const phases: Record<'tcp' | 'tls' | 'hello' | 'auth' | 'send' | 'receive', number> & { lookup?: number } = {
     tcp: duration(socket.tcp), tls: duration(socket.tls),
     hello: duration(socket.hello), auth: duration(socket.auth),
     send: command.sent - command.start, receive: command.end - command.sent
   };
+
+  if (socket.lookup) phases.lookup = duration(socket.lookup);
 
   const total = end - start;
   const other = total - Object.values(phases).reduce((sum, value) => sum + value, 0);

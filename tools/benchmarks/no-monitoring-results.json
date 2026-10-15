@@ -1,0 +1,2468 @@
+{
+  "measuredAt": "2026-10-10T13:54:07.570Z",
+  "node": "v26.10.0",
+  "platform": "darwin/arm64",
+  "samplesPerMode": 100,
+  "summary": {
+    "stock": {
+      "connectMS": {
+        "median": 36.979833,
+        "p95": 40.833499999999994
+      },
+      "firstOperationMS": {
+        "median": 39.403604,
+        "p95": 43.323625
+      },
+      "processToFirstResultMS": {
+        "median": 155.42947900000036,
+        "p95": 164.33337500000198
+      },
+      "warmOperationMS": {
+        "median": 0.5993749999999949,
+        "p95": 1.3985830000000021
+      },
+      "socketsPerColdSample": {
+        "accepted": 2,
+        "open": 0,
+        "closed": 2,
+        "peak": 2
+      }
+    },
+    "polyfill": {
+      "connectMS": {
+        "median": 30.994854,
+        "p95": 33.498000000000005
+      },
+      "firstOperationMS": {
+        "median": 33.5817915,
+        "p95": 36.379958
+      },
+      "processToFirstResultMS": {
+        "median": 153.20150000000058,
+        "p95": 168.3412499999995
+      },
+      "warmOperationMS": {
+        "median": 0.6551670000000058,
+        "p95": 1.3974580000000003
+      },
+      "socketsPerColdSample": {
+        "accepted": 1,
+        "open": 0,
+        "closed": 1,
+        "peak": 1
+      }
+    }
+  },
+  "samples": {
+    "stock": [
+      {
+        "connectMS": 34.687834,
+        "firstOperationMS": 36.813292,
+        "processToFirstResultMS": 154.35695800000002,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.228083999999996,
+        "firstOperationMS": 38.644209000000004,
+        "processToFirstResultMS": 152.77770799999996,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 30.599541000000002,
+        "firstOperationMS": 32.404666000000006,
+        "processToFirstResultMS": 158.64891599999999,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.91475,
+        "firstOperationMS": 40.560666999999995,
+        "processToFirstResultMS": 156.84129100000018,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.269875,
+        "firstOperationMS": 38.769208000000006,
+        "processToFirstResultMS": 159.27287499999989,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.902041999999994,
+        "firstOperationMS": 41.346958,
+        "processToFirstResultMS": 160.289667,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.884667,
+        "firstOperationMS": 40.314,
+        "processToFirstResultMS": 154.37349999999992,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.635166999999996,
+        "firstOperationMS": 42.09375,
+        "processToFirstResultMS": 155.17612499999996,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.095459000000005,
+        "firstOperationMS": 41.627959000000004,
+        "processToFirstResultMS": 157.5281670000004,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.101833,
+        "firstOperationMS": 38.113708,
+        "processToFirstResultMS": 160.47412500000019,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.52679099999999,
+        "firstOperationMS": 37.43912499999999,
+        "processToFirstResultMS": 186.61208399999987,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 30.800791999999994,
+        "firstOperationMS": 32.44866699999999,
+        "processToFirstResultMS": 160.10866699999997,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.933707999999996,
+        "firstOperationMS": 39.40275,
+        "processToFirstResultMS": 153.59054200000037,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.458665999999994,
+        "firstOperationMS": 40.967124999999996,
+        "processToFirstResultMS": 156.05904199999986,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.214958,
+        "firstOperationMS": 40.638916,
+        "processToFirstResultMS": 154.98954200000026,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.318875,
+        "firstOperationMS": 35.24400000000001,
+        "processToFirstResultMS": 154.40795799999978,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.429833,
+        "firstOperationMS": 38.872833,
+        "processToFirstResultMS": 152.47041699999954,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.33375000000001,
+        "firstOperationMS": 41.75779200000001,
+        "processToFirstResultMS": 155.70433400000002,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 29.858624999999996,
+        "firstOperationMS": 31.647332999999996,
+        "processToFirstResultMS": 155.03691700000036,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.56079100000001,
+        "firstOperationMS": 40.605458,
+        "processToFirstResultMS": 152.22800000000007,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.716666,
+        "firstOperationMS": 42.23004099999999,
+        "processToFirstResultMS": 156.2039590000004,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.072083000000006,
+        "firstOperationMS": 35.3065,
+        "processToFirstResultMS": 150.02512500000012,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 41.26125,
+        "firstOperationMS": 43.500750000000004,
+        "processToFirstResultMS": 160.20654100000047,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.671875,
+        "firstOperationMS": 39.093500000000006,
+        "processToFirstResultMS": 151.62004100000013,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.913417,
+        "firstOperationMS": 37.033750000000005,
+        "processToFirstResultMS": 150.60449999999946,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 41.894124999999995,
+        "firstOperationMS": 44.36133400000001,
+        "processToFirstResultMS": 159.6803749999999,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.305042,
+        "firstOperationMS": 40.78937499999999,
+        "processToFirstResultMS": 156.18854199999987,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.743333,
+        "firstOperationMS": 39.17325,
+        "processToFirstResultMS": 152.26416699999936,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.975916999999995,
+        "firstOperationMS": 42.380708999999996,
+        "processToFirstResultMS": 157.23424999999952,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.822708000000006,
+        "firstOperationMS": 42.382000000000005,
+        "processToFirstResultMS": 155.14749999999913,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.023958,
+        "firstOperationMS": 41.443374999999996,
+        "processToFirstResultMS": 160.3440840000003,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 30.999416999999994,
+        "firstOperationMS": 32.718542,
+        "processToFirstResultMS": 157.45874999999978,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.3755,
+        "firstOperationMS": 35.01112500000001,
+        "processToFirstResultMS": 155.22708299999977,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.692917,
+        "firstOperationMS": 41.18883400000001,
+        "processToFirstResultMS": 154.30208400000083,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.809833999999995,
+        "firstOperationMS": 36.964709,
+        "processToFirstResultMS": 152.7384579999998,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.053958,
+        "firstOperationMS": 41.603417,
+        "processToFirstResultMS": 152.12454099999923,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.650541000000004,
+        "firstOperationMS": 36.34991600000001,
+        "processToFirstResultMS": 149.14833299999918,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.911167,
+        "firstOperationMS": 41.507,
+        "processToFirstResultMS": 161.7416659999999,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 40.363541999999995,
+        "firstOperationMS": 42.662875,
+        "processToFirstResultMS": 155.5357499999991,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.73520799999999,
+        "firstOperationMS": 37.95179099999999,
+        "processToFirstResultMS": 155.2020420000008,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.179500000000004,
+        "firstOperationMS": 36.206542,
+        "processToFirstResultMS": 155.4436659999992,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.78341699999999,
+        "firstOperationMS": 41.406833,
+        "processToFirstResultMS": 155.9680840000001,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 40.587708,
+        "firstOperationMS": 42.86837500000001,
+        "processToFirstResultMS": 159.7512910000005,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.081417,
+        "firstOperationMS": 36.130750000000006,
+        "processToFirstResultMS": 150.65441699999974,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.379417000000004,
+        "firstOperationMS": 36.205292,
+        "processToFirstResultMS": 169.8714999999993,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.66633399999999,
+        "firstOperationMS": 35.744834,
+        "processToFirstResultMS": 168.42183300000033,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 30.610208,
+        "firstOperationMS": 32.320291999999995,
+        "processToFirstResultMS": 154.61016700000073,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.30225,
+        "firstOperationMS": 33.06462500000001,
+        "processToFirstResultMS": 155.3178340000013,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.701208,
+        "firstOperationMS": 41.124292000000004,
+        "processToFirstResultMS": 157.44983300000058,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 44.923666999999995,
+        "firstOperationMS": 47.22825,
+        "processToFirstResultMS": 162.03241700000035,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.72454199999999,
+        "firstOperationMS": 35.913625,
+        "processToFirstResultMS": 156.2051250000004,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.797667,
+        "firstOperationMS": 40.346250000000005,
+        "processToFirstResultMS": 159.7978750000002,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.239542,
+        "firstOperationMS": 40.814499999999995,
+        "processToFirstResultMS": 156.60279100000116,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.634041999999994,
+        "firstOperationMS": 41.110417,
+        "processToFirstResultMS": 158.67054199999984,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.760083,
+        "firstOperationMS": 39.219874999999995,
+        "processToFirstResultMS": 151.453125,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.884958,
+        "firstOperationMS": 40.234667,
+        "processToFirstResultMS": 155.4152920000015,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.206666999999996,
+        "firstOperationMS": 40.809042000000005,
+        "processToFirstResultMS": 153.53749999999854,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 32.252708,
+        "firstOperationMS": 34.38354199999999,
+        "processToFirstResultMS": 147.14300000000003,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.189125000000004,
+        "firstOperationMS": 39.584209,
+        "processToFirstResultMS": 156.88904199999888,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.083125,
+        "firstOperationMS": 41.439125,
+        "processToFirstResultMS": 154.02070900000035,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.8815,
+        "firstOperationMS": 41.291416,
+        "processToFirstResultMS": 155.96016699999745,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.915792,
+        "firstOperationMS": 37.133666999999996,
+        "processToFirstResultMS": 151.10779199999888,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.025957999999996,
+        "firstOperationMS": 39.481,
+        "processToFirstResultMS": 156.9475420000017,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 32.677042,
+        "firstOperationMS": 34.453041999999996,
+        "processToFirstResultMS": 157.63562499999898,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.00258300000001,
+        "firstOperationMS": 37.178208000000005,
+        "processToFirstResultMS": 150.03566599999976,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.078875000000004,
+        "firstOperationMS": 39.15883300000001,
+        "processToFirstResultMS": 154.424500000001,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.838832999999994,
+        "firstOperationMS": 40.221000000000004,
+        "processToFirstResultMS": 153.84141600000294,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.900166,
+        "firstOperationMS": 39.17295800000001,
+        "processToFirstResultMS": 153.46637499999997,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.423666000000004,
+        "firstOperationMS": 37.61579100000001,
+        "processToFirstResultMS": 155.65258299999914,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 40.798458000000004,
+        "firstOperationMS": 43.323625,
+        "processToFirstResultMS": 158.21875,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.251041999999998,
+        "firstOperationMS": 33.08841700000001,
+        "processToFirstResultMS": 151.0402499999982,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.929208,
+        "firstOperationMS": 39.404458000000005,
+        "processToFirstResultMS": 152.83945799999856,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 43.17637500000001,
+        "firstOperationMS": 45.61825,
+        "processToFirstResultMS": 156.6727920000012,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.373542,
+        "firstOperationMS": 37.91654199999999,
+        "processToFirstResultMS": 152.216124999999,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.650957999999996,
+        "firstOperationMS": 40.157500000000006,
+        "processToFirstResultMS": 154.25291700000162,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.453666999999996,
+        "firstOperationMS": 39.935458,
+        "processToFirstResultMS": 153.69979200000307,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.34049999999999,
+        "firstOperationMS": 40.879290999999995,
+        "processToFirstResultMS": 157.71166699999958,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 36.346292,
+        "firstOperationMS": 38.7035,
+        "processToFirstResultMS": 155.24708300000202,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 35.939125000000004,
+        "firstOperationMS": 38.27550000000001,
+        "processToFirstResultMS": 170.28004200000214,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.62412500000001,
+        "firstOperationMS": 41.704958000000005,
+        "processToFirstResultMS": 192.2580420000013,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 30.554792000000006,
+        "firstOperationMS": 32.288708,
+        "processToFirstResultMS": 153.10270899999887,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.842541999999995,
+        "firstOperationMS": 33.605667,
+        "processToFirstResultMS": 161.9969999999994,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.218666999999996,
+        "firstOperationMS": 41.69054200000001,
+        "processToFirstResultMS": 158.07741600000008,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.328583000000002,
+        "firstOperationMS": 33.079125,
+        "processToFirstResultMS": 150.49012500000026,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 34.482084,
+        "firstOperationMS": 36.920249999999996,
+        "processToFirstResultMS": 150.4935000000005,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 40.833499999999994,
+        "firstOperationMS": 43.186665999999995,
+        "processToFirstResultMS": 156.2332090000018,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 32.721333,
+        "firstOperationMS": 34.49529100000001,
+        "processToFirstResultMS": 160.82454199999847,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.785208,
+        "firstOperationMS": 41.126958,
+        "processToFirstResultMS": 156.95129200000156,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 37.20925,
+        "firstOperationMS": 39.683583999999996,
+        "processToFirstResultMS": 152.82808300000033,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.352208000000005,
+        "firstOperationMS": 33.214833,
+        "processToFirstResultMS": 153.5002080000013,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.539500000000004,
+        "firstOperationMS": 35.319709,
+        "processToFirstResultMS": 151.77966699999888,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.408958,
+        "firstOperationMS": 41.844375,
+        "processToFirstResultMS": 160.86520799999926,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.038833000000004,
+        "firstOperationMS": 41.604833000000006,
+        "processToFirstResultMS": 154.45862500000294,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 42.164542,
+        "firstOperationMS": 44.691334,
+        "processToFirstResultMS": 156.64470900000015,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.806749999999994,
+        "firstOperationMS": 35.713041000000004,
+        "processToFirstResultMS": 148.61683300000004,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 32.57616699999999,
+        "firstOperationMS": 34.62225,
+        "processToFirstResultMS": 150.0326669999995,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 31.637541,
+        "firstOperationMS": 33.774041,
+        "processToFirstResultMS": 149.92354200000045,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 33.890125,
+        "firstOperationMS": 35.892832999999996,
+        "processToFirstResultMS": 157.14074999999866,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 39.519292,
+        "firstOperationMS": 42.066167,
+        "processToFirstResultMS": 164.33337500000198,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      },
+      {
+        "connectMS": 38.034583000000005,
+        "firstOperationMS": 40.421792,
+        "processToFirstResultMS": 156.24366699999882,
+        "sockets": {
+          "accepted": 2,
+          "open": 0,
+          "closed": 2,
+          "peak": 2
+        }
+      }
+    ],
+    "polyfill": [
+      {
+        "connectMS": 31.661667,
+        "firstOperationMS": 33.952709000000006,
+        "processToFirstResultMS": 153.18091700000002,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.353542000000004,
+        "firstOperationMS": 34.848709,
+        "processToFirstResultMS": 154.02204199999994,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.976707999999995,
+        "firstOperationMS": 32.47237500000001,
+        "processToFirstResultMS": 150.75983299999996,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.290708000000002,
+        "firstOperationMS": 30.557875000000003,
+        "processToFirstResultMS": 152.08545800000002,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.816499999999998,
+        "firstOperationMS": 34.251625,
+        "processToFirstResultMS": 151.04333299999985,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.096208999999988,
+        "firstOperationMS": 33.86441699999999,
+        "processToFirstResultMS": 160.89483399999995,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.712457999999998,
+        "firstOperationMS": 30.083957999999996,
+        "processToFirstResultMS": 153.55645800000002,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.302959,
+        "firstOperationMS": 34.879791999999995,
+        "processToFirstResultMS": 151.6265830000002,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 35.158750000000005,
+        "firstOperationMS": 37.891,
+        "processToFirstResultMS": 155.19966700000032,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.238291000000004,
+        "firstOperationMS": 31.243666000000005,
+        "processToFirstResultMS": 167.9038330000003,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.175167000000002,
+        "firstOperationMS": 31.384625,
+        "processToFirstResultMS": 174.01095799999985,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.400417000000004,
+        "firstOperationMS": 31.48254200000001,
+        "processToFirstResultMS": 153.09629099999984,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.531625000000005,
+        "firstOperationMS": 30.940875000000005,
+        "processToFirstResultMS": 149.58549999999923,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.623457999999992,
+        "firstOperationMS": 33.221667000000004,
+        "processToFirstResultMS": 149.36195899999984,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.557834,
+        "firstOperationMS": 30.520959000000005,
+        "processToFirstResultMS": 153.23775000000023,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.969417000000007,
+        "firstOperationMS": 30.21058400000001,
+        "processToFirstResultMS": 153.64545800000087,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.569249999999997,
+        "firstOperationMS": 34.071917,
+        "processToFirstResultMS": 152.4708330000003,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.092624999999998,
+        "firstOperationMS": 32.334541,
+        "processToFirstResultMS": 150.18616700000075,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.213000000000008,
+        "firstOperationMS": 33.735083,
+        "processToFirstResultMS": 151.92404199999964,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.958124999999995,
+        "firstOperationMS": 33.619209,
+        "processToFirstResultMS": 150.51441599999998,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.51675000000001,
+        "firstOperationMS": 34.107125,
+        "processToFirstResultMS": 154.79799999999977,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.699542000000008,
+        "firstOperationMS": 34.533625,
+        "processToFirstResultMS": 151.11533299999974,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.944874999999996,
+        "firstOperationMS": 36.58408399999999,
+        "processToFirstResultMS": 153.21987499999977,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.566875000000003,
+        "firstOperationMS": 34.131750000000004,
+        "processToFirstResultMS": 154.15987499999937,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.773375,
+        "firstOperationMS": 32.278041,
+        "processToFirstResultMS": 155.26787499999955,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 26.888916999999992,
+        "firstOperationMS": 28.700999999999993,
+        "processToFirstResultMS": 150.35462499999994,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.385583,
+        "firstOperationMS": 35.040958,
+        "processToFirstResultMS": 153.64887500000077,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.131041999999994,
+        "firstOperationMS": 34.417458999999994,
+        "processToFirstResultMS": 155.8463329999995,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.07216700000001,
+        "firstOperationMS": 35.342,
+        "processToFirstResultMS": 153.2648339999996,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 34.460458,
+        "firstOperationMS": 37.278082999999995,
+        "processToFirstResultMS": 169.76154100000167,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.07133300000001,
+        "firstOperationMS": 29.986417000000003,
+        "processToFirstResultMS": 153.3725000000013,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.723583000000005,
+        "firstOperationMS": 29.458583000000004,
+        "processToFirstResultMS": 146.91283300000032,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.5385,
+        "firstOperationMS": 33.953625,
+        "processToFirstResultMS": 153.18312500000138,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.822458,
+        "firstOperationMS": 34.66862499999999,
+        "processToFirstResultMS": 158.41041600000062,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.13233299999999,
+        "firstOperationMS": 33.71045799999999,
+        "processToFirstResultMS": 157.52937500000007,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.01237499999999,
+        "firstOperationMS": 34.538332999999994,
+        "processToFirstResultMS": 152.78737499999988,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.240041,
+        "firstOperationMS": 35.166500000000006,
+        "processToFirstResultMS": 152.98379199999908,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.124,
+        "firstOperationMS": 35.683291000000004,
+        "processToFirstResultMS": 153.02279099999942,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.90320899999999,
+        "firstOperationMS": 31.963208999999992,
+        "processToFirstResultMS": 159.06041600000026,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.347917000000002,
+        "firstOperationMS": 33.633917000000004,
+        "processToFirstResultMS": 152.24008400000093,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.171542000000002,
+        "firstOperationMS": 32.610333,
+        "processToFirstResultMS": 150.26158299999952,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.529791999999986,
+        "firstOperationMS": 34.008792,
+        "processToFirstResultMS": 158.06224999999904,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.251708,
+        "firstOperationMS": 34.78125000000001,
+        "processToFirstResultMS": 152.31775000000016,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.78308299999999,
+        "firstOperationMS": 32.917041,
+        "processToFirstResultMS": 171.0778330000012,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.21562499999999,
+        "firstOperationMS": 32.405958,
+        "processToFirstResultMS": 181.97691699999996,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 26.432791999999992,
+        "firstOperationMS": 28.278708999999992,
+        "processToFirstResultMS": 155.36937500000022,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.733916000000008,
+        "firstOperationMS": 30.675708,
+        "processToFirstResultMS": 149.44754099999955,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.07325,
+        "firstOperationMS": 31.95666700000001,
+        "processToFirstResultMS": 168.3412499999995,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.965084000000004,
+        "firstOperationMS": 33.64675,
+        "processToFirstResultMS": 155.17683399999987,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.485542000000002,
+        "firstOperationMS": 30.199959,
+        "processToFirstResultMS": 154.5879589999986,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.95483300000001,
+        "firstOperationMS": 36.92575000000001,
+        "processToFirstResultMS": 155.2816670000011,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.84599999999999,
+        "firstOperationMS": 34.439207999999994,
+        "processToFirstResultMS": 153.86241700000028,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.045208000000002,
+        "firstOperationMS": 33.572958,
+        "processToFirstResultMS": 153.23799999999756,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.274708000000004,
+        "firstOperationMS": 33.72770800000001,
+        "processToFirstResultMS": 149.92545800000153,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.588541000000006,
+        "firstOperationMS": 36.169540999999995,
+        "processToFirstResultMS": 153.885542,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.335708,
+        "firstOperationMS": 34.891707999999994,
+        "processToFirstResultMS": 159.48233400000026,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.182541000000008,
+        "firstOperationMS": 31.760583000000004,
+        "processToFirstResultMS": 150.335916,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.412834000000004,
+        "firstOperationMS": 33.18720900000001,
+        "processToFirstResultMS": 158.81445899999744,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.520249999999997,
+        "firstOperationMS": 29.625166999999998,
+        "processToFirstResultMS": 147.70570800000132,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.703958999999998,
+        "firstOperationMS": 33.280834,
+        "processToFirstResultMS": 149.48641700000007,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.308834000000004,
+        "firstOperationMS": 34.734875,
+        "processToFirstResultMS": 151.992291999999,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.627083999999996,
+        "firstOperationMS": 33.462666999999996,
+        "processToFirstResultMS": 147.18233300000065,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.148500000000013,
+        "firstOperationMS": 28.859666000000004,
+        "processToFirstResultMS": 154.14674999999988,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.031541000000004,
+        "firstOperationMS": 28.874957999999992,
+        "processToFirstResultMS": 156.6894170000014,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.166207999999997,
+        "firstOperationMS": 33.57325,
+        "processToFirstResultMS": 150.96295800000007,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.106625,
+        "firstOperationMS": 29.274415999999995,
+        "processToFirstResultMS": 153.64670900000056,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.009291999999995,
+        "firstOperationMS": 33.710709,
+        "processToFirstResultMS": 148.38037500000064,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.05533400000001,
+        "firstOperationMS": 34.72608400000001,
+        "processToFirstResultMS": 157.6670410000006,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.454833000000008,
+        "firstOperationMS": 29.107875000000007,
+        "processToFirstResultMS": 147.12724999999773,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.073042,
+        "firstOperationMS": 36.379958,
+        "processToFirstResultMS": 153.32991700000275,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.980416000000005,
+        "firstOperationMS": 33.513833000000005,
+        "processToFirstResultMS": 151.2652080000007,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.348667,
+        "firstOperationMS": 31.938250000000004,
+        "processToFirstResultMS": 149.87725000000137,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.687459000000004,
+        "firstOperationMS": 34.15899999999999,
+        "processToFirstResultMS": 151.68779200000063,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.609084,
+        "firstOperationMS": 35.411375,
+        "processToFirstResultMS": 152.47508299999754,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.583917,
+        "firstOperationMS": 31.978459,
+        "processToFirstResultMS": 160.97779100000116,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.33391700000001,
+        "firstOperationMS": 35.021042,
+        "processToFirstResultMS": 151.25608400000056,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.467833,
+        "firstOperationMS": 30.614833000000004,
+        "processToFirstResultMS": 153.35191600000326,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 26.221957999999994,
+        "firstOperationMS": 28.86787499999999,
+        "processToFirstResultMS": 147.80374999999913,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.100375,
+        "firstOperationMS": 32.221541,
+        "processToFirstResultMS": 167.3673340000023,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 29.866875000000007,
+        "firstOperationMS": 31.991,
+        "processToFirstResultMS": 170.57600000000093,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.147209000000004,
+        "firstOperationMS": 29.104,
+        "processToFirstResultMS": 155.84958299999926,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.498000000000005,
+        "firstOperationMS": 36.383250000000004,
+        "processToFirstResultMS": 155.91608300000007,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.423292000000004,
+        "firstOperationMS": 29.299958000000004,
+        "processToFirstResultMS": 150.63450000000012,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.498041999999998,
+        "firstOperationMS": 33.61666700000001,
+        "processToFirstResultMS": 152.33499999999913,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.934041000000008,
+        "firstOperationMS": 33.43970800000001,
+        "processToFirstResultMS": 149.00512499999968,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.080665999999994,
+        "firstOperationMS": 29.893665999999996,
+        "processToFirstResultMS": 146.22670800000196,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 27.167125000000006,
+        "firstOperationMS": 29.111124999999994,
+        "processToFirstResultMS": 145.82958299999882,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.123416999999996,
+        "firstOperationMS": 33.680834,
+        "processToFirstResultMS": 151.2059999999983,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 33.711417000000004,
+        "firstOperationMS": 36.048875,
+        "processToFirstResultMS": 153.44137500000215,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.997,
+        "firstOperationMS": 35.624167,
+        "processToFirstResultMS": 160.72729199999958,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 28.376250000000006,
+        "firstOperationMS": 30.921084,
+        "processToFirstResultMS": 146.03766600000017,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.730041999999997,
+        "firstOperationMS": 34.42575000000001,
+        "processToFirstResultMS": 154.1332500000026,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.247124999999997,
+        "firstOperationMS": 32.75824999999999,
+        "processToFirstResultMS": 152.80808400000024,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 32.255083,
+        "firstOperationMS": 34.96208299999999,
+        "processToFirstResultMS": 152.50491599999805,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.659709,
+        "firstOperationMS": 34.06025,
+        "processToFirstResultMS": 151.7714589999996,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 26.800959000000006,
+        "firstOperationMS": 28.69145900000001,
+        "processToFirstResultMS": 165.4854579999992,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 30.694375000000008,
+        "firstOperationMS": 33.244417,
+        "processToFirstResultMS": 150.20558299999902,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.343625000000003,
+        "firstOperationMS": 34.125459000000006,
+        "processToFirstResultMS": 164.10725000000093,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.041916,
+        "firstOperationMS": 33.590333,
+        "processToFirstResultMS": 150.3800839999967,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      },
+      {
+        "connectMS": 31.306957999999995,
+        "firstOperationMS": 33.786874999999995,
+        "processToFirstResultMS": 153.40729199999987,
+        "sockets": {
+          "accepted": 1,
+          "open": 0,
+          "closed": 1,
+          "peak": 1
+        }
+      }
+    ]
+  },
+  "warm": {
+    "stock": [
+      1.3985830000000021,
+      1.5343750000000114,
+      1.348583000000005,
+      1.3337080000000014,
+      1.618458000000004,
+      1.620207999999991,
+      1.5295829999999881,
+      1.5635419999999982,
+      1.318916999999999,
+      1.3656250000000085,
+      1.1289580000000115,
+      1.0778330000000125,
+      0.841667000000001,
+      0.8357910000000004,
+      1.2907919999999962,
+      1.2164999999999964,
+      1.253583000000006,
+      1.1752500000000055,
+      1.1711659999999995,
+      0.8322919999999954,
+      1.2309999999999945,
+      1.3363750000000039,
+      1.3213339999999931,
+      0.9414999999999907,
+      0.8736250000000041,
+      0.8908330000000149,
+      0.7842919999999935,
+      0.8203750000000127,
+      0.8187909999999761,
+      0.7757919999999956,
+      0.7410000000000139,
+      1.0615420000000029,
+      0.7061669999999935,
+      0.7169169999999951,
+      0.6967500000000086,
+      0.6050000000000182,
+      0.6104579999999942,
+      0.6237909999999829,
+      0.6059579999999869,
+      0.5947920000000124,
+      0.6075830000000053,
+      0.6032080000000235,
+      0.5878749999999968,
+      0.5813330000000008,
+      0.5801249999999811,
+      0.5832079999999848,
+      0.6097090000000094,
+      0.6153750000000002,
+      0.5835419999999942,
+      0.5738749999999868,
+      0.5476669999999899,
+      0.5581250000000182,
+      0.5673339999999882,
+      0.6083749999999952,
+      0.5840420000000108,
+      0.550750000000022,
+      0.5229999999999961,
+      0.4756669999999872,
+      0.5405420000000163,
+      0.5557089999999789,
+      0.505250000000018,
+      0.5926249999999982,
+      0.6162089999999978,
+      0.5465000000000089,
+      0.5315840000000094,
+      0.4984999999999786,
+      0.5228329999999914,
+      0.5599169999999845,
+      0.5257080000000087,
+      0.532416000000012,
+      0.578583000000009,
+      0.5535830000000033,
+      0.5989999999999895,
+      0.5907499999999857,
+      0.5997500000000002,
+      0.5721249999999998,
+      0.5757079999999917,
+      0.5957909999999913,
+      0.608333000000016,
+      0.5798329999999794,
+      0.5876250000000027,
+      0.5847500000000139,
+      0.5629169999999988,
+      0.5838340000000244,
+      0.5694170000000156,
+      0.5865420000000086,
+      0.5710410000000081,
+      0.5671250000000043,
+      0.570666000000017,
+      0.5756669999999815,
+      0.5782909999999788,
+      0.5851249999999766,
+      0.6070419999999785,
+      0.5652919999999995,
+      0.5887500000000045,
+      0.6290419999999983,
+      0.6098329999999805,
+      0.5592090000000098,
+      0.5746670000000051,
+      0.564249999999987
+    ],
+    "polyfill": [
+      1.3974580000000003,
+      1.4378749999999911,
+      1.3551669999999945,
+      1.3487500000000097,
+      1.3790000000000049,
+      1.2924589999999938,
+      1.3075000000000045,
+      1.1293329999999884,
+      1.4341670000000022,
+      1.4956669999999974,
+      1.4478330000000028,
+      1.4174170000000004,
+      1.0202500000000043,
+      1.2503750000000053,
+      1.246583000000001,
+      1.2177499999999952,
+      1.2973750000000024,
+      1.2179589999999934,
+      0.9759590000000031,
+      0.7688330000000008,
+      1.178167000000002,
+      1.1592500000000001,
+      1.1715420000000023,
+      1.145707999999999,
+      1.2444580000000087,
+      1.2538750000000078,
+      1.1903330000000096,
+      1.1734169999999864,
+      1.1597090000000065,
+      1.1742089999999905,
+      1.1934170000000108,
+      1.1386660000000006,
+      0.9420829999999967,
+      1.0477920000000154,
+      1.0566670000000045,
+      0.8932080000000155,
+      1.132000000000005,
+      0.9119999999999777,
+      0.9057500000000118,
+      0.9226249999999823,
+      0.8570829999999887,
+      0.8206250000000068,
+      0.8272090000000105,
+      0.6991250000000093,
+      0.7622920000000022,
+      0.7504169999999988,
+      1.117750000000001,
+      0.6577920000000006,
+      0.6525420000000111,
+      0.6420830000000137,
+      0.6636670000000038,
+      0.6172090000000026,
+      0.6039589999999748,
+      0.6180840000000103,
+      0.6182919999999967,
+      0.603291999999982,
+      0.5815419999999847,
+      0.5505419999999788,
+      0.6240420000000029,
+      0.5908330000000035,
+      0.5925000000000011,
+      0.6139160000000174,
+      0.6219159999999988,
+      0.5969580000000008,
+      0.5807080000000155,
+      0.6047499999999957,
+      0.641208000000006,
+      0.650874999999985,
+      0.6063749999999857,
+      0.6115410000000168,
+      0.660334000000006,
+      0.5931670000000224,
+      0.6500000000000057,
+      0.5952080000000137,
+      0.6159999999999854,
+      0.6383330000000171,
+      0.6005839999999978,
+      0.583500000000015,
+      0.5925829999999905,
+      0.6131670000000042,
+      0.599000000000018,
+      0.5045420000000149,
+      0.5396670000000086,
+      0.569625000000002,
+      0.5762909999999977,
+      0.49420800000001464,
+      0.47008299999998826,
+      0.47674999999998136,
+      0.4759159999999838,
+      0.4788330000000087,
+      0.4903329999999926,
+      0.48741699999999355,
+      0.49295900000001325,
+      0.5049580000000162,
+      0.5782919999999763,
+      0.5771249999999952,
+      0.5140829999999994,
+      0.4859170000000006,
+      0.49133399999999483,
+      0.4690840000000094
+    ]
+  }
+}

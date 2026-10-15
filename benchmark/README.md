@@ -5,6 +5,8 @@ to a watcher-selected replica-set member. Each sample creates a fresh Node proce
 constructs a client, connects, and completes one operation against a three-member
 TLS replica set.
 
+See the [connection diagram and measured results](../BENCHMARK.md#connection-selection-and-timings).
+
 ## Install
 
 Use Node 20.19 or later, installed workspace dependencies, and Docker Compose with
@@ -77,4 +79,5 @@ The local DNS resolver, CPU quota, certificates, MongoDB deployment and network
 scheduler differ from AWS. Local results test the connection sequence; they are
 not an AWS latency prediction. The historical charts in `baseline/` retain their original configurations.
 The older `report.py` assumes one application connection and should only be used
-with those historical datasets. Current comparisons must show every socket.
+with those historical datasets. Each plotted sample must show every socket it opened. If a diagram illustrates
+a subset, label that subset and keep its sample timings distinct from all-sample means.

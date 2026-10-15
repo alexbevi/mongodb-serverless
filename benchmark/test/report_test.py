@@ -30,6 +30,32 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(row["dnsDurations"]["TXT"], 2)
         self.assertEqual(row["dnsDurations"]["seedlistWall"], 5)
 
+    def test_cluster_dns_is_a_segment_on_the_operation_lane_not_extra_rows(self):
+        import importlib.util
+        from unittest.mock import patch
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        data = json.loads((root / "results/aws/samples.json").read_text())
+        for sample in data["samples"]:
+            sample["timeline"]["dns"] = [
+                {"kind": "SRV", "start": 1, "end": 4},
+                {"kind": "TXT", "start": 2, "end": 3},
+            ] if sample["mode"] == "native-cluster" else []
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(report.plt, "close") as close:
+                report.render(data, "aws", Path(directory))
+            figure = close.call_args.args[0]
+            for axis in figure.axes:
+                self.assertEqual(axis.get_ylim(), (-1.2, 4))
+                segments = [p for p in axis.patches if p.get_gid() == "cluster-dns"]
+                self.assertEqual(len(segments), 1)
+                self.assertEqual(segments[0].get_x(), 1)
+                self.assertEqual(segments[0].get_width(), 3)
+                self.assertFalse(any("SRV DNS" in t.get_text() or "TXT DNS" in t.get_text() for t in axis.texts))
+            report.plt.close(figure)
+
     def test_lifecycle_colours_only_unmeasured_gaps_without_double_counting(self):
         import importlib.util
 

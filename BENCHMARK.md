@@ -10,8 +10,9 @@ its driver/operation median; headings report means across all samples. Every soc
 opened by each illustrated sample is shown. The first operation connects
 automatically, without an explicit `client.connect()` call.
 
-SRV and TXT DNS requests have separate rows above the node lanes because they run
-concurrently. Brown Host DNS segments show hostname resolution for each socket;
+Cluster DNS is one segment on the operation path, covering the overlapping SRV
+and TXT requests before any sockets open. Brown Host DNS segments show hostname
+resolution for each socket;
 blue TCP segments begin after resolution completes. The direct client skips the
 SRV/TXT stage but still resolves its member hostname.
 

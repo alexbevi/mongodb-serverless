@@ -16,6 +16,7 @@ from matplotlib.patches import Patch, PathPatch
 from matplotlib.path import Path as PlotPath
 
 COLORS = {
+    "clusterDns": "#4338ca",
     "lookup": "#854d0e",
     "tcp": "#2563eb",
     "tls": "#38bdf8",
@@ -323,15 +324,12 @@ def draw_node_lanes(axis, native, serverless, member_letters):
             label.set_fontweight("bold")
     dns = timeline.get("dns", [])
     if dns:
-        for kind, y, color in [("TXT", 4.15, "#be123c"), ("SRV", 4.7, "#4338ca")]:
-            queries = [q for q in dns if q["kind"] == kind]
-            for query in queries:
-                axis.barh(y, query["end"] - query["start"], left=query["start"], height=0.28, color=color, zorder=4)
-            if queries:
-                finish = max(q["end"] for q in queries)
-                duration = sum(q["end"] - q["start"] for q in queries)
-                axis.text(finish + totalmax * 0.015, y, f"{kind} DNS · {duration:.1f} ms", va="center", fontsize=9, color=color)
-    axis.set_ylim(-1.2, 5.25 if dns else 4)
+        begin = min(query["start"] for query in dns)
+        end = max(query["end"] for query in dns)
+        segment = axis.barh(lanes[selected["host"]], end - begin, left=begin,
+                            height=0.36, color=COLORS["clusterDns"], zorder=4)[0]
+        segment.set_gid("cluster-dns")
+    axis.set_ylim(-1.2, 4)
 
 
 def render(data, environment, output):
@@ -355,7 +353,7 @@ def render(data, environment, output):
             sorted({c["host"] for row in rows for c in row["timeline"]["connections"]})
         )
     }
-    figure, axes = plt.subplots(1, 2, figsize=(22, 9))
+    figure, axes = plt.subplots(1, 2, figsize=(22, 8))
     figure.subplots_adjust(left=0.12, right=0.97, top=0.76, bottom=0.22, wspace=0.42)
     label = "Local Docker" if environment == "local" else "AWS Lambda"
     date = data.get("createdAt", data.get("recordedAt", ""))[:10]
@@ -410,7 +408,7 @@ def render(data, environment, output):
         handles=[
             Patch(
                 facecolor=color,
-                label="Host DNS" if phase == "lookup" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
+                label="Cluster DNS" if phase == "clusterDns" else "Host DNS" if phase == "lookup" else phase.upper() if phase in ("tcp", "tls") else phase.capitalize(),
             )
             for phase, color in COLORS.items()
         ]
@@ -421,7 +419,7 @@ def render(data, environment, output):
         ],
         loc="lower center",
         bbox_to_anchor=(0.5, 0.09),
-        ncol=6 if show_gaps else 8,
+        ncol=7 if show_gaps else 8,
         frameon=False,
     )
     figure.text(

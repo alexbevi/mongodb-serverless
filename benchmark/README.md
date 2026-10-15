@@ -98,8 +98,10 @@ and the non-overlapping gap categories as `gapMeanMs`, including the remaining
 unclassified time. Readiness includes discovery and authentication; it is not
 the duration of a `connect()` call.
 
-SRV and TXT DNS requests appear on separate rows above the node lanes. They run
-concurrently, so their durations must not be added. `dnsMeanMs.seedlistWall` records
+Cluster DNS appears as one segment on the operation path. It covers the elapsed
+SRV/TXT discovery stage shared by all members, before sockets open. The queries
+run concurrently, so their durations must not be added. Individual query timings
+remain in `trace.dns`. `dnsMeanMs.seedlistWall` records
 the elapsed interval from the first request starting to the last finishing.
 Each socket's Host DNS segment measures its hostname lookup callback interval;
 TCP begins after that callback. This includes resolver/cache and scheduling time,

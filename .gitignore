@@ -5,3 +5,20 @@ dist/
 
 # May hold an auth token in CI; never commit it.
 .npmrc
+
+benchmark/**/*.svg
+benchmark/results/*
+!benchmark/results/local/
+!benchmark/results/aws/
+benchmark/results/local/*
+!benchmark/results/local/samples.json
+!benchmark/results/local/summary.json
+!benchmark/results/local/latency.png
+benchmark/results/aws/*
+!benchmark/results/aws/samples.json
+!benchmark/results/aws/summary.json
+!benchmark/results/aws/latency.png
+!benchmark/results/aws/results.md
+__pycache__/
+
+tools/benchmarks/no-monitoring-results.json

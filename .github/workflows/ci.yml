@@ -59,3 +59,80 @@ jobs:
               console.log('packed packages resolve');
             });
           "
+
+  benchmark:
+    name: benchmark (Node 24)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Require 10% benchmark improvement (100 iterations)
+        id: benchmark
+        timeout-minutes: 10
+        run: |
+          pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/workflow.test.ts
+          python3 -m unittest discover -s benchmark/test -p performance_test.py
+          python3 -m unittest discover -s benchmark/test -p ci_summary_test.py
+          pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
+          python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+
+      - name: Collect detailed latency diagnostics (100 iterations)
+        if: always() && steps.benchmark.outcome != 'skipped'
+        timeout-minutes: 10
+        run: pnpm benchmark --diagnostics --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/diagnostics/samples.json"
+
+      - name: Render benchmark latency
+        if: always() && steps.benchmark.outcome != 'skipped'
+        timeout-minutes: 3
+        env:
+          BENCHMARK_NODE: '24'
+        run: |
+          if [ -f "$RUNNER_TEMP/benchmark/diagnostics/samples.json" ]; then
+            python3 -m pip install -r benchmark/requirements-report.txt
+            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/diagnostics/samples.json" --environment local
+            mv "$RUNNER_TEMP/benchmark/diagnostics/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
+          fi
+
+      - name: Upload benchmark measurements
+        id: benchmark-results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-node-24
+          path: |
+            ${{ runner.temp }}/benchmark/samples.json
+            ${{ runner.temp }}/benchmark/diagnostics/samples.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload latency diagram
+        id: benchmark-image
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/latency-node-24.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Summarize benchmark
+        if: always() && steps.benchmark.outcome != 'skipped'
+        env:
+          BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json
+          BENCHMARK_NODE: '24'
+          BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
+          BENCHMARK_IMAGE_URL: ${{ steps.benchmark-image.outputs.artifact-url }}
+          BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
+        run: python3 benchmark/ci_summary.py

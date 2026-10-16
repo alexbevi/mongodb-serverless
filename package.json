@@ -18,15 +18,19 @@
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
-    "lint": "oxlint .",
+    "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
+    "benchmark:test": "npm run benchmark:build && vitest run --config vitest.benchmark.config.ts",
+    "benchmark:build": "tsc --build benchmark",
+    "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts",
     "test:no-monitoring:package": "tsx tools/verify-no-monitoring-package.ts",
-    "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts"
+    "lint": "oxlint ."
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
     "@oxlint/plugins": "1.87.0",
     "@types/node": "^22.10.2",
     "mongodb": "7.7.0",
+    "mongodb-connection-string-url": "^7.0.2",
     "oxlint": "1.87.0",
     "tsx": "4.23.15",
     "typescript": "^5.7.2",

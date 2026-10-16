@@ -13,6 +13,11 @@ opens a `directConnection` straight to the member it needs.
 Reads go to a secondary, writes go to the primary, each on its own client,
 created on first use.
 
+## Benchmark
+
+![Local replica-set discovery and direct member connections](benchmark/results/local/latency.png)
+See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
+
 ## Components
 
 | Directory | Package | What it does |

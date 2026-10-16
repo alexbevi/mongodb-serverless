@@ -8,6 +8,46 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_driver_events_refine_gaps_without_counting_parallel_monitors_twice(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        socket = {"host": "member", "port": 27017, "start": 118, "lookup": [119, 120],
+                  "tcp": [120, 121], "tls": [121, 123], "hello": [124, 126], "auth": [126, 128]}
+        sample = {"trace": {"start": 100, "end": 140,
+            "dns": [{"kind": "SRV", "start": 102, "end": 104}],
+            "sockets": [{"host": "member", "start": 108, "tcp": [108, 110],
+                         "tls": [110, 112], "hello": [114, 115]}, socket],
+            "command": {"start": 134, "end": 138, "socket": socket, "connectionId": 1},
+            "lifecycle": {"connectionSetup": [118, 130], "checkouts": [[117, 131]],
+                          "readyToCommand": [130, 134.5], "command": [134.5, 138.5],
+                          "afterCommand": [138.5, 140]},
+            "events": [
+                {"name": "topologyOpening", "at": 106},
+                {"name": "connectionPoolCreated", "at": 108.5, "address": "member:27017"},
+                {"name": "connectionPoolReady", "at": 109, "address": "different:27017"},
+                {"name": "serverDescriptionChanged", "at": 115.5, "address": "member:27017", "newType": "RSSecondary"},
+                {"name": "connectionPoolReady", "at": 116, "address": "member:27017"},
+                {"name": "connectionPoolReady", "at": 141, "address": "member:27017"}]}}
+        gaps = report.event_gap_segments(sample)
+        totals = {}
+        for gap in gaps:
+            totals[gap["phase"]] = totals.get(gap["phase"], 0) + gap["end"] - gap["start"]
+        self.assertEqual(totals, {"connectionGaps": 4, "checkout": 2, "beforeCommand": 3,
+                                 "afterReply": 1.5, "beforeTopology": 4, "topologyStartup": 2,
+                                 "poolStartup": 3, "poolDispatch": 1})
+        ordered = sorted(gaps, key=lambda gap: gap["start"])
+        for left, right in zip(ordered, ordered[1:]):
+            self.assertLessEqual(left["end"], right["start"])
+        self.assertEqual(report.event_milestones(sample),
+                         {"Topology open": 6, "Member identified": 15.5, "Pool ready": 16})
+        figure, axis = report.plt.subplots()
+        timeline = {"gaps": gaps}
+        report.draw_gaps(axis, timeline, 0)
+        self.assertEqual(len(axis.patches), len(gaps))
+        report.plt.close(figure)
+
     def test_off_cpu_hatching_does_not_cover_phase_colours_with_text(self):
         import importlib.util
         root = Path(__file__).parents[1]

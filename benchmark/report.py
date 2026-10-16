@@ -31,9 +31,36 @@ MODES = ("native-cluster", "serverless")
 
 GAP_COLORS = {
     "poolGaps": ("#c026d3", "Pool / checkout remainder"),
-    "beforeCommand": ("#0e7490", "Ready → command remainder"),
-    "afterReply": ("#fb7185", "After reply remainder"),
+    "beforeCommand": ("#0e7490", "Connection ready → command interval"),
+    "afterReply": ("#fb7185", "Reply → handler return"),
+    "beforeTopology": ("#64748b", "Client setup → topology open"),
+    "topologyStartup": ("#7c3aed", "Topology open → first socket"),
+    "connectionGaps": ("#c026d3", "Connection setup between socket phases"),
+    "checkout": ("#db2777", "Checkout wait / dispatch"),
+    "poolStartup": ("#d97706", "Pool created → ready, between socket phases"),
+    "poolDispatch": ("#059669", "Pool ready → checkout start"),
 }
+
+
+def operation_events(sample):
+    trace = sample["trace"]
+    socket = trace["command"]["socket"]
+    address = f"{socket['host']}:{socket['port']}"
+    return [event for event in trace.get("events", [])
+            if trace["start"] <= event["at"] <= trace["end"]
+            and event.get("address", address) == address]
+
+
+def event_milestones(sample):
+    result = {}
+    labels = {"topologyOpening": "Topology open", "connectionPoolReady": "Pool ready"}
+    for event in operation_events(sample):
+        label = labels.get(event["name"])
+        if event["name"] == "serverDescriptionChanged" and event.get("newType") in ("RSPrimary", "RSSecondary"):
+            label = "Member identified"
+        if label and label not in result:
+            result[label] = event["at"] - sample["trace"]["start"]
+    return result
 
 
 def event_gap_segments(sample):
@@ -51,6 +78,25 @@ def event_gap_segments(sample):
         ("beforeCommand", [windows["readyToCommand"]]),
         ("afterReply", [windows["afterCommand"]]),
     ]
+    if any(event["name"] == "topologyOpening" for event in trace.get("events", [])):
+        events = operation_events(sample)
+        first = {name: next((event["at"] for event in events if event["name"] == name), None)
+                 for name in ("topologyOpening", "connectionPoolCreated", "connectionPoolReady")}
+        covered += [(query["start"], query["end"]) for query in trace.get("dns", [])]
+        covered += [socket[phase] for socket in trace["sockets"] if "auth" not in socket
+                    for phase in ("lookup", "tcp", "tls", "hello") if phase in socket]
+        categories[0:1] = [("connectionGaps", [windows["connectionSetup"]]),
+                           ("checkout", windows["checkouts"])]
+        categories += [
+            ("beforeTopology", [(trace["start"], first["topologyOpening"])]),
+            ("topologyStartup", [(first["topologyOpening"], min(socket["start"] for socket in trace["sockets"]))]),
+        ]
+        if first["connectionPoolCreated"] is not None and first["connectionPoolReady"] is not None:
+            categories.append(("poolStartup", [(first["connectionPoolCreated"], first["connectionPoolReady"])]))
+        if first["connectionPoolReady"] is not None:
+            checkout = next((begin for begin, _ in windows["checkouts"] if begin >= first["connectionPoolReady"]), None)
+            if checkout is not None:
+                categories.insert(2, ("poolDispatch", [(first["connectionPoolReady"], checkout)]))
     for phase, intervals in categories:
         for begin, end in intervals:
             pieces = [(max(trace["start"], begin), min(trace["end"], end))]
@@ -88,6 +134,8 @@ PHASE_LABELS = {
     "beforeSocket": "Before first socket: cause unmeasured",
     "unattributed": "Between events: cause unmeasured",
 }
+
+PHASE_LABELS.update({phase: label for phase, (_, label) in GAP_COLORS.items() if phase not in PHASE_LABELS})
 
 
 def accounting_segments(timeline):
@@ -272,6 +320,7 @@ def local_samples(data):
                     **extra,
                     "total": sample["timings"]["total"],
                     "gaps": gaps,
+                    "milestones": event_milestones(sample),
                     "dns": dns,
                     "connections": connections,
                     "command": {
@@ -561,6 +610,10 @@ def draw_node_lanes(axis, native, serverless, member_letters):
                 axis.barh(2.2, end - segment["start"], left=segment["start"], height=2.4, color=color, alpha=0.55, zorder=0)
     else:
         axis.axvspan(0, first, ymin=0.31, ymax=0.94, color="#94a3b8", alpha=0.32, zorder=0)
+        for gap in timeline.get("gaps", []):
+            if gap["phase"] in ("beforeTopology", "topologyStartup"):
+                axis.barh(2.2, gap["end"] - gap["start"], left=gap["start"], height=2.4,
+                          color=GAP_COLORS[gap["phase"]][0], alpha=0.55, zorder=0.5)
     axis.axhline(0.35, color="#cbd5e1", lw=1)
     direct = serverless["timeline"]
     axis.barh(-0.55, direct["total"], height=0.4, color="#e2e8f0", zorder=0)
@@ -598,6 +651,10 @@ def draw_node_lanes(axis, native, serverless, member_letters):
     if "execution" in timeline:
         for item, y in [(timeline, 0.60), (direct, -1.02)]:
             axis.text(0, y, cpu_annotation(item), fontsize=8, color="#475569")
+    elif timeline.get("milestones"):
+        for item, y in [(timeline, 0.60), (direct, -1.02)]:
+            caption = " · ".join(f"{label} ~{value:.1f} ms" for label, value in item.get("milestones", {}).items())
+            axis.text(0, y, caption, fontsize=8, color="#475569")
     axis.set_ylim(-1.2, 4)
 
 
@@ -734,9 +791,14 @@ def render(data, environment, output):
                           Patch(facecolor=phase_color("dispatch"), label="Event-loop wait / dispatch", gid="dispatch")])
     else:
         if show_gaps:
+            visible_gaps = {gap["phase"] for row in representatives.values() for gap in row["timeline"].get("gaps", [])}
             for phase, (color, name) in GAP_COLORS.items():
-                groups["Connection" if phase == "poolGaps" else "Operation"].append(Patch(facecolor=color, label=name, gid=phase))
-        groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured", gid="beforeSocket"))
+                if phase not in visible_gaps:
+                    continue
+                group = "Setup" if phase in ("beforeTopology", "topologyStartup") else "Operation" if phase in ("beforeCommand", "afterReply") else "Connection"
+                groups[group].append(Patch(facecolor=color, label=name, gid=phase))
+        if not all(row["timeline"].get("milestones") for row in representatives.values()):
+            groups["Setup"].append(Patch(facecolor="#94a3b8", label="Before first socket: cause unmeasured", gid="beforeSocket"))
         groups["Operation"].append(Patch(facecolor="#e2e8f0", label="Between events: cause unmeasured", gid="unattributed"))
     for (title, handles), x, columns in zip(groups.items(), (0.20, 0.45, 0.70), (1, 1, 1)):
         order = legend_order(representatives.values(), title)

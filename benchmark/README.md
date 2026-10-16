@@ -313,6 +313,17 @@ they omit full descriptions, heartbeat replies and stacks. These events mark
 lifecycle boundaries, not CPU time or the work between consecutive events.
 The monitoring-disabled client emits no heartbeat events.
 
+With these events, the ordinary diagram splits setup at `topologyOpening` and
+shows connection-setup gaps, checkout intervals, pool creation-to-readiness gaps,
+and pool-ready-to-checkout intervals. Recorded DNS, socket and command phases
+are excluded from those colours; concurrent monitor phases are not counted twice.
+Annotations show topology opening, the selected member's first identified role,
+and that member's pool readiness, all relative to handler invocation. Only events
+from the measured invocation and selected member contribute to those annotations.
+These intervals do not separate URI parsing, certificate loading, JavaScript
+execution or scheduling delays. Time without a measured boundary remains labelled
+as unmeasured. Older JSON without these events keeps the original broad categories.
+
 Pool events are matched by address and connection ID; command completion also
 matches the request ID. Checkout pairing assumes this benchmark's serial
 operations, not concurrent requests to a shared pool.

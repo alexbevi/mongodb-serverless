@@ -34,7 +34,7 @@ GAP_COLORS = {
     "beforeCommand": ("#0e7490", "Connection ready → command interval"),
     "afterReply": ("#fb7185", "Reply → handler return"),
     "beforeTopology": ("#64748b", "Client setup → topology open"),
-    "topologyStartup": ("#7c3aed", "Topology open → first socket"),
+    "topologyStartup": ("#7c3aed", "Topology open → connection start"),
     "connectionGaps": ("#c026d3", "Connection setup between socket phases"),
     "checkout": ("#db2777", "Checkout wait / dispatch"),
     "poolStartup": ("#d97706", "Pool created → ready, between socket phases"),
@@ -63,6 +63,28 @@ def event_milestones(sample):
     return result
 
 
+def connection_bounds(sample, socket):
+    trace = sample["trace"]
+    if "port" not in socket or not any(event["name"] == "topologyOpening" for event in trace.get("events", [])):
+        return None
+    address = f"{socket['host']}:{socket['port']}"
+    events = [event for event in trace.get("events", [])
+              if event.get("address") == address and trace["start"] <= event["at"] <= trace["end"]]
+    if "auth" in socket:
+        command = trace["command"]
+        if socket["start"] != command["socket"]["start"]:
+            return None
+        events = [event for event in events if event.get("connectionId") == command["connectionId"]]
+        begin_name, end_name = "connectionCreated", "connectionReady"
+    else:
+        begin_name, end_name = "serverHeartbeatStarted", "serverHeartbeatSucceeded"
+    begins = [event["at"] for event in events if event["name"] == begin_name and event["at"] <= socket["start"]]
+    ends = [event["at"] for event in events if event["name"] == end_name and event["at"] >= socket["start"]]
+    if begins and ends:
+        return max(begins), min(ends)
+    return None
+
+
 def event_gap_segments(sample):
     trace = sample["trace"]
     windows = trace.get("lifecycle")
@@ -89,7 +111,7 @@ def event_gap_segments(sample):
                            ("checkout", windows["checkouts"])]
         categories += [
             ("beforeTopology", [(trace["start"], first["topologyOpening"])]),
-            ("topologyStartup", [(first["topologyOpening"], min(socket["start"] for socket in trace["sockets"]))]),
+            ("topologyStartup", [(first["topologyOpening"], min((connection_bounds(sample, socket) or (socket["start"],))[0] for socket in trace["sockets"]))]),
         ]
         if first["connectionPoolCreated"] is not None and first["connectionPoolReady"] is not None:
             categories.append(("poolStartup", [(first["connectionPoolCreated"], first["connectionPoolReady"])]))
@@ -264,14 +286,15 @@ def local_samples(data):
                 for phase in ("lookup", "tcp", "tls", "hello", "auth")
                 if phase in socket
             }
+            bounds = connection_bounds(sample, socket)
             connections.append(
                 {
                     "host": socket["host"],
                     "role": socket.get("role", "UNKNOWN"),
                     "kind": "application" if "auth" in socket else "monitor",
                     "selected": socket["host"] == command["socket"]["host"],
-                    "start": socket["start"] - start,
-                    "end": max(
+                    "start": bounds[0] - start if bounds else socket["start"] - start,
+                    "end": bounds[1] - start if bounds else max(
                         (interval[1] for interval in phases.values()),
                         default=sample["timings"]["total"],
                     ),

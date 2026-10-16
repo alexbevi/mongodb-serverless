@@ -35,13 +35,16 @@ values refer to that list without discarding any measurements.
 Timing runs from [handler invocation to its return](handler-base.ts#L98).
 The headings above the bars describe elapsed sections:
 
-- **Setup** runs from handler invocation to the first socket creation.
-- **Monitor Connection** runs from that monitor socket's creation through its
-  last recorded handshake phase. Monitors discover member roles and overlap
-  across nodes; their durations must not be added.
-- **Application Connection** runs from socket creation to the matched
-  `connectionReady` event for the socket serving the operation. It includes
-  hostname resolution, handshakes, authentication and readiness processing.
+- **Setup** runs from handler invocation to the first connection lifecycle start:
+  `serverHeartbeatStarted` for a monitor or `connectionCreated` for an application connection.
+- **Monitor Connection** runs from the first `serverHeartbeatStarted` to its
+  matching `serverHeartbeatSucceeded`, by member address. For these fresh connections,
+  that includes socket setup and the initial hello. The interval uses recorded event
+  timestamps; the heartbeat event's own duration excludes initial socket setup.
+  Monitors overlap across nodes, so their durations must not be added.
+- **Application Connection** runs from `connectionCreated` to `connectionReady`,
+  matched by member address and connection ID. It includes preparation before socket
+  creation, hostname resolution, handshakes, authentication and readiness processing.
 - **Operation** runs from that readiness event to handler return. It includes
   checkout/dispatch, the command exchange and completion processing, not just
   database execution.
@@ -50,6 +53,8 @@ These boundaries are defined in [section_spans](report.py#L427), using
 [connection and command event matching](metrics.ts#L57). Braces show the transition
 from replica-set discovery to the selected application connection. The direct
 client skips replica-set monitoring. `~` denotes rounded milliseconds.
+
+Older snapshots without topology events retain their original socket-creation boundaries.
 
 The definitions below cover the diagnostic legend. Collect those additional
 measurements with `--diagnostics`; ordinary runs retain socket and lifecycle

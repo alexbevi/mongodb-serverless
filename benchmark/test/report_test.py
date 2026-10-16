@@ -8,6 +8,41 @@ import unittest
 
 
 class ReportTest(unittest.TestCase):
+    def test_connection_sections_follow_driver_events_including_monitor_socket_setup(self):
+        import importlib.util
+        root = Path(__file__).parents[1]
+        spec = importlib.util.spec_from_file_location("report", root / "report.py")
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        data = json.loads((root / "results/local/samples.json").read_text())
+        sample = next(s for s in data["samples"] if s["variant"] == "native")
+        trace = sample["trace"]
+        monitor = min(trace["sockets"], key=lambda socket: socket["start"])
+        application = trace["command"]["socket"]
+        monitor_start = monitor["start"] - 0.25
+        monitor_end = monitor["hello"][1] + 0.25
+        application_start = application["start"] - 0.25
+        address = lambda socket: f"{socket['host']}:{socket['port']}"
+        trace["events"] = [
+            {"name": "topologyOpening", "at": trace["start"]},
+            {"name": "serverHeartbeatStarted", "at": monitor_start, "address": address(monitor)},
+            {"name": "serverHeartbeatSucceeded", "at": monitor_end, "address": address(monitor), "durationMS": 0.01},
+            {"name": "connectionCreated", "at": application_start - 1, "address": address(application), "connectionId": -1},
+            {"name": "connectionCreated", "at": application_start, "address": address(application), "connectionId": trace["command"]["connectionId"]},
+            {"name": "connectionReady", "at": trace["lifecycle"]["connectionSetup"][1], "address": address(application), "connectionId": trace["command"]["connectionId"]}]
+        row = report.local_samples({**data, "samples": [sample]})[0]
+        connections = row["timeline"]["connections"]
+        plotted_monitor = next(c for c in connections if c["kind"] == "monitor" and c["host"] == monitor["host"])
+        plotted_application = next(c for c in connections if c["kind"] == "application")
+        self.assertAlmostEqual(plotted_monitor["start"], monitor_start - trace["start"])
+        self.assertAlmostEqual(plotted_monitor["end"], monitor_end - trace["start"])
+        self.assertAlmostEqual(plotted_application["start"], application_start - trace["start"])
+        self.assertAlmostEqual(plotted_application["end"], sample["applicationConnectionReadyMs"])
+        sections = report.section_spans(row)
+        self.assertAlmostEqual(sections[0]["end"], monitor_start - trace["start"])
+        self.assertAlmostEqual(next(s for s in sections if s["label"] == "Application Connection")["start"],
+                               application_start - trace["start"])
+
     def test_driver_events_refine_gaps_without_counting_parallel_monitors_twice(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("report", Path(__file__).parents[1] / "report.py")

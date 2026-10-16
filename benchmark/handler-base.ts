@@ -46,9 +46,27 @@ export function getBenchmarkVariant() {
 
 const events: LifecycleEvent[] = [];
 
-function record(name: string, event: Omit<LifecycleEvent, 'name' | 'at'> & { duration?: number }) {
+interface DriverEvent extends Omit<LifecycleEvent, 'name' | 'at'> {
+  duration?: number;
+  previousDescription?: { type: string };
+  newDescription?: { type: string };
+}
+
+function record(name: string, event: DriverEvent) {
   if (event.commandName && event.commandName !== 'find' && event.commandName !== 'update') return;
-  const entry: LifecycleEvent = { name, at: performance.now(), address: event.address };
+  const entry: LifecycleEvent = { name, at: performance.now() };
+
+  if (event.address !== undefined) entry.address = event.address;
+
+  if (name.startsWith('serverHeartbeat')) entry.address = String(event.connectionId);
+
+  if (event.topologyId !== undefined) entry.topologyId = event.topologyId;
+
+  if (event.previousDescription) entry.previousType = event.previousDescription.type;
+
+  if (event.newDescription) entry.newType = event.newDescription.type;
+
+  if (event.awaited !== undefined) entry.awaited = event.awaited;
 
   if (event.connectionId !== undefined) entry.connectionId = event.connectionId;
 
@@ -64,6 +82,19 @@ function record(name: string, event: Omit<LifecycleEvent, 'name' | 'at'> & { dur
 }
 
 const on = {
+  topologyOpening: event => record('topologyOpening', event),
+  topologyClosed: event => record('topologyClosed', event),
+  topologyDescriptionChanged: event => record('topologyDescriptionChanged', event),
+  serverOpening: event => record('serverOpening', event),
+  serverClosed: event => record('serverClosed', event),
+  serverDescriptionChanged: event => record('serverDescriptionChanged', event),
+  serverHeartbeatStarted: event => record('serverHeartbeatStarted', event),
+  serverHeartbeatSucceeded: event => record('serverHeartbeatSucceeded', event),
+  serverHeartbeatFailed: event => record('serverHeartbeatFailed', event),
+  connectionPoolCreated: event => record('connectionPoolCreated', event),
+  connectionPoolReady: event => record('connectionPoolReady', event),
+  connectionPoolCleared: event => record('connectionPoolCleared', event),
+  connectionPoolClosed: event => record('connectionPoolClosed', event),
   connectionCreated: event => record('connectionCreated', event),
   connectionReady: event => record('connectionReady', event),
   connectionClosed: event => record('connectionClosed', event),

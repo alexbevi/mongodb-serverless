@@ -306,6 +306,13 @@ The benchmark verifies that every read ran on a secondary.
 Public events record connection creation/readiness, checkout start/success/failure,
 check-in, connection closure, and command start/success/failure. Each callback
 records `performance.now()` and connection metadata without command documents.
+Ordinary runs also record pool creation/readiness, topology and server opening,
+server and topology description changes, and heartbeat start/success/failure events.
+Records contain timestamps, addresses, IDs, state types and reported durations;
+they omit full descriptions, heartbeat replies and stacks. These events mark
+lifecycle boundaries, not CPU time or the work between consecutive events.
+The monitoring-disabled client emits no heartbeat events.
+
 Pool events are matched by address and connection ID; command completion also
 matches the request ID. Checkout pairing assumes this benchmark's serial
 operations, not concurrent requests to a shared pool.

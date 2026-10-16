@@ -56,6 +56,20 @@ test('compares fresh clients against a delayed TLS replica set with SCRAM authen
       assert.equal(socket.tcp[0], socket.lookup[1], 'TCP excludes hostname resolution');
     }
 
+    for (const name of ['topologyOpening', 'serverOpening', 'connectionPoolCreated', 'connectionPoolReady', 'topologyDescriptionChanged', 'serverDescriptionChanged']) {
+      assert.ok(sample.trace.events.some(event => event.name === name), `Missing ${name} for ${sample.variant}`);
+    }
+
+    const heartbeats = sample.trace.events.filter(event => event.name.startsWith('serverHeartbeat'));
+
+    if (sample.variant === 'serverless-no-monitoring') assert.equal(heartbeats.length, 0);
+    else {
+      assert.ok(heartbeats.some(event => event.name === 'serverHeartbeatStarted'));
+      assert.ok(heartbeats.some(event => event.name === 'serverHeartbeatSucceeded'));
+
+      for (const event of heartbeats) assert.match(event.address ?? '', /:\d+$/);
+    }
+
     assert.ok(sample.trace.lifecycle.connectionSetup[1] > sample.trace.lifecycle.connectionSetup[0]);
     assert.ok(sample.trace.lifecycle.checkouts.length > 0);
     assert.ok(sample.trace.lifecycle.command[1] > sample.trace.lifecycle.command[0]);

@@ -1,7 +1,7 @@
 import { MongoClient, type Db, type MongoClientOptions, type MongoClientEvents } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { ClientPair, type ClientFactory } from './clients.js';
-import { UnsupportedOperationError } from './errors.js';
+import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
 import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
 import type { TopologyPlugin } from './plugin.js';
@@ -28,21 +28,27 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
  * makes.
  */
 export class ServerlessMongoClient {
-  readonly #uri: string;
+  readonly #uri: string | undefined;
   readonly #defaultDb: string | undefined;
   readonly #plugin: Promise<TopologyPlugin>;
   readonly #pair: Promise<ClientPair>;
 
-  constructor(uri: string, options: ServerlessClientOptions = {}) {
+  constructor(uri?: string, options: ServerlessClientOptions = {}) {
     const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
 
     this.#uri = uri;
-    this.#defaultDb = defaultDatabaseOf(uri);
+    this.#defaultDb = uri == null ? undefined : defaultDatabaseOf(uri);
     this.#plugin = resolvePlugin(plugin);
     this.#pair = this.#plugin.then(
-      resolved =>
-        new ClientPair({
-          uri,
+      async resolved => {
+        const connectionString = uri ?? await resolved.getConnectionString?.();
+
+        if (!connectionString) {
+          throw new ServerlessDriverError('Supply a connection string or a plugin with getConnectionString().');
+        }
+
+        return new ClientPair({
+          uri: connectionString,
           plugin: resolved,
           createClient: (uri, options) => {
             const client = (createClient ?? defaultFactory)(uri, options);
@@ -55,7 +61,8 @@ export class ServerlessMongoClient {
           },
           driverOptions,
           disableMonitoring
-        })
+        });
+      }
     );
   }
 

@@ -193,3 +193,10 @@ does not.
 topology through `replSetGetStatus`.
 
 **Topology is read once per client.** There is no refresh while a client lives.
+
+When the plugin implements `getConnectionString()`, omit the explicit URI with
+`new MongoClient(undefined, { plugin })`. Pass a database name to `db(name)` in
+this form: the plugin resolves asynchronously, so its default database is not
+available when `db()` is called. An explicit URI takes precedence. Credentials
+remain in the plugin's connection-string store; topology documents contain no
+copy of them.

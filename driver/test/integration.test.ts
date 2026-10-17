@@ -117,6 +117,17 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
   });
 
+  it('uses the plugin connection string when no explicit URI is supplied', async () => {
+    const plugin = new TestPlugin(cluster.status);
+    const client = new ServerlessMongoClient(undefined, {
+      plugin: Object.assign(plugin, { async getConnectionString() { return cluster.uri; } })
+    });
+    clients.push(client);
+
+    await expect(client.db('itest').collection('plugin_uri').insertOne({ value: 1 }))
+      .resolves.toMatchObject({ acknowledged: true });
+  });
+
   it('sends a write to the primary', async () => {
     const { client, commands } = connect();
     await client.db('itest').collection('writes').insertOne({ at: Date.now() });

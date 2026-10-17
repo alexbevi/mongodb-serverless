@@ -177,12 +177,17 @@ export class ClientPair {
     const pending = (async () => {
       const client = this.#options.createClient(uri, { ...this.#options.driverOptions, directConnection: true, retryWrites: false });
 
-      if (this.#options.disableMonitoring) {
-        const { disableMonitoring } = await import('./no-monitoring/index.js');
-        disableMonitoring(client);
-      }
+      try {
+        if (this.#options.disableMonitoring) {
+          const { disableMonitoring } = await import('./no-monitoring/index.js');
+          disableMonitoring(client);
+        }
 
-      await client.connect();
+        await client.connect();
+      } catch (error) {
+        await client.close().catch(() => {});
+        throw error;
+      }
 
       return client;
     })().catch(error => {

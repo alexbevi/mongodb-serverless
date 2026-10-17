@@ -299,3 +299,17 @@ it('waits for in-flight discovery on close and does not persist afterward', asyn
   expect(closed).toHaveBeenCalledTimes(1);
   expect(plugin.write).not.toHaveBeenCalled();
 });
+
+it('closes a routed client when connection fails', async () => {
+  const closed = vi.fn(async () => {});
+
+  const pair = new ClientPair({
+    uri: 'mongodb://a:27017/', plugin: pluginFor(singleNode),
+    // SAFETY: This fake only exercises failed connection cleanup.
+    createClient: () => ({ async connect() { throw new Error('connect failed'); }, close: closed } as never)
+  });
+
+  await expect(pair.write()).rejects.toThrow('connect failed');
+  expect(closed).toHaveBeenCalledTimes(1);
+  await expect(pair.close()).resolves.toBeUndefined();
+});

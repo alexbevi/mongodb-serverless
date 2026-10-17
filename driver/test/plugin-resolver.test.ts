@@ -210,3 +210,23 @@ it('reports connection-string provider failures from connect', async () => {
   await expect(client.connect()).rejects.toBe(failure);
   await closing;
 });
+
+it('defers credential lookup until the client is used', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  let lookups = 0;
+
+  const client = new ServerlessMongoClient(undefined, {
+    plugin: { ...stub(), async getConnectionString() {
+      lookups += 1;
+
+      return 'mongodb://seed/db';
+    } }
+  });
+
+  await Promise.resolve();
+
+  expect(lookups).toBe(0);
+  await client.connect();
+  expect(lookups).toBe(1);
+  await client.close();
+});

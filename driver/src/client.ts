@@ -30,16 +30,18 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
 export class ServerlessMongoClient {
   readonly #uri: string | undefined;
   readonly #defaultDb: string | undefined;
-  readonly #plugin: Promise<TopologyPlugin>;
-  readonly #pair: Promise<ClientPair>;
+  readonly #plugin: () => Promise<TopologyPlugin>;
+  readonly #pair: () => Promise<ClientPair>;
 
   constructor(uri?: string, options: ServerlessClientOptions = {}) {
     const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
 
     this.#uri = uri;
     this.#defaultDb = uri == null ? undefined : defaultDatabaseOf(uri);
-    this.#plugin = resolvePlugin(plugin);
-    this.#pair = this.#plugin.then(
+    let resolvedPlugin: Promise<TopologyPlugin> | undefined;
+    let pair: Promise<ClientPair> | undefined;
+    this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin);
+    this.#pair = () => pair ??= this.#plugin().then(
       async resolved => {
         const connectionString = uri ?? await resolved.getConnectionString?.();
 
@@ -63,7 +65,10 @@ export class ServerlessMongoClient {
           disableMonitoring
         });
       }
-    );
+    ).catch(error => {
+      pair = undefined;
+      throw error;
+    });
   }
 
   get options(): Readonly<MongoClientOptions> {
@@ -72,7 +77,7 @@ export class ServerlessMongoClient {
 
   /** The plugin, once resolved. Resolution is deferred to first use. */
   async plugin(): Promise<TopologyPlugin> {
-    return this.#plugin;
+    return this.#plugin();
   }
 
   /**
@@ -80,7 +85,7 @@ export class ServerlessMongoClient {
    * operation, so there is nothing to do here.
    */
   async connect(): Promise<this> {
-    await this.#pair;
+    await this.#pair();
 
     return this;
   }
@@ -96,16 +101,16 @@ export class ServerlessMongoClient {
 
     return createDbFacade(
       {
-        read: async () => (await this.#pair).read(),
-        write: async () => (await this.#pair).write(),
-        executeWrite: async (operation, replay) => (await this.#pair).executeWrite(operation, replay)
+        read: async () => (await this.#pair()).read(),
+        write: async () => (await this.#pair()).write(),
+        executeWrite: async (operation, replay) => (await this.#pair()).executeWrite(operation, replay)
       },
       dbName
     );
   }
 
   async close(): Promise<void> {
-    await (await this.#pair).close();
+    await (await this.#pair()).close();
   }
 
   watch(): never {

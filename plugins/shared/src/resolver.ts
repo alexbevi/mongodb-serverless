@@ -9,6 +9,7 @@ const REQUIRED_METHODS = ['setup', 'verify', 'read', 'write'] as const;
 const REQUIRED_DETAILS = ['name', 'version', 'author'] as const;
 
 interface PluginFields {
+  getConnectionString?: unknown;
   setup?: unknown;
   verify?: unknown;
   read?: unknown;
@@ -140,6 +141,10 @@ export function validatePlugin(value: unknown, source: string): asserts value is
     throw new InvalidPluginError(
       `Plugin from ${source} is ${value === null ? 'null' : typeof value}, not an object.`
     );
+  }
+
+  if (value.getConnectionString !== undefined && !isFunction(value.getConnectionString)) {
+    throw new InvalidPluginError(`Plugin from ${source} has a non-callable getConnectionString.`);
   }
 
   const missing = [

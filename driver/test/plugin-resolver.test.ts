@@ -191,3 +191,8 @@ describe('validatePlugin', () => {
     expect(() => validatePlugin({}, '@scope/my-plugin')).toThrow(/@scope\/my-plugin/);
   });
 });
+
+it('rejects a non-callable optional connection-string provider', () => {
+  expect(() => validatePlugin({ ...stub(), getConnectionString: 'mongodb://host/' }, 'test'))
+    .toThrow(/getConnectionString/);
+});

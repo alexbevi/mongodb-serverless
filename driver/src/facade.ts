@@ -133,7 +133,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
         // SAFETY: Every method in CURSOR_METHODS returns an AbstractCursor in the pinned driver.
         return cursor as AbstractCursor<unknown>;
-      }, method);
+      }, method, route === 'write' ? router.executeWrite : undefined);
     }
 
     if (BULK_METHODS.has(method)) {
@@ -142,7 +142,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
         // SAFETY: Both methods in BULK_METHODS return a BulkOperationBase in the pinned driver.
         return builder as BulkOperationBase;
-      }, method);
+      }, method, router.executeWrite);
     }
 
     const operation = () => invoke(client(), owner, method, args);

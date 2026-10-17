@@ -213,3 +213,8 @@ Network failures and partial bulk failures refresh topology but are returned to
 the caller: their writes may already have run. Duplicate-key, validation, and
 authorization errors do not trigger discovery. A failed refresh preserves the
 original write error. The caller decides whether to retry again after an election.
+
+Bulk builders and cursors also refresh topology on topology-related failures,
+but their state is not replayed automatically. A bulk may have committed earlier
+batches, and a cursor may already have returned results or performed writes.
+Create a new operation after handling the error.

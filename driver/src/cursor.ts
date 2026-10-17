@@ -1,3 +1,4 @@
+import type { WriteOperation } from './recovery.js';
 import type { AbstractCursor, ClientSession, MongoClient } from 'mongodb';
 import { callMethod } from './method.js';
 import { hasProperty, isStringProperty } from './property.js';
@@ -83,7 +84,7 @@ const DEFERRED_PROPERTIES = new Set([
  * synchronously. Configuration calls are buffered and replayed against the
  * real cursor when something finally awaits it.
  */
-export function createCursorProxy<T>(source: CursorSource<T>, label: string) {
+export function createCursorProxy<T>(source: CursorSource<T>, label: string, executeWrite?: WriteOperation) {
   const buffered: Array<{ method: string; args: unknown[] }> = [];
   let real: Promise<RuntimeCursor<T>> | undefined;
   let resolved: RuntimeCursor<T> | undefined;
@@ -105,9 +106,13 @@ export function createCursorProxy<T>(source: CursorSource<T>, label: string) {
   };
 
   const call = async (method: string, args: unknown[]) => {
-    const cursor = await resolve();
+    const operation = async () => {
+      const cursor = await resolve();
 
-    return callMethod(cursor, method, args, `${label} cursor has no ${method}().`);
+      return callMethod(cursor, method, args, `${label} cursor has no ${method}().`);
+    };
+
+    return executeWrite && method !== 'close' ? executeWrite(operation, false) : operation();
   };
 
   const proxy = new Proxy(
@@ -116,7 +121,17 @@ export function createCursorProxy<T>(source: CursorSource<T>, label: string) {
       get(_target, property) {
         if (property === Symbol.asyncIterator) {
           return async function* () {
-            yield* await resolve();
+            if (!executeWrite) {
+              yield* await resolve();
+
+              return;
+            }
+
+            try {
+              while (await call('hasNext', [])) yield await call('next', []);
+            } finally {
+              if (real != null) await call('close', []);
+            }
           };
         }
 

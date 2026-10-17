@@ -173,7 +173,7 @@ export class ClientPair {
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.
     const pending = (async () => {
-      const client = this.#options.createClient(uri, { ...this.#options.driverOptions, retryWrites: false });
+      const client = this.#options.createClient(uri, { ...this.#options.driverOptions, directConnection: true, retryWrites: false });
 
       if (this.#options.disableMonitoring) {
         const { disableMonitoring } = await import('./no-monitoring/index.js');

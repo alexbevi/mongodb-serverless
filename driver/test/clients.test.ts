@@ -244,3 +244,20 @@ describe('ClientPair', () => {
     expect(built[0]).toContain('appName=svc');
   });
 });
+
+it('keeps routed connections direct even when native options request discovery', async () => {
+  // SAFETY: This fake only observes connection options and implements connection lifecycle.
+  const createClient = vi.fn(() => ({ async connect() {}, async close() {} } as never));
+
+  const pair = new ClientPair({
+    uri: 'mongodb://seed:27017/', plugin: pluginFor(singleNode), createClient,
+    driverOptions: { directConnection: false, retryWrites: true }
+  });
+
+  await pair.write();
+
+  expect(createClient).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+    directConnection: true, retryWrites: false
+  }));
+  await pair.close();
+});

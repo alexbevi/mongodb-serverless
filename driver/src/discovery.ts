@@ -16,7 +16,7 @@ export async function discoverTopology(
   let failure: unknown;
 
   for (const seed of seeds) {
-    const client = createClient(directUri(uri, seed), { serverSelectionTimeoutMS: 5000, ...options });
+    const client = createClient(directUri(uri, seed), { serverSelectionTimeoutMS: 5000, ...options, directConnection: true, retryWrites: false });
 
     try {
       await client.connect();

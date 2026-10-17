@@ -1,5 +1,4 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { isTopologyFailure, wasRejectedBeforeWrite } from './recovery.js';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
@@ -55,28 +54,11 @@ export class ClientPair {
     return this.#clientFor(selectSecondary(topology) ?? topology.primary);
   }
 
-  async executeWrite<T>(operation: () => Promise<T>, replay = true): Promise<T> {
-    const generation = this.#generation;
-
-    try {
-      return await operation();
-    } catch (error) {
-      if (!isTopologyFailure(error)) throw error;
-
-      try {
-        await this.#refreshTopology(generation);
-      } catch {
-        // Preserve the write failure when recovery itself fails.
-        throw error;
-      }
-
-      if (!replay || !wasRejectedBeforeWrite(error)) throw error;
-
-      return operation();
-    }
+  get generation(): number {
+    return this.#generation;
   }
 
-  async #refreshTopology(generation: number): Promise<void> {
+  async refreshTopology(generation: number): Promise<void> {
     this.#assertOpen();
 
     if (generation !== this.#generation) return;

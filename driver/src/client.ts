@@ -3,6 +3,7 @@ import { ConnectionString } from 'mongodb-connection-string-url';
 import { ClientPair, type ClientFactory } from './clients.js';
 import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
+import { createWriteExecutor } from './recovery.js';
 import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
 import type { TopologyPlugin } from './plugin.js';
 
@@ -102,10 +103,10 @@ export class ServerlessMongoClient {
     return createDbFacade(
       {
         read: async () => (await this.#pair()).read(),
-        write: async () => (await this.#pair()).write(),
-        executeWrite: async (operation, replay) => (await this.#pair()).executeWrite(operation, replay)
+        write: async () => (await this.#pair()).write()
       },
-      dbName
+      dbName,
+      createWriteExecutor(this.#pair)
     );
   }
 

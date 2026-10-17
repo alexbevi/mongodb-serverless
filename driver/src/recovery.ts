@@ -1,3 +1,5 @@
+import type { ClientPair } from './clients.js';
+
 const TOPOLOGY_CODES = new Set([91, 189, 10107, 11600, 11602, 13435, 13436]);
 
 interface WriteFailure {
@@ -33,3 +35,27 @@ function isString(value: unknown): value is string {
 }
 
 export type WriteOperation = <T>(operation: () => Promise<T>, replay?: boolean) => Promise<T>;
+
+export function createWriteExecutor(resolveClients: () => Promise<ClientPair>): WriteOperation {
+  return async (operation, replay = true) => {
+    const clients = await resolveClients();
+    const generation = clients.generation;
+
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isTopologyFailure(error)) throw error;
+
+      try {
+        await clients.refreshTopology(generation);
+      } catch {
+        // Preserve the write failure when recovery itself fails.
+        throw error;
+      }
+
+      if (!replay || !wasRejectedBeforeWrite(error)) throw error;
+
+      return operation();
+    }
+  };
+}

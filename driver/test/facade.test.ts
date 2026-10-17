@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createDbFacade } from '../src/facade.js';
 import { ServerlessMongoClient } from '../src/client.js';
 import { SessionRoutingError, UnsupportedOperationError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -292,4 +293,28 @@ describe('ServerlessMongoClient', () => {
 
     await expect(client.db('app').collection('users').insertOne({})).rejects.toThrow(/PRIMARY/);
   });
+});
+
+it('accepts write execution separately from client routing', async () => {
+  const fake = fakeClients();
+  const primary = fake.create('mongodb://primary:27017/');
+  const secondary = fake.create('mongodb://secondary:27017/');
+  const executeWrite = vi.fn(async <T>(operation: () => Promise<T>) => operation());
+
+  const db = createDbFacade({
+    read: async () => secondary,
+    write: async () => primary
+  }, 'app', executeWrite);
+
+  await db.collection('users').findOne({});
+  expect(executeWrite).not.toHaveBeenCalled();
+  await db.collection('users').insertOne({});
+  await db.dropDatabase();
+
+  expect(executeWrite).toHaveBeenCalledTimes(2);
+  expect(fake.calls).toEqual([
+    'secondary:27017 app.users.findOne',
+    'primary:27017 app.users.insertOne',
+    'primary:27017 app.dropDatabase'
+  ]);
 });

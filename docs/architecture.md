@@ -27,6 +27,11 @@ flowchart LR
 
 ![Architecture diagram](assets/architecture.png)
 
+The facade receives a router for selecting read and write clients and a separate
+write executor for handling failures and deciding whether to retry. The client
+pair owns topology state and coalesces refresh requests across operations. Each
+retry selects its client again using the refreshed topology.
+
 ## First use and cached routing
 
 `getConnectionString()` is optional for plugins used with an explicit URI. It

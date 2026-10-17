@@ -1,5 +1,6 @@
 import { MongoServerError } from 'mongodb';
 import { expect, it, vi } from 'vitest';
+import { createWriteExecutor } from '../src/recovery.js';
 import { ServerlessMongoClient } from '../src/client.js';
 
 const status = { set: 'rs0', members: [{ name: 'a:27017', stateStr: 'PRIMARY' }] };
@@ -83,5 +84,7 @@ it('preserves unstructured plugin errors without masking them during classificat
     createClient: () => { throw new Error('must not connect'); }
   });
 
-  await expect(pair.executeWrite(() => pair.write())).rejects.toBe(failure);
+  const executeWrite = createWriteExecutor(async () => pair);
+
+  await expect(executeWrite(() => pair.write())).rejects.toBe(failure);
 });

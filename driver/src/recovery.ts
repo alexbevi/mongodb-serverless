@@ -6,7 +6,7 @@ interface WriteFailure {
   errorLabels?: string[];
 }
 
-export function isTopologyFailure(error: unknown): boolean {
+export function isTopologyFailure(error: unknown): error is WriteFailure {
   return isWriteFailure(error) && (
     (error.code !== undefined && TOPOLOGY_CODES.has(error.code)) ||
     ['MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoServerSelectionError'].includes(error.name ?? '') ||
@@ -14,7 +14,7 @@ export function isTopologyFailure(error: unknown): boolean {
   );
 }
 
-export function wasRejectedBeforeWrite(error: unknown): boolean {
+export function wasRejectedBeforeWrite(error: unknown): error is WriteFailure {
   return isWriteFailure(error) && error.name === 'MongoServerError' &&
     (error.code === 10107 || error.code === 13435 ||
       (error.errorLabels?.includes('NoWritesPerformed') ?? false));

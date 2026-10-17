@@ -97,21 +97,26 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
 
   it('discovers and stores topology on first use, then reuses it', async () => {
     let stored: typeof cluster.status | null = null;
+
     const plugin = {
       name: 'discovery', version: '1', author: 'test',
       async setup() {}, async verify() {},
       async read() { return stored; },
       async write(status: typeof cluster.status) { stored = status; }
     };
+
     const commands: CommandStartedEvent[] = [];
+
     for (let run = 0; run < 2; run += 1) {
       const client = new ServerlessMongoClient(cluster.uri, {
         plugin, monitorCommands: true,
         on: { commandStarted: event => commands.push(event) }
       });
+
       clients.push(client);
       await client.db('itest').collection('discovery').insertOne({ run });
     }
+
     expect(stored).toMatchObject({ set: cluster.status.set });
     expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
     expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
@@ -119,9 +124,11 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
 
   it('uses the plugin connection string when no explicit URI is supplied', async () => {
     const plugin = new TestPlugin(cluster.status);
+
     const client = new ServerlessMongoClient(undefined, {
       plugin: Object.assign(plugin, { async getConnectionString() { return cluster.uri; } })
     });
+
     clients.push(client);
 
     await expect(client.db('itest').collection('plugin_uri').insertOne({ value: 1 }))
@@ -137,6 +144,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
         stateStr: member.name === cluster.secondaries[0] ? 'PRIMARY' : 'SECONDARY'
       }))
     };
+
     const { client, commands, plugin } = connect(stale);
     await client.db('itest').collection('recovery').insertOne({ marker: Date.now() });
 

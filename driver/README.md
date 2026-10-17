@@ -218,3 +218,8 @@ Bulk builders and cursors also refresh topology on topology-related failures,
 but their state is not replayed automatically. A bulk may have committed earlier
 batches, and a cursor may already have returned results or performed writes.
 Create a new operation after handling the error.
+
+Refresh tries the cached members, so losing the original seed does not prevent
+recovery. Discovery tries each candidate once and closes its temporary client.
+Its default server-selection timeout is five seconds per candidate; an explicit
+`serverSelectionTimeoutMS` overrides it.

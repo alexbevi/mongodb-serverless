@@ -68,7 +68,7 @@ function hasOption(uri: ConnectionString, name: string): boolean {
   return [...uri.searchParams.keys()].some(key => key.toLowerCase() === name.toLowerCase());
 }
 
-function isMissingRecord(error: unknown): boolean {
+function isMissingRecord(error: unknown): error is { code: 'ENODATA' | 'ENOTFOUND' } {
   return error !== null && typeof error === 'object' && 'code' in error &&
     (error.code === 'ENODATA' || error.code === 'ENOTFOUND');
 }

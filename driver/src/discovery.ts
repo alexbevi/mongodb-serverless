@@ -10,13 +10,13 @@ import { directUri } from './uri.js';
 export async function discoverTopology(
   uri: string,
   createClient: ClientFactory,
-  options?: MongoClientOptions
+  options?: MongoClientOptions,
+  seeds = new ConnectionString(uri).hosts
 ): Promise<ReplSetGetStatus> {
-  const seeds = new ConnectionString(uri).hosts;
-  let failure: unknown = new ServerlessDriverError('No discovery seeds are available.');
+  let failure: unknown;
 
   for (const seed of seeds) {
-    const client = createClient(directUri(uri, seed), options);
+    const client = createClient(directUri(uri, seed), { serverSelectionTimeoutMS: 5000, ...options });
 
     try {
       await client.connect();
@@ -38,5 +38,5 @@ export async function discoverTopology(
     }
   }
 
-  throw failure;
+  throw failure ?? new ServerlessDriverError('No discovery seeds are available.');
 }

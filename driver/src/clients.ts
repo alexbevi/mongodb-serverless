@@ -84,8 +84,16 @@ export class ClientPair {
     this.#refresh ??= (async () => {
       await delay(100 + Math.floor(Math.random() * 150));
       this.#assertOpen();
-      const seeds = await resolveSeeds(this.#options.uri);
-      const status = await discoverTopology(seeds.uri, this.#options.createClient, this.#options.driverOptions);
+      const known = await this.#topology;
+
+      const seeds = known
+        ? { uri: this.#uri, hosts: [known.primary, ...known.secondaries] }
+        : await resolveSeeds(this.#options.uri);
+
+      const status = await discoverTopology(
+        seeds.uri, this.#options.createClient, this.#options.driverOptions, seeds.hosts
+      );
+
       this.#assertOpen();
       await this.#options.plugin.write(status);
       this.#uri = seeds.uri;
@@ -127,9 +135,11 @@ export class ClientPair {
       this.#uri = (await resolveSeeds(this.#options.uri)).uri;
 
       await this.#options.plugin.setup();
+
       const discovered = await discoverTopology(
         this.#uri, this.#options.createClient, this.#options.driverOptions
       );
+
       await this.#options.plugin.write(discovered);
 
       return parseTopology(discovered);

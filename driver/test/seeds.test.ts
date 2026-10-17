@@ -3,6 +3,7 @@ import { resolveSeeds } from '../src/seeds.js';
 
 it('resolves SRV and TXT without losing TLS, credentials, or explicit URI options', async () => {
   const queries: string[] = [];
+
   const result = await resolveSeeds('mongodb+srv://user:secret@cluster.example.com/app', {
     async resolveSrv(name) {
       queries.push(name);

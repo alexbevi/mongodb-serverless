@@ -80,7 +80,7 @@ export class ServerlessMongoClient {
    * operation, so there is nothing to do here.
    */
   async connect(): Promise<this> {
-    await this.#plugin;
+    await this.#pair;
 
     return this;
   }

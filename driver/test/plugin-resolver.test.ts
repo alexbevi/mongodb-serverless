@@ -196,3 +196,17 @@ it('rejects a non-callable optional connection-string provider', () => {
   expect(() => validatePlugin({ ...stub(), getConnectionString: 'mongodb://host/' }, 'test'))
     .toThrow(/getConnectionString/);
 });
+
+it('reports connection-string provider failures from connect', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  const failure = new Error('secret store unavailable');
+
+  const client = new ServerlessMongoClient(undefined, {
+    plugin: { ...stub(), async getConnectionString() { throw failure; } }
+  });
+
+  const closing = client.close().catch(() => {});
+
+  await expect(client.connect()).rejects.toBe(failure);
+  await closing;
+});

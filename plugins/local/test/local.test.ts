@@ -98,25 +98,25 @@ describe('LocalPlugin', () => {
   });
 
   describe('writability', () => {
-    it('is read-only by default', () => {
-      expect(new LocalPlugin().writable).toBe(false);
+    it('is writable by default for driver discovery', () => {
+      expect(new LocalPlugin().writable).toBe(true);
     });
 
     it('refuses to write when read-only', async () => {
-      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow(PluginReadOnlyError);
     });
 
     it('leaves the environment untouched when a write is refused', async () => {
       delete process.env[VAR];
 
-      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow(PluginReadOnlyError);
       expect(process.env[VAR]).toBeUndefined();
     });
 
     it('does not overwrite an existing value when refused', async () => {
       process.env[VAR] = JSON.stringify({ set: 'original', members: [] });
 
-      await expect(new LocalPlugin().write(status)).rejects.toThrow();
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow();
       expect(process.env[VAR]).toBe(JSON.stringify({ set: 'original', members: [] }));
     });
 

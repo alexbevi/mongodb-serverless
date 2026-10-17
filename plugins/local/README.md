@@ -61,3 +61,5 @@ backed by a store both processes can reach.
 clusters are out of scope.
 
 `read()` returns `null` when the topology variable is absent or empty. Invalid stored JSON still throws.
+
+Local plugins are writable by default. Pass `{ writable: false }` to prevent updates.

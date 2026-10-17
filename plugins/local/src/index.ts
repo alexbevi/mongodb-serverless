@@ -6,6 +6,10 @@ export class LocalPlugin extends ServerlessPlugin {
   readonly version = '0.0.0';
   readonly author = 'MongoDB';
 
+  constructor(options: { writable?: boolean } = {}) {
+    super({ writable: true, ...options });
+  }
+
   async setup(): Promise<void> {
     // The environment is already there; nothing to provision.
   }

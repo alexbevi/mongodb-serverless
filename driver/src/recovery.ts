@@ -21,7 +21,15 @@ export function wasRejectedBeforeWrite(error: unknown): error is WriteFailure {
 }
 
 function isWriteFailure(error: unknown): error is WriteFailure {
-  return error !== null && typeof error === 'object';
+  if (error === null || typeof error !== 'object') return false;
+
+  return (!('name' in error) || typeof error.name === 'string') &&
+    (!('code' in error) || typeof error.code === 'number') &&
+    (!('errorLabels' in error) || (Array.isArray(error.errorLabels) && error.errorLabels.every(isString)));
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
 }
 
 export type WriteOperation = <T>(operation: () => Promise<T>, replay?: boolean) => Promise<T>;

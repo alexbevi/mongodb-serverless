@@ -71,3 +71,17 @@ it('uses cached members for refresh when the original seed is unavailable', asyn
   expect(attempts).toBe(2);
   await client.close();
 });
+
+it('preserves unstructured plugin errors without masking them during classification', async () => {
+  const { ClientPair } = await import('../src/clients.js');
+  const failure = { errorLabels: 123, message: 'store failed' };
+
+  const pair = new ClientPair({
+    uri: 'mongodb://a:27017/',
+    plugin: { name: 'test', version: '1', author: 'test', async setup() {}, async verify() {},
+      async read() { throw failure; }, async write() {} },
+    createClient: () => { throw new Error('must not connect'); }
+  });
+
+  await expect(pair.executeWrite(() => pair.write())).rejects.toBe(failure);
+});

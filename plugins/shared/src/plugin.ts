@@ -12,6 +12,7 @@ export interface TopologyPlugin {
   readonly version: string;
   readonly author: string;
 
+  getConnectionString?(): Promise<string | undefined>;
   setup(): Promise<void>;
   verify(): Promise<void>;
   read(): Promise<ReplSetGetStatus | null>;
@@ -23,11 +24,13 @@ export interface PluginConfig {
   refreshIntervalMS: number;
   /** Names where the topology document lives. Each plugin interprets it. */
   clusterTopologyVariableName: string;
+  connectionStringVariableName: string;
 }
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
   refreshIntervalMS: 10_000,
-  clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY'
+  clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY',
+  connectionStringVariableName: '__MONGODB_CONNECTION_STRING'
 };
 
 /**

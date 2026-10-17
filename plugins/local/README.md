@@ -63,3 +63,5 @@ clusters are out of scope.
 `read()` returns `null` when the topology variable is absent or empty. Invalid stored JSON still throws.
 
 Local plugins are writable by default. Pass `{ writable: false }` to prevent updates.
+
+`getConnectionString()` reads `__MONGODB_CONNECTION_STRING`, including credentials and URI options. Override the variable name with `plugin.set('connectionStringVariableName', 'MY_URI')`.

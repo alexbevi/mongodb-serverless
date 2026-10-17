@@ -10,6 +10,10 @@ export class LocalPlugin extends ServerlessPlugin {
     super({ writable: true, ...options });
   }
 
+  async getConnectionString(): Promise<string | undefined> {
+    return process.env[this.get('connectionStringVariableName')];
+  }
+
   async setup(): Promise<void> {
     // The environment is already there; nothing to provision.
   }

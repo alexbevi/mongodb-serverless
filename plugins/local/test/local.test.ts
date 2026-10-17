@@ -23,6 +23,13 @@ describe('LocalPlugin', () => {
     process.env = env;
   });
 
+  it('provides the cluster connection string from its configured environment variable', async () => {
+    process.env['__MONGODB_CONNECTION_STRING'] = 'mongodb://user:secret@seed/db';
+    const plugin = new LocalPlugin();
+
+    await expect(plugin.getConnectionString()).resolves.toBe('mongodb://user:secret@seed/db');
+  });
+
   it('reports its static details', () => {
     const plugin = new LocalPlugin();
 

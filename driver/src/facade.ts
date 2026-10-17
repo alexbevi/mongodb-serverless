@@ -108,8 +108,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
     if (route === 'unsupported') {
       throw new UnsupportedOperationError(
-        `${method}() is not supported. Change streams need a resume story that belongs ` +
-          'with the watcher, so they are out of scope in this version.'
+        `${method}() is not supported. Change streams require resumable cursors across member changes.`
       );
     }
 

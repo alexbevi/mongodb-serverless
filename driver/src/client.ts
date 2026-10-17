@@ -110,8 +110,7 @@ export class ServerlessMongoClient {
 
   watch(): never {
     throw new UnsupportedOperationError(
-      'watch() is not supported. Change streams need a resume story that belongs with ' +
-        'the watcher, so they are out of scope in this version.'
+      'watch() is not supported. Change streams require resumable cursors across member changes.'
     );
   }
 

@@ -1,14 +1,13 @@
 # MongoDB Serverless Driver
 
 A wrapper around the [MongoDB Node.js driver](https://github.com/mongodb/node-mongodb-native)
-that skips topology discovery on connect.
+that caches replica-set topology through a plugin.
 
-In a serverless runtime, every cold start pays for the driver's normal startup
-work: handshake each replica set member, elect a view of the topology, then
-select a server. The instance serves one request and throws that away. This
-wrapper moves discovery out of the request path. A watcher process keeps the
-output of `replSetGetStatus` in a store, a plugin reads it, and the driver
-opens a `directConnection` straight to the member it needs.
+The driver discovers topology on first use through one direct member connection,
+stores it through the plugin, and uses cached members on subsequent cold starts.
+Topology-related write failures trigger a refresh and one bounded retry when the
+server confirms that the write was rejected before execution. No separate
+watcher process is needed.
 
 Reads go to a secondary, writes go to the primary, each on its own client,
 created on first use.
@@ -23,7 +22,6 @@ See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENC
 | Directory | Package | What it does |
 |---|---|---|
 | `driver/` | `@mongodb-serverless/driver` | Replaces `MongoClient` and routes operations to a read or write client |
-| `watcher/` | `@mongodb-serverless/watcher` | Polls a cluster and writes its topology through a plugin |
 | `plugins/shared/` | not published | The plugin contract, compiled into each plugin |
 | `plugins/local/` | `@mongodb-serverless/plugin-local` | Reads topology from an environment variable |
 
@@ -44,22 +42,9 @@ await client.db('app').collection('users').find({}).toArray();  // secondary
 Every other export (`ObjectId`, `ReadPreference`, the error classes) passes
 through to the real driver unchanged.
 
-The topology comes from the watcher, which runs separately:
-
-```ts
-import { Watcher } from '@mongodb-serverless/watcher';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
-
-const watcher = new Watcher({ uri, plugin: new LocalPlugin({ writable: true }) });
-watcher.start();
-```
-
-The driver's plugin is read-only; only the watcher's is writable. For a
-one-off local setup you can also populate the variable by hand:
-
-```sh
-export __MONGODB_CLUSTER_TOPOLOGY="$(mongosh --quiet --eval 'JSON.stringify(rs.status())')"
-```
+The local plugin stores discovered topology in the current process environment.
+For shared topology across Lambda instances, implement a plugin backed by a
+shared store. See [the architecture and plugin sequences](docs/architecture.md).
 
 ## Scope
 
@@ -69,9 +54,10 @@ different source. Change streams and sessions that span the read and write
 client are also unsupported. See `driver/README.md` for the details and the
 reasoning.
 
-A failover is only picked up on the watcher's next cycle. Until then the stored
-topology names a member that is no longer primary and writes will fail, so
-`refreshIntervalMS` is a tradeoff rather than a fix.
+Discovery needs `replSetGetStatus` permission. Network failures, bulk operations,
+and cursors can leave partial or unknown outcomes, so these refresh topology
+without automatic replay. Read failures do not trigger refresh. See the
+[driver limitations](driver/README.md) before migrating.
 
 ## Development
 

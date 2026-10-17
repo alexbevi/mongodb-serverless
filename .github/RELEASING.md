@@ -11,9 +11,6 @@ pnpm changeset
 Merging to `main` opens a "Version Packages" PR. Merging that PR publishes to
 npm and creates the GitHub Releases after CI passes.
 
-The watcher is private and ignored by Changesets. Remove both restrictions
-when it is ready to publish.
-
 ## First publish of a new package
 
 Add the package to `pnpm-workspace.yaml` and the root TypeScript build

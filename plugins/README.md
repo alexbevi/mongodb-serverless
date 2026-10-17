@@ -19,14 +19,9 @@ setDefaultPlugin(new LocalPlugin());   // once at startup
 **The driver depends on no plugin package**, not even optionally, so publishing
 a plugin never requires a driver release.
 
-**Plugins are read-only unless constructed writable.** The driver only reads,
-so it gets the safe default without doing anything. The watcher is the only
-writer and asks for it:
-
-```ts
-new LocalPlugin()                    // driver: write() throws
-new LocalPlugin({ writable: true })  // watcher: write() permitted
-```
+**The driver reads and writes topology.** Local plugins are writable by default.
+A plugin extending `ServerlessPlugin` must opt into writes with
+`super({ writable: true })` and call `assertWritable()` before changing its store.
 
 **A plugin does not have to extend anything.** The driver checks that `setup`,
 `verify`, `read`, and `write` are functions and that `name`, `version`, and
@@ -41,7 +36,7 @@ Read and change them with `get()` and `set()`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `refreshIntervalMS` | `10000` | How often the watcher refreshes stored topology |
+| `connectionStringVariableName` | `__MONGODB_CONNECTION_STRING` | Names where the cluster URI and credentials live |
 | `clusterTopologyVariableName` | `__MONGODB_CLUSTER_TOPOLOGY` | Names where the topology document lives |
 
 `clusterTopologyVariableName` means an environment variable for
@@ -69,9 +64,11 @@ export class MyPlugin extends ServerlessPlugin {
   readonly version = '1.0.0';
   readonly author = 'you';
 
+  constructor() { super({ writable: true }); }
+
   async setup(): Promise<void> {}                      // prepare the store
   async verify(): Promise<void> {}                     // throw if unusable
-  async read(): Promise<ReplSetGetStatus> { /* ... */ } // fetch the document
+  async read(): Promise<ReplSetGetStatus | null> { /* ... */ } // fetch the document
 
   async write(status: ReplSetGetStatus): Promise<void> {
     this.assertWritable();                             // refuse if read-only

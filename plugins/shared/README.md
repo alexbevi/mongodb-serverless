@@ -10,7 +10,7 @@ at runtime.
 
 ```ts
 interface PluginConfig {
-  refreshIntervalMS: number;
+  connectionStringVariableName: string;
   clusterTopologyVariableName: string;
 }
 
@@ -23,7 +23,7 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   abstract setup(): Promise<void>;
   abstract verify(): Promise<void>;
-  abstract read(): Promise<ReplSetGetStatus>;
+  abstract read(): Promise<ReplSetGetStatus | null>;
   abstract write(status: ReplSetGetStatus): Promise<void>;
 
   get<K extends keyof C>(key: K): C[K];
@@ -37,7 +37,7 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 `setup()` prepares the store. `verify()` throws if it is unusable, with a
 message saying what is wrong. `read()` returns the stored `replSetGetStatus`
 document and `write()` replaces it. Status extension fields accept BSON values
-and their JSON representations. The local plugin and watcher validate
+and their JSON representations. The local plugin and driver validate
 member names and routing field types before returning a status. Validation preserves extra fields,
 including dates and BSON scalars, and does not require a healthy primary.
 
@@ -51,8 +51,8 @@ A plugin refuses to write unless constructed with `{ writable: true }`. Call
 refused write changes nothing.
 
 `set()` is allowed either way, since it configures the plugin rather than the
-store. The driver constructs plugins plainly and only reads; the watcher asks
-to write.
+store. Plugins used for discovery must enable writes in their constructor;
+package-name resolution constructs that class with no arguments.
 
 See [the plugin overview](..) for the default values.
 
@@ -65,7 +65,7 @@ interface MyConfig extends PluginConfig {
 
 class MyPlugin extends ServerlessPlugin<MyConfig> {
   constructor() {
-    super({ region: 'us-east-1' });   // base defaults still apply
+    super({ region: 'us-east-1', writable: true });   // base defaults still apply
   }
 }
 ```

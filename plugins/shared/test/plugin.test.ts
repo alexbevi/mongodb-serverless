@@ -48,8 +48,9 @@ class RegionPlugin extends ServerlessPlugin<RegionConfig> {
 }
 
 describe('ServerlessPlugin', () => {
-  it('defaults refreshIntervalMS to 10000', () => {
-    expect(new StubPlugin().get('refreshIntervalMS')).toBe(10_000);
+  it('rejects the removed polling interval', () => {
+    // @ts-expect-error Polling is no longer part of the plugin contract.
+    expect(() => new StubPlugin().get('refreshIntervalMS')).toThrow(/Unknown config key/);
   });
 
   it('defaults clusterTopologyVariableName to __MONGODB_CLUSTER_TOPOLOGY', () => {
@@ -58,17 +59,17 @@ describe('ServerlessPlugin', () => {
 
   it('round-trips a value through set and get', () => {
     const plugin = new StubPlugin();
-    plugin.set('refreshIntervalMS', 500);
+    plugin.set('connectionStringVariableName', 'MY_URI');
 
-    expect(plugin.get('refreshIntervalMS')).toBe(500);
+    expect(plugin.get('connectionStringVariableName')).toBe('MY_URI');
   });
 
   it('keeps config per instance', () => {
     const one = new StubPlugin();
     const two = new StubPlugin();
-    one.set('refreshIntervalMS', 500);
+    one.set('connectionStringVariableName', 'MY_URI');
 
-    expect(two.get('refreshIntervalMS')).toBe(10_000);
+    expect(two.get('connectionStringVariableName')).toBe('__MONGODB_CONNECTION_STRING');
   });
 
   it('rejects an unknown key on set', () => {
@@ -93,7 +94,7 @@ describe('ServerlessPlugin', () => {
     const plugin = new RegionPlugin();
 
     expect(plugin.get('region')).toBe('us-east-1');
-    expect(plugin.get('refreshIntervalMS')).toBe(10_000);
+    expect(plugin.get('connectionStringVariableName')).toBe('__MONGODB_CONNECTION_STRING');
   });
 
   it('reports static plugin details', () => {
@@ -131,9 +132,9 @@ describe('writability', () => {
 
   it('allows set() in read-only mode, since config is not the store', () => {
     const plugin = new StubPlugin();
-    plugin.set('refreshIntervalMS', 500);
+    plugin.set('connectionStringVariableName', 'MY_URI');
 
-    expect(plugin.get('refreshIntervalMS')).toBe(500);
+    expect(plugin.get('connectionStringVariableName')).toBe('MY_URI');
   });
 
   it('keeps base defaults for a subclass that adds config and asks to write', () => {
@@ -141,7 +142,7 @@ describe('writability', () => {
 
     expect(plugin.writable).toBe(true);
     expect(plugin.get('region')).toBe('us-east-1');
-    expect(plugin.get('refreshIntervalMS')).toBe(10_000);
+    expect(plugin.get('connectionStringVariableName')).toBe('__MONGODB_CONNECTION_STRING');
   });
 });
 

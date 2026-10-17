@@ -20,15 +20,12 @@ export interface TopologyPlugin {
 }
 
 export interface PluginConfig {
-  /** How often the watcher refreshes stored topology. */
-  refreshIntervalMS: number;
   /** Names where the topology document lives. Each plugin interprets it. */
   clusterTopologyVariableName: string;
   connectionStringVariableName: string;
 }
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
-  refreshIntervalMS: 10_000,
   clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY',
   connectionStringVariableName: '__MONGODB_CONNECTION_STRING'
 };
@@ -66,8 +63,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   /**
    * Whether this plugin may write to its store.
    *
-   * Read-only unless asked for, so a consumer that only reads is safe without
-   * doing anything. The watcher is the only writer.
+   * Subclasses used for driver discovery must opt into writes.
    */
   get writable(): boolean {
     return this.#writable;
@@ -78,7 +74,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
     if (!this.#writable) {
       throw new PluginReadOnlyError(
         `Plugin "${this.name}" is read-only. Construct it with { writable: true } to ` +
-          'write topology, which is the watcher\'s job rather than the driver\'s.'
+          'allow driver discovery and topology refresh.'
       );
     }
   }

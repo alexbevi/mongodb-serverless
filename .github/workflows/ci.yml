@@ -55,7 +55,8 @@ jobs:
             ]).then(([driver, local]) => {
               assert.equal(driver.MongoClient.name, 'ServerlessMongoClient');
               assert.equal(typeof local.LocalPlugin, 'function');
-              assert.equal(new local.LocalPlugin().writable, false);
+              assert.equal(new local.LocalPlugin().writable, true);
+              assert.equal(new local.LocalPlugin({ writable: false }).writable, false);
               console.log('packed packages resolve');
             });
           "

@@ -200,3 +200,8 @@ this form: the plugin resolves asynchronously, so its default database is not
 available when `db()` is called. An explicit URI takes precedence. Credentials
 remain in the plugin's connection-string store; topology documents contain no
 copy of them.
+
+SRV discovery resolves one seed at a time after validating its DNS domain.
+TLS remains enabled by default for SRV URIs. DNS TXT options supply `authSource`
+unless the URI overrides it. Cached topology avoids SRV member lookup; TXT
+options are still resolved once per client when using an SRV URI.

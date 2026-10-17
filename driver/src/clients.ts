@@ -2,6 +2,7 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
+import { resolveSeedOptions, resolveSeeds } from './seeds.js';
 import { discoverTopology } from './discovery.js';
 import { directUri } from './uri.js';
 
@@ -29,9 +30,11 @@ export class ClientPair {
   readonly #clients = new Map<string, Promise<MongoClient>>();
   #topology: Promise<Topology> | undefined;
   #closed = false;
+  #uri: string;
 
   constructor(options: ClientPairOptions) {
     this.#options = options;
+    this.#uri = options.uri;
   }
 
   /** The client for operations that must reach the primary. */
@@ -70,11 +73,17 @@ export class ClientPair {
     this.#topology ??= (async () => {
       const status = await this.#options.plugin.read();
 
-      if (status != null) return parseTopology(status);
+      if (status != null) {
+        this.#uri = await resolveSeedOptions(this.#options.uri);
+
+        return parseTopology(status);
+      }
+
+      this.#uri = (await resolveSeeds(this.#options.uri)).uri;
 
       await this.#options.plugin.setup();
       const discovered = await discoverTopology(
-        this.#options.uri, this.#options.createClient, this.#options.driverOptions
+        this.#uri, this.#options.createClient, this.#options.driverOptions
       );
       await this.#options.plugin.write(discovered);
 
@@ -104,7 +113,7 @@ export class ClientPair {
 
     if (existing != null) return existing;
 
-    const uri = directUri(this.#options.uri, hostPort);
+    const uri = directUri(this.#uri, hostPort);
 
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.

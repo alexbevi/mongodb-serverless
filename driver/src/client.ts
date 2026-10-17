@@ -97,7 +97,8 @@ export class ServerlessMongoClient {
     return createDbFacade(
       {
         read: async () => (await this.#pair).read(),
-        write: async () => (await this.#pair).write()
+        write: async () => (await this.#pair).write(),
+        executeWrite: async (operation, replay) => (await this.#pair).executeWrite(operation, replay)
       },
       dbName
     );

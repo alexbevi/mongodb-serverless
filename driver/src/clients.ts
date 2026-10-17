@@ -1,3 +1,5 @@
+import { setTimeout as delay } from 'node:timers/promises';
+import { isTopologyFailure, wasRejectedBeforeWrite } from './recovery.js';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
@@ -31,6 +33,8 @@ export class ClientPair {
   #topology: Promise<Topology> | undefined;
   #closed = false;
   #uri: string;
+  #refresh: Promise<void> | undefined;
+  #generation = 0;
 
   constructor(options: ClientPairOptions) {
     this.#options = options;
@@ -49,6 +53,47 @@ export class ClientPair {
     const topology = await this.#resolveTopology();
 
     return this.#clientFor(selectSecondary(topology) ?? topology.primary);
+  }
+
+  async executeWrite<T>(operation: () => Promise<T>, replay = true): Promise<T> {
+    const generation = this.#generation;
+
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isTopologyFailure(error)) throw error;
+
+      try {
+        await this.#refreshTopology(generation);
+      } catch {
+        // Preserve the write failure when recovery itself fails.
+        throw error;
+      }
+
+      if (!replay || !wasRejectedBeforeWrite(error)) throw error;
+
+      return operation();
+    }
+  }
+
+  async #refreshTopology(generation: number): Promise<void> {
+    this.#assertOpen();
+
+    if (generation !== this.#generation) return;
+
+    this.#refresh ??= (async () => {
+      await delay(100 + Math.floor(Math.random() * 150));
+      this.#assertOpen();
+      const seeds = await resolveSeeds(this.#options.uri);
+      const status = await discoverTopology(seeds.uri, this.#options.createClient, this.#options.driverOptions);
+      this.#assertOpen();
+      await this.#options.plugin.write(status);
+      this.#uri = seeds.uri;
+      this.#topology = Promise.resolve(parseTopology(status));
+      this.#generation += 1;
+    })().finally(() => { this.#refresh = undefined; });
+
+    return this.#refresh;
   }
 
   async close(): Promise<void> {
@@ -118,7 +163,7 @@ export class ClientPair {
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.
     const pending = (async () => {
-      const client = this.#options.createClient(uri, this.#options.driverOptions);
+      const client = this.#options.createClient(uri, { ...this.#options.driverOptions, retryWrites: false });
 
       if (this.#options.disableMonitoring) {
         const { disableMonitoring } = await import('./no-monitoring/index.js');

@@ -1,0 +1,27 @@
+const TOPOLOGY_CODES = new Set([91, 189, 10107, 11600, 11602, 13435, 13436]);
+
+interface WriteFailure {
+  name?: string;
+  code?: number;
+  errorLabels?: string[];
+}
+
+export function isTopologyFailure(error: unknown): boolean {
+  return isWriteFailure(error) && (
+    (error.code !== undefined && TOPOLOGY_CODES.has(error.code)) ||
+    ['MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoServerSelectionError'].includes(error.name ?? '') ||
+    (error.errorLabels?.includes('RetryableWriteError') ?? false)
+  );
+}
+
+export function wasRejectedBeforeWrite(error: unknown): boolean {
+  return isWriteFailure(error) && error.name === 'MongoServerError' &&
+    (error.code === 10107 || error.code === 13435 ||
+      (error.errorLabels?.includes('NoWritesPerformed') ?? false));
+}
+
+function isWriteFailure(error: unknown): error is WriteFailure {
+  return error !== null && typeof error === 'object';
+}
+
+export type WriteOperation = <T>(operation: () => Promise<T>, replay?: boolean) => Promise<T>;

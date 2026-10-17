@@ -1,3 +1,4 @@
+import type { WriteOperation } from './recovery.js';
 import { callMethod } from './method.js';
 import { isStringProperty } from './property.js';
 import type { AbstractCursor, BulkOperationBase, Collection, Db, MongoClient } from 'mongodb';
@@ -30,6 +31,7 @@ const BULK_METHODS = new Set(['initializeOrderedBulkOp', 'initializeUnorderedBul
 export interface Router {
   read(): Promise<MongoClient>;
   write(): Promise<MongoClient>;
+  executeWrite?: WriteOperation;
 }
 
 type Routes = Record<string, Route | 'pipeline'>;
@@ -143,7 +145,11 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
       }, method);
     }
 
-    return invoke(client(), owner, method, args);
+    const operation = () => invoke(client(), owner, method, args);
+
+    return route === 'write' && router.executeWrite
+      ? router.executeWrite(operation, !hasSession(args))
+      : operation();
   };
 }
 

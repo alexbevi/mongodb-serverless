@@ -205,3 +205,11 @@ SRV discovery resolves one seed at a time after validating its DNS domain.
 TLS remains enabled by default for SRV URIs. DNS TXT options supply `authSource`
 unless the URI overrides it. Cached topology avoids SRV member lookup; TXT
 options are still resolved once per client when using an SRV URI.
+
+A topology-related write failure triggers one shared refresh per client after
+100–249 ms of jittered backoff. A write rejected with `NotWritablePrimary` or
+`NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
+Network failures and partial bulk failures refresh topology but are returned to
+the caller: their writes may already have run. Duplicate-key, validation, and
+authorization errors do not trigger discovery. A failed refresh preserves the
+original write error. The caller decides whether to retry again after an election.

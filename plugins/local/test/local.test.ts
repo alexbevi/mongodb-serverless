@@ -83,10 +83,10 @@ describe('LocalPlugin', () => {
     await expect(new LocalPlugin().verify()).resolves.toBeUndefined();
   });
 
-  it('fails read when the variable is unset', async () => {
+  it('returns null when topology has not been discovered', async () => {
     delete process.env[VAR];
 
-    await expect(new LocalPlugin().read()).rejects.toThrow(new RegExp(VAR));
+    await expect(new LocalPlugin().read()).resolves.toBeNull();
   });
 
   it('setup leaves an already-valid environment alone', async () => {

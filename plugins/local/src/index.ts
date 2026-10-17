@@ -14,8 +14,10 @@ export class LocalPlugin extends ServerlessPlugin {
     this.#parse(this.#rawOrThrow());
   }
 
-  async read(): Promise<ReplSetGetStatus> {
-    return this.#parse(this.#rawOrThrow());
+  async read(): Promise<ReplSetGetStatus | null> {
+    const raw = process.env[this.#variableName()];
+
+    return raw == null || raw === '' ? null : this.#parse(raw);
   }
 
   async write(status: ReplSetGetStatus): Promise<void> {

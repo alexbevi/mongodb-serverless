@@ -59,3 +59,5 @@ backed by a store both processes can reach.
 
 `replSetGetStatus` describes a replica set, so sharded and load-balanced
 clusters are out of scope.
+
+`read()` returns `null` when the topology variable is absent or empty. Invalid stored JSON still throws.

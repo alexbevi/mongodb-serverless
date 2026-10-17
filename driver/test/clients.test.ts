@@ -24,7 +24,6 @@ const pluginFor = (status: ReplSetGetStatus | null): TopologyPlugin => ({
   author: 'test',
   setup: vi.fn(async () => {}),
   verify: vi.fn(async () => {}),
-  // @ts-expect-error The null fixture exercises an invalid response from an external plugin.
   read: vi.fn(async () => status),
   write: vi.fn(async () => {})
 });

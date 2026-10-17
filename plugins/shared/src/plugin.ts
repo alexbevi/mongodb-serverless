@@ -14,7 +14,7 @@ export interface TopologyPlugin {
 
   setup(): Promise<void>;
   verify(): Promise<void>;
-  read(): Promise<ReplSetGetStatus>;
+  read(): Promise<ReplSetGetStatus | null>;
   write(status: ReplSetGetStatus): Promise<void>;
 }
 
@@ -86,7 +86,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   /** Throw if the store is unusable, naming what is wrong. */
   abstract verify(): Promise<void>;
 
-  abstract read(): Promise<ReplSetGetStatus>;
+  abstract read(): Promise<ReplSetGetStatus | null>;
 
   abstract write(status: ReplSetGetStatus): Promise<void>;
 

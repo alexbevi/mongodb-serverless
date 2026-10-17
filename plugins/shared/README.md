@@ -36,13 +36,22 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
 `setup()` prepares the store. `verify()` throws if it is unusable, with a
 message saying what is wrong. `read()` returns the stored `replSetGetStatus`
-document and `write()` replaces it. Status extension fields accept BSON values
+document, or `null` when no topology exists. `write()` replaces it atomically.
+Permission, transport, and malformed-data errors must throw. Status extension fields accept BSON values
 and their JSON representations. The local plugin and driver validate
 member names and routing field types before returning a status. Validation preserves extra fields,
 including dates and BSON scalars, and does not require a healthy primary.
 
 `get()` and `set()` throw `RangeError` on an unknown key, listing the keys that
 do exist. Config is per instance, so two plugins never share state.
+
+A plugin may also implement `getConnectionString(): Promise<string | undefined>`
+to provide the cluster URI and credentials. It is optional when callers supply
+an explicit URI. The driver never writes credentials into topology documents.
+
+The driver calls `read()` first, `setup()` on a miss, and `write()` after discovery
+or topology-related write failure. `setup()` must be idempotent. `verify()` is an
+explicit diagnostic hook and is not called automatically.
 
 ## Read-only by default
 

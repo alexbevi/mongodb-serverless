@@ -77,8 +77,9 @@ export class MyPlugin extends ServerlessPlugin {
 }
 ```
 
-`verify()` should throw with a message naming what is wrong, since that message
-is what a user sees when their topology is missing or malformed. `write()`
+`read()` returns `null` for missing topology; malformed data and store failures
+must throw. `setup()` must be idempotent. `verify()` is an explicit diagnostic
+hook; the driver does not call it automatically. `write()`
 should call `assertWritable()` before touching the store, so a refused write
 changes nothing.
 
@@ -88,3 +89,6 @@ class under its own name is fine. A class is constructed with no arguments.
 
 See [`shared/README.md`](shared) for the full contract and
 [`local/`](local) for a worked example.
+
+See [architecture and plugin sequences](../docs/architecture.md) for local and
+shared-store behavior, credential handling, and recovery limits.

@@ -1,7 +1,7 @@
 # Cold connection benchmark
 
 Compare MongoDB driver discovery with a serverless driver that connects directly
-to a watcher-selected replica-set member. Each sample creates a fresh Node process,
+to a cached replica-set member. Each sample creates a fresh Node process,
 constructs a client, and completes its first operation against a three-member
 TLS replica set. The operation connects automatically; the benchmark does not
 call `client.connect()` first.
@@ -300,7 +300,7 @@ docker compose -f benchmark/docker/compose.yaml down --volumes --remove-orphans 
 
 Timing starts immediately before handler invocation and ends when it returns,
 including lazy client construction on the first call.
-Process startup, imports, watcher work and client close are excluded. This boundary
+Process startup, imports, topology discovery and refresh, and client close are excluded. This boundary
 is narrower than a complete Lambda cold start. The recorded samples are cold;
 handler reuse is tested separately. Database processes and OS caches remain warm
 across samples.

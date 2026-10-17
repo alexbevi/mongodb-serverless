@@ -136,7 +136,7 @@ describe('LocalPlugin', () => {
 
     it('reads and verifies while read-only', async () => {
       process.env[VAR] = JSON.stringify(status);
-      const plugin = new LocalPlugin();
+      const plugin = new LocalPlugin({ writable: false });
 
       await expect(plugin.verify()).resolves.toBeUndefined();
       await expect(plugin.read()).resolves.toEqual(status);

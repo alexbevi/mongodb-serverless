@@ -55,6 +55,18 @@ first operation throws `MissingPluginError`. There is no environment variable
 for choosing a plugin, though a plugin may read the environment for its own
 configuration.
 
+When the plugin implements `getConnectionString()`, omit the explicit URI with
+`new MongoClient(undefined, { plugin })`. Pass a database name to `db(name)` in
+this form: the plugin resolves asynchronously, so its default database is not
+available when `db()` is called. An explicit URI takes precedence. Credentials
+remain in the plugin's connection-string store; topology documents contain no
+copy of them.
+
+SRV discovery resolves one seed at a time after validating its DNS domain.
+TLS remains enabled by default for SRV URIs. DNS TXT options supply `authSource`
+unless the URI overrides it. Cached topology avoids SRV member lookup; TXT
+options are still resolved once per client when using an SRV URI.
+
 ## Routing
 
 A method table decides where each operation goes. `insertOne` and `updateMany`
@@ -105,10 +117,11 @@ the application pool. No heartbeat or RTT sockets, timers, or heartbeat events
 run for this client. Command monitoring and pool events still work. Pool sizes
 remain configurable; minimum-pool maintenance can open application connections.
 
-Recovery runs when an operation needs a connection and targets the same host.
-It does not discover another primary or refresh the plugin's topology. A write
-to a member that has stepped down can therefore fail. Native retry rules still
-apply. Closing the client never reconnects to end sessions.
+On a standalone native client, the monitoring patch reconnects to the same host
+and retains native retry rules. On the serverless wrapper, topology-related write
+failures also trigger the plugin refresh described below. The wrapper disables
+native write retries so it can bound its own retry count. Closing a patched
+client never reconnects to end sessions.
 
 This experimental patch uses 7.7.0 as its verified baseline. It accepts stable
 versions in `>=7.7.0 <8.0.0` when the internal API checks pass. Those checks cannot
@@ -178,7 +191,7 @@ secondary raises `SessionRoutingError`, which includes a read inside
 `withTransaction`.
 
 **`watch()` and `startSession()` throw.** Change streams need a resume story
-that belongs with the watcher's design, and a session cannot leave the client
+across member changes, and a session cannot leave the client
 that created it.
 
 **A few mongodb exports are missing.** The driver marks some of its runtime
@@ -192,23 +205,17 @@ does not.
 **Replica sets only.** Sharded and load-balanced clusters do not report their
 topology through `replSetGetStatus`.
 
-**Topology is read once per client.** There is no refresh while a client lives.
+**Read failures do not refresh topology.** A client serving only reads can keep
+using stale topology until it is replaced. Topology-related write failures refresh
+the cached members. There is no background polling.
 
-When the plugin implements `getConnectionString()`, omit the explicit URI with
-`new MongoClient(undefined, { plugin })`. Pass a database name to `db(name)` in
-this form: the plugin resolves asynchronously, so its default database is not
-available when `db()` is called. An explicit URI takes precedence. Credentials
-remain in the plugin's connection-string store; topology documents contain no
-copy of them.
-
-SRV discovery resolves one seed at a time after validating its DNS domain.
-TLS remains enabled by default for SRV URIs. DNS TXT options supply `authSource`
-unless the URI overrides it. Cached topology avoids SRV member lookup; TXT
-options are still resolved once per client when using an SRV URI.
+### Discovery and write recovery
 
 A topology-related write failure triggers one shared refresh per client after
-100–249 ms of jittered backoff. A write rejected with `NotWritablePrimary` or
+100–249 ms of jittered backoff. An ordinary promise-returning write rejected with `NotWritablePrimary` or
 `NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
+A `NoWritesPerformed` label on a topology-related server error also permits replay.
+Explicit sessions, bulk builders, and cursors are excluded from automatic replay.
 Network failures and partial bulk failures refresh topology but are returned to
 the caller: their writes may already have run. Duplicate-key, validation, and
 authorization errors do not trigger discovery. A failed refresh preserves the
@@ -223,3 +230,6 @@ Refresh tries the cached members, so losing the original seed does not prevent
 recovery. Discovery tries each candidate once and closes its temporary client.
 Its default server-selection timeout is five seconds per candidate; an explicit
 `serverSelectionTimeoutMS` overrides it.
+
+See [architecture and plugin sequences](../docs/architecture.md) for the storage
+contract, migration notes, and concurrency limits.

@@ -110,7 +110,7 @@ sequenceDiagram
     App->>Driver: Write
     Driver->>Old: Attempt 1
     Old-->>Driver: Topology-related error
-    Note over Driver: Share refresh; back off 100–249 ms
+    Note over Driver: Share refresh and back off 100–249 ms
     Driver->>Member: Direct hello and replSetGetStatus
     Member-->>Driver: Validated topology
     Driver->>Member: Close discovery connection
@@ -123,7 +123,7 @@ sequenceDiagram
         New-->>Driver: Result or final error
         Driver-->>App: Result or final error
     else Network ambiguity, bulk, cursor, or explicit session
-        Driver-->>App: Original error; no automatic replay
+        Driver-->>App: Original error, no automatic replay
     end
     Note over Driver,App: Discovery or persistence failure returns the original write error
 ```

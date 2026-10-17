@@ -261,3 +261,41 @@ it('keeps routed connections direct even when native options request discovery',
   }));
   await pair.close();
 });
+
+it('waits for in-flight discovery on close and does not persist afterward', async () => {
+  let release!: (status: ReplSetGetStatus) => void;
+  let started!: () => void;
+  const discovery = new Promise<ReplSetGetStatus>(resolve => { release = resolve; });
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const closed = vi.fn(async () => {});
+  const plugin = pluginFor(null);
+
+  const pair = new ClientPair({
+    uri: 'mongodb://a:27017/', plugin,
+    // SAFETY: The fake blocks the status command to exercise close during discovery.
+    createClient: () => ({
+      async connect() {}, close: closed,
+      db: () => ({ command: async (command: { hello?: number }) => {
+        if (command.hello) return { setName: 'rs0' };
+
+        started();
+
+        return discovery;
+      } })
+    } as never)
+  });
+
+  const attempt = pair.write().catch(error => error);
+  await ready;
+  let finished = false;
+  const closing = pair.close().then(() => { finished = true; });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(finished).toBe(false);
+  release(singleNode);
+  await closing;
+  expect(await attempt).toMatchObject({ message: expect.stringMatching(/closed/) });
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(plugin.write).not.toHaveBeenCalled();
+});

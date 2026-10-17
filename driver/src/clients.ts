@@ -106,13 +106,12 @@ export class ClientPair {
 
   async close(): Promise<void> {
     this.#closed = true;
+    await Promise.allSettled([this.#topology, this.#refresh]);
     const pending = [...this.#clients.values()];
     this.#clients.clear();
     this.#topology = undefined;
 
-    // A client whose connect() failed has nothing to close, and its rejection
-    // should not mask the close.
-    await Promise.all(
+    await Promise.allSettled(
       pending.map(async client => {
         await (await client).close().catch(() => {});
       })
@@ -125,6 +124,7 @@ export class ClientPair {
 
     this.#topology ??= (async () => {
       const status = await this.#options.plugin.read();
+      this.#assertOpen();
 
       if (status != null) {
         this.#uri = await resolveSeedOptions(this.#options.uri);
@@ -135,11 +135,13 @@ export class ClientPair {
       this.#uri = (await resolveSeeds(this.#options.uri)).uri;
 
       await this.#options.plugin.setup();
+      this.#assertOpen();
 
       const discovered = await discoverTopology(
         this.#uri, this.#options.createClient, this.#options.driverOptions
       );
 
+      this.#assertOpen();
       await this.#options.plugin.write(discovered);
 
       return parseTopology(discovered);

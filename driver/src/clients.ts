@@ -2,6 +2,7 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
+import { discoverTopology } from './discovery.js';
 import { directUri } from './uri.js';
 
 /** Builds a real client. Injectable so tests observe the uri without connecting. */
@@ -66,7 +67,19 @@ export class ClientPair {
   async #resolveTopology(): Promise<Topology> {
     this.#assertOpen();
 
-    this.#topology ??= (async () => parseTopology(await this.#options.plugin.read()))().catch(
+    this.#topology ??= (async () => {
+      const status = await this.#options.plugin.read();
+
+      if (status != null) return parseTopology(status);
+
+      await this.#options.plugin.setup();
+      const discovered = await discoverTopology(
+        this.#options.uri, this.#options.createClient, this.#options.driverOptions
+      );
+      await this.#options.plugin.write(discovered);
+
+      return parseTopology(discovered);
+    })().catch(
       error => {
         this.#topology = undefined;
         throw error;

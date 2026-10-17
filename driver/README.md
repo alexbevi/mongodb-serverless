@@ -1,7 +1,8 @@
 # @mongodb-serverless/driver
 
-Replaces the driver's `MongoClient` with one that reads a pre-discovered
-topology from a plugin and routes each operation to a read or write client.
+Replaces the driver's `MongoClient` with one that routes operations directly to
+replica-set members. It reads cached topology from a plugin, or discovers and
+stores it on first use. Discovery requires permission to run `replSetGetStatus`.
 
 ## Install
 

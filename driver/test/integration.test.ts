@@ -95,6 +95,28 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     expect(cluster.secondaries).toHaveLength(2);
   });
 
+  it('discovers and stores topology on first use, then reuses it', async () => {
+    let stored: typeof cluster.status | null = null;
+    const plugin = {
+      name: 'discovery', version: '1', author: 'test',
+      async setup() {}, async verify() {},
+      async read() { return stored; },
+      async write(status: typeof cluster.status) { stored = status; }
+    };
+    const commands: CommandStartedEvent[] = [];
+    for (let run = 0; run < 2; run += 1) {
+      const client = new ServerlessMongoClient(cluster.uri, {
+        plugin, monitorCommands: true,
+        on: { commandStarted: event => commands.push(event) }
+      });
+      clients.push(client);
+      await client.db('itest').collection('discovery').insertOne({ run });
+    }
+    expect(stored).toMatchObject({ set: cluster.status.set });
+    expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
+    expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+  });
+
   it('sends a write to the primary', async () => {
     const { client, commands } = connect();
     await client.db('itest').collection('writes').insertOne({ at: Date.now() });

@@ -1,7 +1,7 @@
 import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
-import { NoPrimaryError, NoTopologyError } from '../src/errors.js';
+import { NoPrimaryError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
 
 const threeNode: ReplSetGetStatus = {
@@ -221,12 +221,6 @@ describe('ClientPair', () => {
     const { pair } = pairFor({ members: [{ name: 'b:27017', stateStr: 'SECONDARY', health: 1 }] });
 
     await expect(pair.write()).rejects.toThrow(NoPrimaryError);
-  });
-
-  it('surfaces NoTopologyError when the plugin returns nothing', async () => {
-    const { pair } = pairFor(null);
-
-    await expect(pair.write()).rejects.toThrow(NoTopologyError);
   });
 
   it('does not cache a failed topology read', async () => {

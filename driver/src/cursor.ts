@@ -127,11 +127,24 @@ export function createCursorProxy<T>(source: CursorSource<T>, label: string, exe
               return;
             }
 
-            try {
-              while (await call('hasNext', [])) yield await call('next', []);
-            } finally {
-              if (real != null) await call('close', []);
-            }
+            let iterator: AsyncGenerator<T, void, void> | undefined;
+
+            const recovering: AsyncIterableIterator<T, void, void> = {
+              [Symbol.asyncIterator]() { return this; },
+              next: () => executeWrite(async () => {
+                iterator ??= (await resolve())[Symbol.asyncIterator]();
+
+                return iterator.next();
+              }, false),
+              return: async () => iterator?.return() ?? { done: true, value: undefined },
+              throw: async error => {
+                if (iterator) return iterator.throw(error);
+
+                throw error;
+              }
+            };
+
+            yield* recovering;
           };
         }
 

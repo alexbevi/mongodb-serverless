@@ -237,7 +237,8 @@ original write error. The caller decides whether to retry again after an electio
 Bulk builders and cursors also refresh topology on topology-related failures,
 but their state is not replayed automatically. A bulk may have committed earlier
 batches, and a cursor may already have returned results or performed writes.
-Create a new operation after handling the error.
+Create a new operation after handling the error. If async iteration and cursor
+cleanup both fail, the original iteration error is returned.
 
 Refresh tries the cached members, so losing the original seed does not prevent
 recovery. Each attempt uses a temporary direct client and closes it afterward.

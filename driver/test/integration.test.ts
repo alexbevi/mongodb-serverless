@@ -423,6 +423,40 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       expect(seen).toEqual([0, 1, 2, 3]);
     });
 
+    it('closes a primary cursor on early iterator exit', async () => {
+      const { client, commands } = connect();
+      const name = `iterator-close-${Date.now()}`;
+      await seed(client, name, 3);
+      const cursor = client.db('itest').collection(name).find({}, { readPreference: 'primary', batchSize: 1 });
+      const seen: unknown[] = [];
+
+      for await (const document of cursor) {
+        seen.push(document['n']);
+        break;
+      }
+
+      expect(seen).toHaveLength(1);
+      expect(cursor.closed).toBe(true);
+      expect(portsFor(commands, 'find')).toEqual([portOf(cluster.primary)]);
+      expect(portsFor(commands, 'killCursors')).toEqual([portOf(cluster.primary)]);
+    });
+
+    it('executes an iterated $out once on the primary', async () => {
+      const { client, commands } = connect();
+      const source = `iterator-out-${Date.now()}`;
+      const destination = `${source}-result`;
+      await seed(client, source, 3);
+      const seen: unknown[] = [];
+
+      for await (const document of client.db('itest').collection(source).aggregate([{ $out: destination }])) {
+        seen.push(document);
+      }
+
+      expect(seen).toEqual([]);
+      expect(portsFor(commands, 'aggregate')).toEqual([portOf(cluster.primary)]);
+      await expect(client.db('itest').collection(destination).countDocuments({}, { readPreference: 'primary' })).resolves.toBe(3);
+    });
+
     it('sends an aggregate with $out to the primary', async () => {
       const { client, commands } = connect();
       const source = `agg-src-${Date.now()}`;

@@ -52,3 +52,17 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(summary['operations']['write']['no-plugin']['improvementVsHistoricalNativePercent'], 75)
         self.assertEqual(summary['historicalBaseline']['read']['main']['n'], 120)
         self.assertEqual(summary['writeLandings']['oneConnection']['improvementVsHistoricalMainPercent'], 50)
+
+    def test_keeps_lambda_init_separate_from_handler_latency(self):
+        samples = []
+        for variant in ['native', 'main', 'no-plugin', 'ssm']:
+            for operation in ['read', 'write']:
+                for ms, init in [(30, 200), (50, 400)]:
+                    item = sample(variant, operation, ms)
+                    item['lambda'] = dict(initMs=init, durationMs=ms + 5)
+                    samples.append(item)
+        summary = report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
+        group = summary['operations']['read']['ssm']
+        self.assertEqual(group['medianMs'], 40)
+        self.assertEqual(group['medianInitMs'], 300)
+        self.assertEqual(group['medianInitPlusHandlerMs'], 340)

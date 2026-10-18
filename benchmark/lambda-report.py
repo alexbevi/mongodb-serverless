@@ -21,8 +21,12 @@ def statistics(samples):
     values = [sample['totalMs'] for sample in samples]
     if not values:
         return dict(count=0, medianMs=None, p95Ms=None, medianSsmMs=None)
+    initializations = [sample.get('lambda', {}).get('initMs') for sample in samples]
+    has_init = all(value is not None for value in initializations)
     return dict(count=len(values), medianMs=median(values), p95Ms=percentile(values, .95),
-                medianSsmMs=median([sample['ssmMs'] for sample in samples]))
+                medianSsmMs=median([sample['ssmMs'] for sample in samples]),
+                medianInitMs=median(initializations) if has_init else None,
+                medianInitPlusHandlerMs=median([value + init for value, init in zip(values, initializations)]) if has_init else None)
 
 
 def improvement(value, baseline):
@@ -86,6 +90,13 @@ def markdown(summary):
                 history.append(f"| write / {'1 connection' if name == 'oneConnection' else '2 connections'} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {summary['historicalBaseline']['write']['main']['median']:.1f} ms |")
         history.extend(['', 'Historical comparisons are descriptive: the previous main run used detailed profiling, watcher-provided topology, no timed SSM read, and secondary-only reads. Local results also used a different runtime/network harness. These percentages do not isolate the code change.'])
         lines = history + [''] + lines
+    if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):
+        lines.extend(['', '| Pattern | Median INIT | Median INIT + handler |', '|---|---:|---:|'])
+        for operation, groups in summary['operations'].items():
+            for variant in ['no-plugin', 'ssm']:
+                group = groups[variant]
+                lines.append(f"| {operation} / {LABELS[variant]} | {group['medianInitMs']:.1f} ms | {group['medianInitPlusHandlerMs']:.1f} ms |")
+        lines.extend(['', 'INIT + handler excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
     lines.extend(['', 'Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
     return '\n'.join(lines) + '\n'
 

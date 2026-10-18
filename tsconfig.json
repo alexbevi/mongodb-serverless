@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./plugins/local" },
+    { "path": "./plugins/ssm" },
     { "path": "./driver" },
     { "path": "./benchmark" }
   ]

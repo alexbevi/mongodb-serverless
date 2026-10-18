@@ -189,6 +189,7 @@ describe('authentication settings with mocked connections', () => {
 
   it.each([
     { query: 'authSource=uri-db', options: {}, source: 'uri-db' },
+    { query: 'AUTHSOURCE=uri-db', options: {}, source: 'uri-db' },
     { query: 'authSource=uri-db', options: { authSource: 'option-db' }, source: 'option-db' },
     { query: '', options: { authSource: 'option-db' }, source: 'option-db' }
   ])('honors explicit authSource over cached defaults: $source', async ({ query, options, source }) => {

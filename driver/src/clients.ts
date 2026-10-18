@@ -204,6 +204,8 @@ export class ClientPair {
 
   #connectionOptions(topology: Topology | undefined): MongoClientOptions {
     const options = { ...this.#options.driverOptions };
+    delete options.srvServiceName;
+    delete options.srvMaxHosts;
     const uri = new ConnectionString(this.#options.uri);
 
     if (topology?.authentication?.mechanism === this.#authenticationMechanism() &&

@@ -30,6 +30,7 @@ These tests follow the pinned Node.js driver's v7.7.0 test patterns:
 - [OIDC callback tests](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/test/unit/cmap/auth/mongodb_oidc/automated_callback_workflow.test.ts) use callback and connection stubs.
 - [AWS tests](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/test/integration/auth/mongodb_aws.prose.test.ts) and [Kerberos tests](https://github.com/mongodb/node-mongodb-native/blob/v7.7.0/test/manual/kerberos.test.ts) require configured external environments for live authentication.
 
-The mocked suite imports `resolveSRVRecord` from the pinned driver. Recheck that
-internal test dependency when upgrading `mongodb`; production code uses the
-public client's resolved options.
+Production bootstrap and the mocked suite use the native `resolveSRVRecord`
+implementation. Bootstrap resolves settings before opening a direct connection,
+so no monitor connections are needed for DNS resolution. Recheck this internal
+API and the authentication matrix when upgrading `mongodb`.

@@ -123,7 +123,7 @@ function mockConnections() {
     vi.spyOn(admin, 'command').mockImplementation(async command => {
       commands.push(Object.keys(command)[0]!);
 
-      if (command['hello']) return { setName: status.set };
+      if (command['hello']) return { setName: status.set, me: status.members[0]!.name };
 
       if (command['replSetGetStatus']) return status;
 
@@ -184,7 +184,7 @@ describe('authentication settings with mocked connections', () => {
     expect(plugin.document).not.toMatch(/private-|password|username|Certificate|TOKEN|CALLBACK|PROVIDER/);
     expect(commands.filter(command => command === 'replSetGetStatus')).toHaveLength(2);
     expect(dns).toHaveBeenCalledTimes(2);
-    expect(built).toHaveLength(6);
+    expect(built).toHaveLength(5);
   });
 
   it.each([

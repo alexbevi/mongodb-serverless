@@ -6,6 +6,7 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import { parseTopology } from './topology.js';
 import { directUri } from './uri.js';
+import { resolveSeeds } from './seeds.js';
 
 export interface DiscoveryConnection {
   status: ReplSetGetStatus;
@@ -36,20 +37,21 @@ export async function openDiscovery(
   seeds?: string[],
   disableMonitoring = false
 ): Promise<DiscoveryConnection> {
-  const original = new ConnectionString(uri);
-  const expectedSet = options?.replicaSet ?? original.searchParams.get('replicaSet');
-  const direct = seeds ?? (original.isSRV ? undefined : original.hosts);
-  const candidates = direct?.map(seed => directUri(uri, seed)) ?? [uri];
-  const settings = { serverSelectionTimeoutMS: 5000, ...options, retryWrites: false };
-  let failure: unknown;
+  const resolved = seeds ? { hosts: seeds, options } : await resolveSeeds(uri, options);
+  const expectedSet = resolved.options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
+  const candidates = resolved.hosts.map(seed => directUri(uri, seed));
 
-  if (direct) settings.directConnection = true;
+  const settings = {
+    serverSelectionTimeoutMS: 5000, ...resolved.options, retryWrites: false, directConnection: true
+  };
+
+  let failure: unknown;
 
   for (const candidate of candidates) {
     const client = createClient(candidate, settings);
 
     try {
-      if (direct && disableMonitoring) {
+      if (disableMonitoring) {
         const patch = await import('./no-monitoring/index.js');
         patch.disableMonitoring(client);
       }

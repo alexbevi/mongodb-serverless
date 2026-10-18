@@ -63,12 +63,15 @@ available when `db()` is called. An explicit URI takes precedence. Credentials
 remain in the plugin's connection-string store; topology documents contain no
 copy of them.
 
-On a cache miss, a temporary native MongoDB client uses the original URI and
-constructor options for DNS resolution, authentication, and replica-set discovery.
-For a `mongodb://` URI, discovery connects directly to a seed and retains that
-client for operations targeting the same member. SRV discovery still uses a
-temporary native client. Cached routing and refresh through known
-members use direct connections without SRV or TXT lookups.
+On a cache miss, the native driver's URI parser and SRV/TXT resolver produce the
+seed list and connection settings. The wrapper tries seeds in random order,
+connecting directly to one member at a time. It retains a successful connection
+for operations targeting that member. Cached routing and refresh through known
+members perform no SRV or TXT lookups.
+
+SRV resolution uses an internal driver API, verified against `mongodb@7.7.0`.
+It requires a stable version in `>=7.7.0 <8.0.0`; recheck DNS and authentication
+behavior on driver upgrades.
 
 Discovery stores the authentication mechanism and the native driver's resolved
 `authSource` alongside topology. Direct read, write, and refresh connections reuse

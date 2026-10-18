@@ -93,8 +93,9 @@ stage.
 An explicit `readPreference` overrides the table, so
 `find(q, { readPreference: 'primary' })` goes to the write client.
 
-The read client connects to the first member whose `stateStr` is `SECONDARY`
-with `health: 1`. With no healthy secondary, reads fall back to the primary,
+Reads reuse an existing healthy secondary connection. Otherwise, the read
+client connects to the first member whose `stateStr` is `SECONDARY` with
+`health: 1`. With no healthy secondary, reads fall back to the primary,
 which is what a single-node set needs.
 
 Both clients are created on first use and reused. When reads fall back to the

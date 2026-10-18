@@ -49,7 +49,9 @@ export class ClientPair {
   async read(): Promise<MongoClient> {
     const topology = await this.#resolveTopology();
 
-    return this.#clientFor(selectSecondary(topology) ?? topology.primary, topology);
+    const secondary = topology.secondaries.find(host => this.#clients.has(host)) ?? topology.secondaries[0];
+
+    return this.#clientFor(secondary ?? topology.primary, topology);
   }
 
   get generation(): number {
@@ -217,9 +219,4 @@ export class ClientPair {
       throw new ServerlessDriverError('This client is closed; create a new one to reconnect.');
     }
   }
-}
-
-/** First healthy secondary, keeping the choice in one place. */
-function selectSecondary(topology: Topology): string | undefined {
-  return topology.secondaries[0];
 }

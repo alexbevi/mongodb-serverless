@@ -88,3 +88,34 @@ it('reuses the bootstrap socket when the first write lands on the primary', asyn
 
   for (const relay of relays.values()) expect(relay.counts.open).toBe(0);
 }, 120_000);
+
+it('uses the secondary it landed on even when another secondary appears first', async () => {
+  const observed = await observeCluster();
+  const { cluster, relays, clients, commands, createClient } = observed;
+  const landed = cluster.secondaries[1]!;
+
+  const client = new ServerlessMongoClient(`mongodb://${landed}/bootstrap`, {
+    disableMonitoring: true, maxPoolSize: 1, monitorCommands: true, createClient
+  });
+
+  try {
+    const collection = client.db().collection('luckySecondary');
+    await collection.findOne({ value: 1 });
+    expect(clients).toHaveLength(1);
+    expect(relays.get(landed)?.counts.accepted).toBe(1);
+    expect(relays.get(cluster.secondaries[0]!)?.counts.accepted).toBe(0);
+    const discovery = commands.find(event => event.commandName === 'replSetGetStatus');
+    const read = commands.find(event => event.commandName === 'find');
+    expect(read?.connectionId).toBe(discovery?.connectionId);
+    expect(read?.address).toBe(discovery?.address);
+
+    await collection.insertOne({ value: 1 });
+    await collection.findOne({ value: 1 });
+    expect(clients).toHaveLength(2);
+    expect([...relays.values()].reduce((sum, relay) => sum + relay.counts.accepted, 0)).toBe(2);
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(1);
+  } finally {
+    await client.close();
+    await observed.close();
+  }
+}, 120_000);

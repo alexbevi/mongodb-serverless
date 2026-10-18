@@ -1,0 +1,350 @@
+{
+  "configuration": {
+    "count": 40,
+    "batches": 4,
+    "readPreference": "nearest",
+    "writes": "primary / majority",
+    "timing": "handler through result, including SSM; excludes INIT and close",
+    "environment": "LocalStack 4.14.0",
+    "memoryMB": 1769,
+    "baseline": "23d225c4327d5c4ec85382697fce4c2b454ed3bc",
+    "current": "a42de3030ed4dc731d266079289f45d0a3b44e9b",
+    "preparation": {
+      "variant": "ssm",
+      "operation": "write",
+      "servedRole": "PRIMARY",
+      "seedRole": "SECONDARY",
+      "sockets": 2,
+      "authenticatedSockets": 2,
+      "monitorSockets": 0,
+      "dns": [
+        "TXT",
+        "SRV"
+      ],
+      "discoveryCommands": 1,
+      "ssmReads": 1,
+      "ssmWrites": 1,
+      "cold": true,
+      "verified": true,
+      "totalMs": 62.25066700000001,
+      "ssmMs": 23.72041599999997,
+      "environmentId": "675e1ec6-f1c9-4f80-9f17-11a4f8a25e62",
+      "nodeVersion": "v24.21.0",
+      "driverVersion": "7.7.0",
+      "trace": {
+        "start": 101.366708,
+        "end": 163.617375,
+        "dns": [
+          {
+            "kind": "TXT",
+            "start": 126.067083,
+            "end": 127.293
+          },
+          {
+            "kind": "SRV",
+            "start": 126.199791,
+            "end": 127.295875
+          }
+        ],
+        "sockets": [
+          {
+            "host": "member-1",
+            "port": 27017,
+            "start": 133.190125,
+            "lookup": [
+              134.232583,
+              134.552333
+            ],
+            "tcp": [
+              134.552333,
+              134.796541
+            ],
+            "tls": [
+              134.796541,
+              136.396166
+            ],
+            "protocol": "TLSv1.3",
+            "authorized": true,
+            "hello": [
+              137.537208,
+              140.062458
+            ],
+            "role": "SECONDARY",
+            "auth": [
+              140.171458,
+              143.803458
+            ],
+            "authMechanism": "SCRAM-SHA-1"
+          },
+          {
+            "host": "member-2",
+            "port": 27017,
+            "start": 152.806125,
+            "lookup": [
+              153.083958,
+              153.340708
+            ],
+            "tcp": [
+              153.340708,
+              153.508666
+            ],
+            "tls": [
+              153.508666,
+              154.646666
+            ],
+            "protocol": "TLSv1.3",
+            "authorized": true,
+            "hello": [
+              154.821083,
+              155.598708
+            ],
+            "role": "PRIMARY",
+            "auth": [
+              155.655333,
+              156.566583
+            ],
+            "authMechanism": "SCRAM-SHA-1"
+          }
+        ],
+        "command": {
+          "name": "update",
+          "start": 157.240416,
+          "address": "member-3:27017",
+          "sent": 157.375791,
+          "end": 163.486541,
+          "connectionId": 1,
+          "socket": {
+            "host": "member-2",
+            "port": 27017,
+            "start": 152.806125,
+            "lookup": [
+              153.083958,
+              153.340708
+            ],
+            "tcp": [
+              153.340708,
+              153.508666
+            ],
+            "tls": [
+              153.508666,
+              154.646666
+            ],
+            "protocol": "TLSv1.3",
+            "authorized": true,
+            "hello": [
+              154.821083,
+              155.598708
+            ],
+            "role": "PRIMARY",
+            "auth": [
+              155.655333,
+              156.566583
+            ],
+            "authMechanism": "SCRAM-SHA-1"
+          }
+        },
+        "ssm": [
+          {
+            "command": "GetParametersCommand",
+            "start": 102.319041,
+            "end": 123.343416,
+            "attempts": 1
+          },
+          {
+            "command": "PutParameterCommand",
+            "start": 148.138875,
+            "end": 150.834916,
+            "attempts": 1
+          }
+        ]
+      },
+      "connections": [
+        {
+          "directConnection": true,
+          "hosts": [
+            "member-1:27017"
+          ],
+          "replicaSet": "replica-set",
+          "topologyType": "Single",
+          "servers": [
+            "member-1:27017"
+          ]
+        },
+        {
+          "directConnection": true,
+          "hosts": [
+            "member-2:27017"
+          ],
+          "replicaSet": null,
+          "topologyType": "Single",
+          "servers": [
+            "member-2:27017"
+          ]
+        }
+      ],
+      "lambda": {
+        "version": "1",
+        "initMs": null,
+        "durationMs": 66
+      }
+    },
+    "diagnostics": false,
+    "packageSha256": "d6ab5a86d5976e04bcd17aa7a451ffde55a0b779440a5d87694f02970f49e6b0"
+  },
+  "operations": {
+    "read": {
+      "native": {
+        "count": 40,
+        "medianMs": 39.280603500000005,
+        "p95Ms": 42.67182710000001,
+        "medianSsmMs": 12.967187500000001,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": -5.825817045329873,
+        "improvementVsNativePercent": 0.0,
+        "improvementVsHistoricalMainPercent": 6.5890152224511,
+        "improvementVsHistoricalNativePercent": 25.253363513663608
+      },
+      "main": {
+        "count": 40,
+        "medianMs": 37.118167,
+        "p95Ms": 40.40003685000001,
+        "medianSsmMs": 13.417978999999995,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": 0.0,
+        "improvementVsNativePercent": 5.50509999165365,
+        "improvementVsHistoricalMainPercent": 11.731383337643543,
+        "improvementVsHistoricalNativePercent": 29.368240592634297
+      },
+      "no-plugin": {
+        "count": 40,
+        "medianMs": 40.66641699999999,
+        "p95Ms": 43.561512199999996,
+        "medianSsmMs": 13.112562500000003,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": -9.559335190231755,
+        "improvementVsNativePercent": -3.5279842378185045,
+        "improvementVsHistoricalMainPercent": 3.2934904031081347,
+        "improvementVsHistoricalNativePercent": 22.616313960126167
+      },
+      "ssm": {
+        "count": 40,
+        "medianMs": 37.107333499999996,
+        "p95Ms": 39.70248329999998,
+        "medianSsmMs": 13.303770999999998,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": 0.029186516672563556,
+        "improvementVsNativePercent": 5.532679761399306,
+        "improvementVsHistoricalMainPercent": 11.757145872162333,
+        "improvementVsHistoricalNativePercent": 29.38885554286985
+      }
+    },
+    "write": {
+      "native": {
+        "count": 40,
+        "medianMs": 40.068438,
+        "p95Ms": 42.91415659999999,
+        "medianSsmMs": 13.10060399999999,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": -6.3107042828075555,
+        "improvementVsNativePercent": 0.0,
+        "improvementVsHistoricalMainPercent": 27.32931128525934,
+        "improvementVsHistoricalNativePercent": 39.140363384470554
+      },
+      "main": {
+        "count": 40,
+        "medianMs": 37.689937500000006,
+        "p95Ms": 39.85370239999998,
+        "medianSsmMs": 13.4380205,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": 0.0,
+        "improvementVsNativePercent": 5.936094888450594,
+        "improvementVsHistoricalMainPercent": 31.6431123234569,
+        "improvementVsHistoricalNativePercent": 42.753049162734605
+      },
+      "no-plugin": {
+        "count": 40,
+        "medianMs": 46.66147900000001,
+        "p95Ms": 51.152412799999986,
+        "medianSsmMs": 13.150332999999996,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": -23.80354570765737,
+        "improvementVsNativePercent": -16.45444975918453,
+        "improvementVsHistoricalMainPercent": 15.371749321038951,
+        "improvementVsHistoricalNativePercent": 29.126245053945986
+      },
+      "ssm": {
+        "count": 40,
+        "medianMs": 38.56243800000001,
+        "p95Ms": 41.321368449999994,
+        "medianSsmMs": 13.444854000000007,
+        "medianInitMs": null,
+        "medianInitPlusHandlerMs": null,
+        "improvementVsMainPercent": -2.314942814643839,
+        "improvementVsNativePercent": 3.758569275897383,
+        "improvementVsHistoricalMainPercent": 30.060689463874613,
+        "improvementVsHistoricalNativePercent": 41.427814987724645
+      }
+    }
+  },
+  "writeLandings": {
+    "oneConnection": {
+      "count": 14,
+      "medianMs": 42.30106299999999,
+      "p95Ms": 44.09343115000001,
+      "medianSsmMs": 13.457187999999995,
+      "medianInitMs": null,
+      "medianInitPlusHandlerMs": null,
+      "sharePercent": 35.0,
+      "improvementVsMainPercent": -12.234367594798968,
+      "improvementVsNativePercent": -5.572029036919268,
+      "improvementVsHistoricalMainPercent": 23.28007940874478,
+      "improvementVsHistoricalNativePercent": 35.749246760489704
+    },
+    "twoConnections": {
+      "count": 26,
+      "medianMs": 48.105437499999994,
+      "p95Ms": 52.34235399999999,
+      "medianSsmMs": 13.101895499999998,
+      "medianInitMs": null,
+      "medianInitPlusHandlerMs": null,
+      "sharePercent": 65.0,
+      "improvementVsMainPercent": -27.634696926732726,
+      "improvementVsNativePercent": -20.05818020657555,
+      "improvementVsHistoricalMainPercent": 12.752893585497105,
+      "improvementVsHistoricalNativePercent": 26.93302779906063
+    }
+  },
+  "historicalBaseline": {
+    "read": {
+      "main": {
+        "median": 42.051375,
+        "n": 100
+      },
+      "native": {
+        "median": 52.551667,
+        "n": 100
+      }
+    },
+    "write": {
+      "main": {
+        "median": 55.1370005,
+        "n": 100
+      },
+      "native": {
+        "median": 65.8374585,
+        "n": 100
+      }
+    }
+  },
+  "historicalSource": {
+    "revision": "23d225c4327d5c4ec85382697fce4c2b454ed3bc",
+    "path": "benchmark/results/local/summary.json"
+  }
+}

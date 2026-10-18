@@ -7,7 +7,7 @@ from pathlib import Path
 from statistics import median
 
 VARIANTS = ['native', 'main', 'no-plugin', 'ssm']
-LABELS = {'native': 'Native MongoDB', 'main': 'Main + stored topology', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
+LABELS = {'native': 'Native MongoDB', 'main': 'Main (fresh SSM control)', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
 
 
 def percentile(values, fraction):
@@ -122,11 +122,11 @@ def render(data, summary, output):
             axis.plot([index, index], [group['medianMs'], group['p95Ms']], color=colors[index], linewidth=2)
             axis.plot(index, group['p95Ms'], '_', color=colors[index], markersize=12)
             axis.text(index, group['p95Ms'], f"{group['medianMs']:.1f}\nn={group['count']}", ha='center', va='bottom', fontsize=10)
-        axis.set_xticks(range(4), ['Native', 'Main\ncached', 'No\nplugin', 'SSM\ncached'])
+        axis.set_xticks(range(4), ['Native', 'Main\ncontrol', 'No\nplugin', 'SSM\ncached'])
         historical_main = summary.get('historicalBaseline', {}).get(operation, {}).get('main', {}).get('median', 0)
         if historical_main:
-            axis.axhline(historical_main, color='#9845B5', linestyle='--', linewidth=1)
-            axis.text(.97, historical_main, ' Previous main', transform=axis.get_yaxis_transform(), ha='right', va='bottom', fontsize=9, color='#9845B5')
+            axis.axhline(historical_main, color='#9845B5', linestyle='--', linewidth=1, label=f'Previous main: {historical_main:.1f} ms')
+            axis.legend(loc='upper right', frameon=False, fontsize=9)
         axis.set_ylim(0, max(historical_main, *(group['p95Ms'] for group in groups.values())) * 1.28)
         axis.set_title('Reads · any healthy member' if operation == 'read' else 'Writes · primary only', loc='left', weight='bold', pad=18)
     axis = axes[2]

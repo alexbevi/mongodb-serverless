@@ -22,3 +22,16 @@ benchmark/results/aws/*
 __pycache__/
 
 tools/benchmarks/no-monitoring-results.json
+
+!benchmark/results/lambda-localstack/
+!benchmark/results/lambda-aws/
+benchmark/results/lambda-localstack/*
+!benchmark/results/lambda-localstack/samples.json
+!benchmark/results/lambda-localstack/summary.json
+!benchmark/results/lambda-localstack/latency.png
+!benchmark/results/lambda-localstack/results.md
+benchmark/results/lambda-aws/*
+!benchmark/results/lambda-aws/samples.json
+!benchmark/results/lambda-aws/summary.json
+!benchmark/results/lambda-aws/latency.png
+!benchmark/results/lambda-aws/results.md

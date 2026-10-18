@@ -24,6 +24,8 @@ interface InstrumentedConnection {
 
 interface AuthContext { connection: InstrumentedConnection }
 
+interface HelloRole { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean }
+
 export function instrument(mongoOnly = false) {
   const { version } = require('mongodb/package.json') as { version: string };
   if (version !== '7.7.0') throw new Error(`Re-verify benchmark instrumentation for mongodb ${version}`);
@@ -134,10 +136,9 @@ export function instrument(mongoOnly = false) {
 
       if (name === 'hello' || name === 'ismaster') {
         trace.hello ??= [start, command.end];
-        // SAFETY: MongoDB hello replies define these optional role flags; missing flags remain UNKNOWN.
-        const response = result as { toObject?: () => unknown };
-        // Explicit commands return a BSON response; the initial handshake returns a document.
-        const reply = (typeof response.toObject === 'function' ? response.toObject() : response) as { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean };
+        // SAFETY: Driver 7.7 returns a document for handshakes and a BSON response with toObject for explicit commands.
+        const response = result as HelloRole & { toObject?: () => HelloRole };
+        const reply = response.toObject?.() ?? response;
         trace.role = reply.isWritablePrimary || reply.ismaster ? 'PRIMARY' : reply.secondary ? 'SECONDARY' : 'UNKNOWN';
       }
       if (active.get(this) === command) {

@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import subprocess
 from pathlib import Path
 from statistics import median
 
@@ -28,7 +29,7 @@ def improvement(value, baseline):
     return None if value is None else 100 * (1 - value / baseline)
 
 
-def summarize(data):
+def summarize(data, historical=None):
     if data['failures']:
         raise ValueError('Cannot summarize a run with failures')
     samples = data['samples']
@@ -51,11 +52,21 @@ def summarize(data):
         group['improvementVsMainPercent'] = improvement(group['medianMs'], operations['write']['main']['medianMs'])
         group['improvementVsNativePercent'] = improvement(group['medianMs'], operations['write']['native']['medianMs'])
         landings[name] = group
-    return dict(configuration=data['configuration'], operations=operations, writeLandings=landings)
+    summary = dict(configuration=data['configuration'], operations=operations, writeLandings=landings)
+    if historical is not None:
+        summary['historicalBaseline'] = {}
+        for operation in ['read', 'write']:
+            baseline = {name: next(row for row in historical if row['operation'] == operation and row['driver'] == driver) for name, driver in [('main', 'serverless'), ('native', 'native-cluster')]}
+            summary['historicalBaseline'][operation] = {name: {key: row[key] for key in ['median', 'n']} for name, row in baseline.items()}
+            compared = list(operations[operation].values()) + (list(landings.values()) if operation == 'write' else [])
+            for group in compared:
+                group['improvementVsHistoricalMainPercent'] = improvement(group['medianMs'], baseline['main']['median'])
+                group['improvementVsHistoricalNativePercent'] = improvement(group['medianMs'], baseline['native']['median'])
+    return summary
 
 
 def markdown(summary):
-    lines = ['| Operation / pattern | n | Median | p95 | vs main | vs native |', '|---|---:|---:|---:|---:|---:|']
+    lines = ['| Operation / pattern | n | Median | p95 | vs fresh main | vs fresh native |', '|---|---:|---:|---:|---:|---:|']
     for operation, groups in summary['operations'].items():
         for variant, group in groups.items():
             lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['improvementVsMainPercent']:+.1f}% | {group['improvementVsNativePercent']:+.1f}% |")
@@ -63,6 +74,18 @@ def markdown(summary):
         if group['count']:
             label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
             lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['improvementVsMainPercent']:+.1f}% | {group['improvementVsNativePercent']:+.1f}% |")
+    if 'historicalBaseline' in summary:
+        history = ['', '| New pattern | vs previous main | Previous main median |', '|---|---:|---:|']
+        for operation, groups in summary['operations'].items():
+            baseline = summary['historicalBaseline'][operation]['main']['median']
+            for variant in ['no-plugin', 'ssm']:
+                group = groups[variant]
+                history.append(f"| {operation} / {LABELS[variant]} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {baseline:.1f} ms |")
+        for name, group in summary['writeLandings'].items():
+            if group['count']:
+                history.append(f"| write / {'1 connection' if name == 'oneConnection' else '2 connections'} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {summary['historicalBaseline']['write']['main']['median']:.1f} ms |")
+        history.extend(['', 'Historical comparisons are descriptive: the previous main run used detailed profiling, watcher-provided topology, no timed SSM read, and secondary-only reads. Local results also used a different runtime/network harness. These percentages do not isolate the code change.'])
+        lines = history + [''] + lines
     lines.extend(['', 'Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
     return '\n'.join(lines) + '\n'
 
@@ -89,7 +112,11 @@ def render(data, summary, output):
             axis.plot(index, group['p95Ms'], '_', color=colors[index], markersize=12)
             axis.text(index, group['p95Ms'], f"{group['medianMs']:.1f}\nn={group['count']}", ha='center', va='bottom', fontsize=10)
         axis.set_xticks(range(4), ['Native', 'Main\ncached', 'No\nplugin', 'SSM\ncached'])
-        axis.set_ylim(0, max(group['p95Ms'] for group in groups.values()) * 1.28)
+        historical_main = summary.get('historicalBaseline', {}).get(operation, {}).get('main', {}).get('median', 0)
+        if historical_main:
+            axis.axhline(historical_main, color='#9845B5', linestyle='--', linewidth=1)
+            axis.text(.97, historical_main, ' Previous main', transform=axis.get_yaxis_transform(), ha='right', va='bottom', fontsize=9, color='#9845B5')
+        axis.set_ylim(0, max(historical_main, *(group['p95Ms'] for group in groups.values())) * 1.28)
         axis.set_title('Reads · any healthy member' if operation == 'read' else 'Writes · primary only', loc='left', weight='bold', pad=18)
     axis = axes[2]
     for index, (name, group) in enumerate(summary['writeLandings'].items()):
@@ -116,7 +143,11 @@ if __name__ == '__main__':
     parser.add_argument('samples', type=Path)
     args = parser.parse_args()
     data = json.loads(args.samples.read_text())
-    summary = summarize(data)
+    environment = 'aws' if data['configuration']['environment'] == 'AWS Lambda' else 'local'
+    historical_path = f'benchmark/results/{environment}/summary.json'
+    historical = json.loads(subprocess.check_output(['git', 'show', f"{data['configuration']['baseline']}:{historical_path}"]))
+    summary = summarize(data, historical)
+    summary['historicalSource'] = dict(revision=data['configuration']['baseline'], path=historical_path)
     args.samples.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     args.samples.with_name('results.md').write_text(markdown(summary))
     render(data, summary, args.samples.with_name('latency.png'))

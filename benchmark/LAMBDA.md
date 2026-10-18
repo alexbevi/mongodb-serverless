@@ -45,9 +45,15 @@ groups, both parameters, and the `mongodb-serverless-pattern-permissions` stack.
 
 ## Measurements
 
+The headline comparison uses the previously recorded main-branch summary at the
+baseline SHA. The report retains its source path and commit. Historical timings
+included detailed profiling and excluded SSM reads; local measurements also used
+a different harness. Treat those percentages as descriptive, not a controlled
+estimate of the code change. Fresh native/main controls are reported separately.
+
 Each round publishes a fresh version of every function. Each version receives
-one invocation. The worker rejects reuse and the collector checks unique process
-IDs. Variant order rotates and reverses across rounds; read/write order alternates.
+one invocation. The worker rejects reuse and the collector checks unique execution
+environment identifiers. Variant order rotates and reverses across rounds; read/write order alternates.
 All variants share the same package, MongoDB driver, TLS verification, SCRAM-SHA-1,
 collection, and majority write concern. Retryable reads and writes are disabled.
 

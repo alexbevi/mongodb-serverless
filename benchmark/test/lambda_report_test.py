@@ -41,3 +41,14 @@ class ReportTest(unittest.TestCase):
             report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
         with self.assertRaisesRegex(ValueError, 'failures'):
             report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[{'name': 'error'}]))
+
+    def test_reports_previous_main_snapshot_separately_from_fresh_controls(self):
+        samples = [sample(variant, operation, 50) for variant in ['native', 'main', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
+        historical = [dict(operation=operation, driver=driver, median=ms, n=120) for operation in ['read', 'write'] for driver, ms in [('serverless', 100), ('native-cluster', 200)]]
+        data = dict(configuration={'count': 1}, samples=samples, failures=[])
+        summary = report.summarize(data, historical)
+        self.assertEqual(summary['operations']['read']['ssm']['improvementVsHistoricalMainPercent'], 50)
+        self.assertEqual(summary['operations']['read']['ssm']['improvementVsMainPercent'], 0)
+        self.assertEqual(summary['operations']['write']['no-plugin']['improvementVsHistoricalNativePercent'], 75)
+        self.assertEqual(summary['historicalBaseline']['read']['main']['n'], 120)
+        self.assertEqual(summary['writeLandings']['oneConnection']['improvementVsHistoricalMainPercent'], 50)

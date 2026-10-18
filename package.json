@@ -26,6 +26,9 @@
     "lint": "oxlint ."
   },
   "devDependencies": {
+    "@aws-sdk/client-cloudformation": "3.1146.0",
+    "@aws-sdk/client-lambda": "3.1146.0",
+    "@aws-sdk/client-ssm": "3.1146.0",
     "@changesets/cli": "^3.0.3",
     "@oxlint/plugins": "1.87.0",
     "@types/node": "^22.10.2",

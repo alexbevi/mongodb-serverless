@@ -8,6 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@aws-sdk/client-cloudformation':
+        specifier: 3.1146.0
+        version: 3.1146.0
+      '@aws-sdk/client-lambda':
+        specifier: 3.1146.0
+        version: 3.1146.0
+      '@aws-sdk/client-ssm':
+        specifier: 3.1146.0
+        version: 3.1146.0
       '@changesets/cli':
         specifier: ^3.0.3
         version: 3.0.3
@@ -54,6 +63,14 @@ importers:
         version: 3.1146.0
 
 packages:
+
+  '@aws-sdk/client-cloudformation@3.1146.0':
+    resolution: {integrity: sha512-krUZUvK7JzZki1Y+nw8M64f7kuMKbmIsqicAjE0Cx8Sp98q/JMmdz1Hs+R04vd58XbELJ/IPVqnvL1I5hukwbA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-lambda@3.1146.0':
+    resolution: {integrity: sha512-qCeVHGhkI5aw0Lvexhwuf1H41L2sCm+9C4K+IOUhErY/nx5ioCU0dFyXF4+P4m4Nk23uiTbON7lI7nmlPNncHw==}
+    engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-ssm@3.1146.0':
     resolution: {integrity: sha512-Qx29jzZEVPpxUxzRNs1wwHg2qtOmHcwa3p1Bbufixg7SnyLg3zdLbhbK6oeeRnFDPBdlcjacURI/5JY+aSmu/Q==}
@@ -1184,6 +1201,28 @@ packages:
     hasBin: true
 
 snapshots:
+
+  '@aws-sdk/client-cloudformation@3.1146.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.3
+      '@aws-sdk/credential-provider-node': 3.972.86
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.36.0
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/client-lambda@3.1146.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.3
+      '@aws-sdk/credential-provider-node': 3.972.86
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.36.0
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
 
   '@aws-sdk/client-ssm@3.1146.0':
     dependencies:

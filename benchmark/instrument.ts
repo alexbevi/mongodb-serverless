@@ -24,7 +24,7 @@ interface InstrumentedConnection {
 
 interface AuthContext { connection: InstrumentedConnection }
 
-export function instrument() {
+export function instrument(mongoOnly = false) {
   const { version } = require('mongodb/package.json') as { version: string };
   if (version !== '7.7.0') throw new Error(`Re-verify benchmark instrumentation for mongodb ${version}`);
   const { MongoClient } = require('mongodb') as { MongoClient: { prototype: InstrumentedClient } };
@@ -74,6 +74,7 @@ export function instrument() {
   const commands: RecordedCommand[] = [];
   const originalTls = tls.connect;
   tls.connect = function (...args) {
+    if (mongoOnly && Number(args[0].port) !== 27017) return originalTls.apply(this, args);
     const start = performance.now();
     const trace: SocketTrace = { host: args[0].host, port: args[0].port, start };
     const lookup: LookupFunction = args[0].lookup ?? dns.lookup;
@@ -132,9 +133,11 @@ export function instrument() {
       command.end = performance.now();
 
       if (name === 'hello' || name === 'ismaster') {
-        trace.hello = [start, command.end];
+        trace.hello ??= [start, command.end];
         // SAFETY: MongoDB hello replies define these optional role flags; missing flags remain UNKNOWN.
-        const reply = result as { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean };
+        const response = result as { toObject?: () => unknown };
+        // Explicit commands return a BSON response; the initial handshake returns a document.
+        const reply = (typeof response.toObject === 'function' ? response.toObject() : response) as { isWritablePrimary?: boolean; ismaster?: boolean; secondary?: boolean };
         trace.role = reply.isWritablePrimary || reply.ismaster ? 'PRIMARY' : reply.secondary ? 'SECONDARY' : 'UNKNOWN';
       }
       if (active.get(this) === command) {

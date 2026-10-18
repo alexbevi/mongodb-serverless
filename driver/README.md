@@ -1,8 +1,8 @@
 # @mongodb-serverless/driver
 
 Replaces the driver's `MongoClient` with one that routes operations directly to
-replica-set members. It reads cached topology from a plugin, or discovers and
-stores it on first use. Discovery requires permission to run `replSetGetStatus`.
+replica-set members. It discovers topology on first use and remembers it for
+that client. An optional plugin shares topology across client instances. Discovery requires permission to run `replSetGetStatus`.
 
 ## Install
 
@@ -20,9 +20,8 @@ your code changes.
 
 ```ts
 import { MongoClient, ObjectId } from '@mongodb-serverless/driver';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
 
-const client = new MongoClient(uri, { plugin: new LocalPlugin() });
+const client = new MongoClient(uri);
 ```
 
 `ObjectId` here is the real driver's class. Only `MongoClient` is ours.
@@ -32,6 +31,8 @@ const client = new MongoClient(uri, { plugin: new LocalPlugin() });
 By instance, which TypeScript checks at compile time:
 
 ```ts
+import { LocalPlugin } from '@mongodb-serverless/plugin-local';
+
 new MongoClient(uri, { plugin: new LocalPlugin() });
 ```
 
@@ -50,8 +51,8 @@ setDefaultPlugin(new LocalPlugin());
 const client = new MongoClient(uri);
 ```
 
-An explicit `plugin` option wins over `setDefaultPlugin`. With neither, the
-first operation throws `MissingPluginError`. There is no environment variable
+An explicit `plugin` option wins over `setDefaultPlugin`. With neither, supply
+a URI: topology stays in memory for that client and is not persisted. There is no environment variable
 for choosing a plugin, though a plugin may read the environment for its own
 configuration.
 

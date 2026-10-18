@@ -5,7 +5,7 @@ import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
 import { createWriteExecutor } from './recovery.js';
 import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
-import type { TopologyPlugin } from './plugin.js';
+import { uncachedTopology, type TopologyPlugin } from './plugin.js';
 
 export interface ServerlessClientOptions extends MongoClientOptions {
   /** A plugin, or the name of a package exporting one. */
@@ -41,7 +41,7 @@ export class ServerlessMongoClient {
     this.#defaultDb = uri == null ? undefined : defaultDatabaseOf(uri);
     let resolvedPlugin: Promise<TopologyPlugin> | undefined;
     let pair: Promise<ClientPair> | undefined;
-    this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin);
+    this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin, uri == null ? undefined : uncachedTopology);
     this.#pair = () => pair ??= this.#plugin().then(
       async resolved => {
         const connectionString = uri ?? await resolved.getConnectionString?.();

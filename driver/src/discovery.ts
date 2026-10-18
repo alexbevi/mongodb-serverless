@@ -13,6 +13,7 @@ export async function discoverTopology(
   options?: MongoClientOptions,
   seeds = new ConnectionString(uri).hosts
 ): Promise<ReplSetGetStatus> {
+  const expectedSet = options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
   let failure: unknown;
 
   for (const seed of seeds) {
@@ -24,6 +25,12 @@ export async function discoverTopology(
 
       if (!hello['setName'] || hello['msg'] === 'isdbgrid') {
         throw new ServerlessDriverError('Discovery requires a replica set; standalone and sharded clusters are unsupported.');
+      }
+
+      if (expectedSet != null && hello['setName'] !== expectedSet) {
+        throw new ServerlessDriverError(
+          `Expected replica set "${expectedSet}", but "${seed}" reported "${hello['setName']}".`
+        );
       }
 
       const status = await client.db('admin').command({ replSetGetStatus: 1 });

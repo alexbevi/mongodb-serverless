@@ -125,6 +125,41 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
   });
 
+  it('rejects discovery when the seed belongs to a different replica set', async () => {
+    const uri = `mongodb://${cluster.primary}/?replicaSet=${cluster.status.set}-other`;
+    const native = new RealMongoClient(uri, { serverSelectionTimeoutMS: 250 });
+
+    try {
+      await expect(native.connect()).rejects.toMatchObject({ name: 'MongoServerSelectionError' });
+    } finally {
+      await native.close();
+    }
+
+    let stored: typeof cluster.status | null = null;
+
+    const plugin = {
+      name: 'discovery', version: '1', author: 'test',
+      async setup() {}, async verify() {},
+      async read() { return stored; },
+      async write(status: typeof cluster.status) { stored = status; }
+    };
+
+    const commands: CommandStartedEvent[] = [];
+
+    const client = new ServerlessMongoClient(uri, {
+      plugin,
+      serverSelectionTimeoutMS: 250,
+      monitorCommands: true,
+      on: { commandStarted: event => commands.push(event) }
+    });
+
+    clients.push(client);
+
+    await expect(client.db('admin').command({ ping: 1 })).rejects.toThrow();
+    expect(stored).toBeNull();
+    expect(portsFor(commands, 'ping')).toEqual([]);
+  });
+
   it('uses the plugin connection string when no explicit URI is supplied', async () => {
     const plugin = new TestPlugin(cluster.status);
 

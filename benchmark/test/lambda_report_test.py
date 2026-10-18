@@ -1,0 +1,35 @@
+import importlib.util
+import unittest
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location('lambda_report', Path(__file__).parents[1] / 'lambda-report.py')
+report = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(report)
+
+
+def sample(variant, operation, ms, sockets=1):
+    return dict(variant=variant, operation=operation, totalMs=ms, ssmMs=10,
+                sockets=sockets, verified=True, cold=True, lambda_={})
+
+
+class ReportTest(unittest.TestCase):
+    def test_compares_both_baselines_and_keeps_natural_write_cohorts(self):
+        samples = []
+        for operation in ['read', 'write']:
+            for variant, values in [('native', [100, 120]), ('main', [40, 60]),
+                                    ('no-plugin', [50, 90]), ('ssm', [30, 50])]:
+                samples.extend(sample(variant, operation, value, 2 if variant == 'no-plugin' and operation == 'write' and value == 90 else 1) for value in values)
+        summary = report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
+        read = summary['operations']['read']
+        self.assertEqual(read['ssm']['medianMs'], 40)
+        self.assertAlmostEqual(read['ssm']['improvementVsMainPercent'], 20)
+        self.assertAlmostEqual(read['no-plugin']['improvementVsMainPercent'], -40)
+        self.assertAlmostEqual(read['ssm']['improvementVsNativePercent'], 100 * (1 - 40 / 110))
+        self.assertEqual(summary['writeLandings']['oneConnection']['count'], 1)
+        self.assertEqual(summary['writeLandings']['twoConnections']['medianMs'], 90)
+        self.assertEqual(summary['writeLandings']['oneConnection']['sharePercent'], 50)
+        self.assertGreater(read['no-plugin']['p95Ms'], read['no-plugin']['medianMs'])
+        samples[-1]['verified'] = False
+        with self.assertRaisesRegex(ValueError, 'verified'):
+            report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
+

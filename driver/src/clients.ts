@@ -22,7 +22,7 @@ export interface ClientPairOptions {
  * The read and write clients, each connected directly to one member and built
  * on first use.
  *
- * Reads prefer the first healthy secondary and fall back to the primary, which
+ * Reads prefer a connected healthy secondary and fall back to the primary, which
  * is what a single-node set needs. When both resolve to the same host, one
  * client serves both.
  */

@@ -1,31 +1,25 @@
 # Driver discovery and plugin contract
 
-The driver owns discovery and exception-driven refresh. A plugin supplies a
-connection string and persists topology. The local implementation stores topology
-in `process.env`; a deployment plugin should use a durable shared store. There is
-no AWS plugin in this change.
+The driver owns discovery and exception-driven refresh. Topology stays in memory
+for each client; a plugin optionally supplies a connection string and persists
+topology across clients. The local implementation uses `process.env`; a
+deployment plugin can use a durable shared store. There is no AWS plugin in this
+change.
 
 ## Architecture
 
-Each wrapper owns lazy direct read and write clients. Initial discovery uses a
-temporary native MongoDB client with the original URI and constructor options.
-The native driver handles DNS, authentication, and replica-set discovery; the
-temporary client closes after reading status. There is no polling service.
-Native SDAM monitoring on routed clients remains on unless
-`disableMonitoring: true` is selected.
+Each wrapper owns direct connections to members needed by its operations. On a
+cache miss, the native driver resolves the original URI and connection settings,
+including SRV/TXT records when applicable. The wrapper tries seeds in random
+order, connects directly to one member, validates its status, and retains that
+connection for operations. If a different role is needed, it opens a connection
+to the appropriate member. A healthy secondary already connected is preferred
+for reads.
 
-```mermaid
-flowchart LR
-    App[Application or Lambda] --> Driver[Serverless driver]
-    Driver <-->|URI and cached topology| Plugin[Topology plugin]
-    Driver -->|Persist discovered topology| Plugin
-    Plugin <-->|Local implementation| Env[Process environment]
-    Plugin <-->|Expected deployment implementation| Store[Shared topology store]
-    Plugin -->|Read connection string| Secret[Secret store]
-    Driver -->|Temporary native discovery| Cluster[Replica set]
-    Driver -->|Writes| Primary[Primary direct client]
-    Driver -->|Reads| Secondary[Secondary direct client]
-```
+See [the two bootstrap diagrams](bootstrap.md) for the one-connection and
+two-connection paths. Those counts require `disableMonitoring: true` and one
+application socket per member. Monitoring remains enabled by default. The
+monitoring patch applies to bootstrap, routed clients, and refresh clients.
 
 The facade receives a router for selecting read and write clients and a separate
 write executor for handling failures and deciding whether to retry. The client
@@ -46,51 +40,11 @@ idempotent and prepare the topology store if needed. The driver then discovers
 and validates status before awaiting `write(status)` and routing the operation.
 `verify()` remains an explicit diagnostic operation, not a per-request hook.
 
-```mermaid
-sequenceDiagram
-    participant App
-    participant Driver
-    participant Plugin
-    participant Store as Environment or shared store
-    participant Native as Temporary native MongoDB client
-    participant DNS
-    participant Member as Replica-set member
-    App->>Driver: First operation
-    opt No explicit URI
-        Driver->>Plugin: getConnectionString()
-        Plugin->>Store: Read URI or secret reference
-        Store-->>Plugin: Cluster URI and credentials
-        Plugin-->>Driver: URI
-    end
-    Driver->>Plugin: read()
-    Plugin->>Store: Read topology
-    alt Topology missing
-        Store-->>Plugin: Missing
-        Plugin-->>Driver: null
-        Driver->>Plugin: setup()
-        Plugin->>Store: Prepare store idempotently
-        Driver->>Native: Connect with original URI and options
-        opt SRV URI
-            Native->>DNS: Resolve TXT and SRV
-            DNS-->>Native: Native driver validates records and options
-        end
-        Native->>Member: Authenticate, hello, replSetGetStatus
-        Member-->>Native: Replica-set status
-        Native-->>Driver: Validated status and resolved auth source
-        Driver->>Native: Close temporary client
-        Driver->>Plugin: write(status with authentication metadata)
-        Plugin->>Store: Replace topology atomically
-        Store-->>Plugin: Persisted
-        Plugin-->>Driver: Complete
-    else Cached topology
-        Store-->>Plugin: Status
-        Plugin-->>Driver: Status
-        Note over Driver,DNS: No SRV or TXT lookup for cached routing
-    end
-    Driver->>Member: Direct operation on selected primary or secondary
-    Member-->>Driver: Result
-    Driver-->>App: Result
-```
+With no plugin and an explicit URI, the driver uses no external topology store.
+A new wrapper discovers for itself. An explicit plugin overrides a configured
+default plugin; either continues to provide caching and optional URI lookup.
+A cached status skips DNS resolution and discovery, opening only the direct
+connections required by operations.
 
 The driver adds `authentication: { mechanism, source }` to the status document
 when the connected native client has credentials. Plugins must preserve this
@@ -114,8 +68,8 @@ instances can discover concurrently; this contract provides no distributed lock.
 
 A refresh waits 100–249 ms, tries cached members once each, validates the resulting
 status, and awaits persistence before switching routes. The default selection
-timeout is five seconds for initial discovery and five seconds per cached member
-during refresh. An explicit `serverSelectionTimeoutMS` overrides that timeout.
+timeout is five seconds per seed during initial discovery or refresh. An
+explicit `serverSelectionTimeoutMS` overrides that timeout.
 
 ```mermaid
 sequenceDiagram
@@ -186,12 +140,12 @@ published as a separate dependency.
 - Remove the watcher deployment and its polling configuration. The watcher package
   and `refreshIntervalMS` are removed from this workspace.
 - Give the application identity permission to run `hello` and `replSetGetStatus`,
-  and to write topology through its plugin. Existing read-only deployments need
+  and, when using a plugin, to write topology through it. Existing read-only deployments need
   permission changes before adopting discovery.
 - Update plugins to return `null` for a missing topology. Existing plugins that
   return a populated status and use an explicit URI remain structurally compatible.
-- Use a shared topology store for Lambda. Updating `process.env` does not persist
-  across cold starts.
+- A shared topology store can skip discovery across Lambda cold starts. It is
+  optional. Updating `process.env` does not persist across cold starts.
 - Replica sets only: no sharded or load-balanced clusters, change streams, or
   sessions spanning clients. Refresh updates future routing; existing cursors and
   bulk builders remain bound to the client that created them.

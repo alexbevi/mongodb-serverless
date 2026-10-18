@@ -2,7 +2,8 @@
 
 Replaces the driver's `MongoClient` with one that routes operations directly to
 replica-set members. It discovers topology on first use and remembers it for
-that client. An optional plugin shares topology across client instances. Discovery requires permission to run `replSetGetStatus`.
+that client. An optional plugin shares topology across client instances.
+Discovery requires permission to run `replSetGetStatus`.
 
 ## Install
 
@@ -52,9 +53,9 @@ const client = new MongoClient(uri);
 ```
 
 An explicit `plugin` option wins over `setDefaultPlugin`. With neither, supply
-a URI: topology stays in memory for that client and is not persisted. There is no environment variable
-for choosing a plugin, though a plugin may read the environment for its own
-configuration.
+a URI: topology stays in memory for that client and is not persisted. There is
+no environment variable for choosing a plugin, though a plugin may read the
+environment for its own configuration.
 
 When the plugin implements `getConnectionString()`, omit the explicit URI with
 `new MongoClient(undefined, { plugin })`. Pass a database name to `db(name)` in
@@ -102,15 +103,15 @@ client connects to the first member whose `stateStr` is `SECONDARY` with
 `health: 1`. With no healthy secondary, reads fall back to the primary,
 which is what a single-node set needs.
 
-Both clients are created on first use and reused. When reads fall back to the
-primary, one client serves both. `close()` closes every client it opened.
+The bootstrap connection is reused for its member; other connections open on
+first use. When reads fall back to the primary, one client serves both.
+`close()` closes every client it opened.
 
 ### Disable monitoring
 
-Opt in with `disableMonitoring: true` on the wrapper. It applies to both lazy
-clients and direct bootstrap connections, including clients returned by
-`createClient`. The default remains
-unchanged.
+Opt in with `disableMonitoring: true` on the wrapper. It applies to bootstrap,
+routed, and refresh connections, including clients returned by `createClient`.
+Monitoring remains enabled by default.
 
 The same patch works on a native client without a plugin. Install
 `mongodb@^7.7.0`, then call the helper before connecting or issuing an operation.
@@ -133,6 +134,13 @@ try {
   await client.close();
 }
 ```
+
+With `maxPoolSize: 1` and `minPoolSize: 0`, healthy bootstrap and sequential
+operations open one socket if the selected member can serve the operation, or
+two if another member is needed. No plugin is required. The first connection is
+retained; later reads prefer an already connected healthy secondary. Failed
+seeds, elections, and replacement of idle connections can increase the count.
+See [the bootstrap diagrams](../docs/bootstrap.md).
 
 The first socket completes the native handshake and authentication, then enters
 the application pool. No heartbeat or RTT sockets, timers, or heartbeat events
@@ -173,7 +181,7 @@ Cursors work as they normally do:
 const docs = await collection.find({ a: 1 }).sort({ b: -1 }).limit(10).toArray();
 ```
 
-Under the hood the real cursor is not created until the first terminal call
+The native cursor is not created until the first terminal call
 (`toArray`, `next`, `hasNext`, `forEach`, `for await`), since routing has to
 read the topology first. Chained calls are buffered and replayed in order, and
 a cursor you never read opens no connection. `initializeOrderedBulkOp` and
@@ -195,7 +203,7 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 
 | Error | Cause |
 |---|---|
-| `MissingPluginError` | No plugin supplied by option or `setDefaultPlugin` |
+| `MissingPluginError` | Neither a URI nor a plugin supplied by option or `setDefaultPlugin` |
 | `PluginNotInstalledError` | A plugin named by string could not be resolved |
 | `InvalidPluginError` | The plugin is missing required members, which the message names |
 | `NoTopologyError` | The plugin returned no topology |
@@ -251,8 +259,8 @@ cleanup both fail, the original iteration error is returned.
 
 Refresh tries the cached members, so losing the original seed does not prevent
 recovery. Each attempt uses a temporary direct client and closes it afterward.
-The default server-selection timeout is five seconds for initial discovery and
-five seconds per cached member during refresh. An explicit
+The default server-selection timeout is five seconds per seed during initial
+discovery or refresh. An explicit
 `serverSelectionTimeoutMS` overrides it.
 
 See [architecture and plugin sequences](../docs/architecture.md) for the storage

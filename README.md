@@ -1,16 +1,17 @@
 # MongoDB Serverless Driver
 
 A wrapper around the [MongoDB Node.js driver](https://github.com/mongodb/node-mongodb-native)
-that caches replica-set topology through a plugin.
+that discovers replica-set members and routes operations directly to them.
+An optional plugin shares topology across client instances.
 
 The driver discovers topology on first use through one direct member connection,
-stores it through the plugin, and uses cached members on subsequent cold starts.
+retains that connection for operations, and opens another only when the required
+role differs. With a plugin, later cold starts can reuse cached topology.
 Topology-related write failures trigger a refresh and one bounded retry when the
 server confirms that the write was rejected before execution. No separate
 watcher process is needed.
 
-Reads go to a secondary, writes go to the primary, each on its own client,
-created on first use.
+Reads prefer a healthy secondary; writes go to the primary.
 
 ## Benchmark
 
@@ -27,13 +28,12 @@ See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENC
 
 ## Quickstart
 
-Change the import, pick a plugin, and leave the rest of your code alone.
+Change the import and supply a replica-set connection string.
 
 ```ts
 import { MongoClient } from '@mongodb-serverless/driver';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
 
-const client = new MongoClient(uri, { plugin: new LocalPlugin() });
+const client = new MongoClient(uri);
 
 await client.db('app').collection('users').insertOne({ n: 1 }); // primary
 await client.db('app').collection('users').find({}).toArray();  // secondary
@@ -42,7 +42,13 @@ await client.db('app').collection('users').find({}).toArray();  // secondary
 Every other export (`ObjectId`, `ReadPreference`, the error classes) passes
 through to the real driver unchanged.
 
-The local plugin stores discovered topology in the current process environment.
+With `disableMonitoring: true` and a pool limit of one, healthy bootstrap opens
+one socket when the chosen member can serve the operation, or two when another
+member is needed. See [the bootstrap diagrams and configuration](docs/bootstrap.md)
+for the supported authentication modes and connection-count limits.
+
+The optional local plugin stores discovered topology in the current process
+environment.
 For shared topology across Lambda instances, implement a plugin backed by a
 shared store. See [the architecture and plugin sequences](docs/architecture.md).
 

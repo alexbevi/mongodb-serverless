@@ -11,7 +11,7 @@ import {
   type TestCluster
 } from '../../test/harness/cluster.js';
 import { TestPlugin } from './harness/plugin.js';
-import { tcpPort } from '../../test/harness/relay.js';
+import { startRelay, tcpPort } from '../../test/harness/relay.js';
 
 const hasDocker = await dockerAvailable();
 
@@ -203,6 +203,60 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       await new Promise<void>((resolve, reject) => {
         unavailableMember.close(error => error ? reject(error) : resolve());
       });
+    }
+  }, 10_000);
+
+  it('refreshes topology after a bulk write wraps a network failure without replaying it', async () => {
+    const relay = await startRelay(portOf(cluster.primary));
+    let disconnected: Promise<void> | undefined;
+
+    try {
+      const cached = {
+        ...cluster.status,
+        members: cluster.status.members.map(member =>
+          member.stateStr === 'PRIMARY'
+            ? { ...member, name: `127.0.0.1:${relay.port}` }
+            : member
+        )
+      };
+
+      const { client, commands, plugin } = connect(cached, cluster.uri, {
+        serverSelectionTimeoutMS: 1000,
+        connectTimeoutMS: 250,
+        on: {
+          commandStarted(event) {
+            if (event.commandName === 'insert' && disconnected == null) {
+              disconnected = relay.close();
+            }
+          }
+        }
+      });
+
+      const collection = client.db('itest').collection('bulk_network_failure');
+      const attempt = collection.insertMany([{ value: 1 }, { value: 2 }]);
+
+      await expect(attempt).rejects.toMatchObject({
+        name: 'MongoBulkWriteError',
+        errorResponse: { name: 'MongoNetworkError' },
+        errorLabels: expect.not.arrayContaining(['RetryableWriteError'])
+      });
+      expect(portsFor(commands, 'insert')).toEqual([relay.port]);
+      expect(
+        portsFor(commands, 'replSetGetStatus'),
+        'A wrapped bulk network failure must refresh through a reachable cached member'
+      ).toHaveLength(1);
+      expect(await plugin.read()).toMatchObject({
+        members: expect.arrayContaining([
+          expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })
+        ])
+      });
+
+      await expect(collection.insertOne({ value: 3 }))
+        .resolves.toMatchObject({ acknowledged: true });
+      expect(portsFor(commands, 'insert')).toEqual([relay.port, portOf(cluster.primary)]);
+    } finally {
+      await disconnected;
+      await relay.close();
     }
   }, 10_000);
 

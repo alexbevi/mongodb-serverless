@@ -1,3 +1,4 @@
+import type { MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { ServerlessDriverError } from './errors.js';
 
@@ -15,7 +16,7 @@ const INCOMPATIBLE = ['replicaSet', 'srvMaxHosts', 'srvServiceName'];
  * @param uri The user's original connection string.
  * @param hostPort The member to target, as `host:port`.
  */
-export function directUri(uri: string, hostPort: string): string {
+export function directUri(uri: string, hostPort: string, options: MongoClientOptions = {}): string {
   const original = new ConnectionString(uri);
   const rewritten = original.clone();
 
@@ -28,7 +29,8 @@ export function directUri(uri: string, hostPort: string): string {
     );
   }
 
-  const srvImpliedTls = original.isSRV && !hasAnyOf(original, ['tls', 'ssl']);
+  const srvImpliedTls = original.isSRV && !hasAnyOf(original, ['tls', 'ssl']) &&
+    options.tls == null && options.ssl == null;
 
   if (original.isSRV) {
     rewritten.protocol = 'mongodb:';

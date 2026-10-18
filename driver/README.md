@@ -79,7 +79,8 @@ that source, including when another wrapper reads the cached topology. Explicit
 `authSource` in the URI or constructor options takes precedence. Passwords,
 certificates, tokens, and provider callbacks come from each wrapper's original
 configuration; they are never stored in topology. TLS remains enabled by default
-for SRV URIs.
+for SRV URIs; an explicit `tls: false` or `ssl: false` constructor option is
+preserved for bootstrap and cached connections.
 
 Use separate topology records for different clusters or authentication defaults.
 Changing the authentication mechanism triggers native discovery again. Older

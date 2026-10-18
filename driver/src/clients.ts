@@ -165,8 +165,8 @@ export class ClientPair {
 
     if (existing != null) return existing;
 
-    const uri = directUri(this.#options.uri, hostPort);
     const options = this.#connectionOptions(topology);
+    const uri = directUri(this.#options.uri, hostPort, options);
 
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.

@@ -18,21 +18,27 @@ def percentile(values, fraction):
 
 def statistics(samples):
     values = [sample['totalMs'] for sample in samples]
+    if not values:
+        return dict(count=0, medianMs=None, p95Ms=None, medianSsmMs=None)
     return dict(count=len(values), medianMs=median(values), p95Ms=percentile(values, .95),
                 medianSsmMs=median([sample['ssmMs'] for sample in samples]))
 
 
 def improvement(value, baseline):
-    return 100 * (1 - value / baseline)
+    return None if value is None else 100 * (1 - value / baseline)
 
 
 def summarize(data):
+    if data['failures']:
+        raise ValueError('Cannot summarize a run with failures')
     samples = data['samples']
     if any(not sample['verified'] or not sample['cold'] for sample in samples):
         raise ValueError('Every sample must be verified and cold')
     operations = {}
     for operation in ['read', 'write']:
         groups = {variant: statistics([sample for sample in samples if sample['variant'] == variant and sample['operation'] == operation]) for variant in VARIANTS}
+        if any(group['count'] != data['configuration']['count'] for group in groups.values()):
+            raise ValueError('Sample count differs from the requested cohort')
         for group in groups.values():
             group['improvementVsMainPercent'] = improvement(group['medianMs'], groups['main']['medianMs'])
             group['improvementVsNativePercent'] = improvement(group['medianMs'], groups['native']['medianMs'])

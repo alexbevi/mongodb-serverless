@@ -33,3 +33,11 @@ class ReportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'verified'):
             report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
 
+    def test_missing_cohort_is_not_reported_as_zero_latency(self):
+        samples = [sample(variant, operation, 10) for variant in ['native', 'main', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
+        summary = report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[]))
+        self.assertIsNone(summary['writeLandings']['twoConnections']['medianMs'])
+        with self.assertRaisesRegex(ValueError, 'count'):
+            report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
+        with self.assertRaisesRegex(ValueError, 'failures'):
+            report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[{'name': 'error'}]))

@@ -28,6 +28,7 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(summary['writeLandings']['oneConnection']['count'], 1)
         self.assertEqual(summary['writeLandings']['twoConnections']['medianMs'], 90)
         self.assertEqual(summary['writeLandings']['oneConnection']['sharePercent'], 50)
+        self.assertAlmostEqual(summary['luckyWriteMedianReductionPercent'], 100 * (1 - 50 / 90))
         self.assertGreater(read['no-plugin']['p95Ms'], read['no-plugin']['medianMs'])
         samples[-1]['verified'] = False
         with self.assertRaisesRegex(ValueError, 'verified'):

@@ -23,4 +23,6 @@ Historical comparisons are descriptive: the previous main run used detailed prof
 | No plugin / lucky write, 1 connection | 14 | 42.3 ms | 44.1 ms | -12.2% | -5.6% |
 | No plugin / write, 2 connections | 26 | 48.1 ms | 52.3 ms | -27.6% | -20.1% |
 
+Lucky-write median reduction versus two-connection writes: **12.1%**. These are observed landing groups, not paired trials.
+
 Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.

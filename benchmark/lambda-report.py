@@ -56,7 +56,8 @@ def summarize(data, historical=None):
         group['improvementVsMainPercent'] = improvement(group['medianMs'], operations['write']['main']['medianMs'])
         group['improvementVsNativePercent'] = improvement(group['medianMs'], operations['write']['native']['medianMs'])
         landings[name] = group
-    summary = dict(configuration=data['configuration'], operations=operations, writeLandings=landings)
+    summary = dict(configuration=data['configuration'], operations=operations, writeLandings=landings,
+                   luckyWriteMedianReductionPercent=improvement(landings['oneConnection']['medianMs'], landings['twoConnections']['medianMs']) if all(group['count'] for group in landings.values()) else None)
     if historical is not None:
         summary['historicalBaseline'] = {}
         for operation in ['read', 'write']:
@@ -97,6 +98,8 @@ def markdown(summary):
                 group = groups[variant]
                 lines.append(f"| {operation} / {LABELS[variant]} | {group['medianInitMs']:.1f} ms | {group['medianInitPlusHandlerMs']:.1f} ms |")
         lines.extend(['', 'INIT + handler excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
+    if summary['luckyWriteMedianReductionPercent'] is not None:
+        lines.extend(['', f"Lucky-write median reduction versus two-connection writes: **{summary['luckyWriteMedianReductionPercent']:.1f}%**. These are observed landing groups, not paired trials."])
     lines.extend(['', 'Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
     return '\n'.join(lines) + '\n'
 

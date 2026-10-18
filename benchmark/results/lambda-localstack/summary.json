@@ -321,6 +321,7 @@
       "improvementVsHistoricalNativePercent": 26.93302779906063
     }
   },
+  "luckyWriteMedianReductionPercent": 12.065942649414641,
   "historicalBaseline": {
     "read": {
       "main": {

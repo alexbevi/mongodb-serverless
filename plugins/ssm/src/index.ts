@@ -1,8 +1,9 @@
-import { GetParametersCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { parseStatus, PluginReadOnlyError, type ReplSetGetStatus, type TopologyPlugin } from '../../shared/src/index.js';
+import { GetParametersCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { assertStatus, parseStatus, PluginReadOnlyError, type ReplSetGetStatus, type ReplSetGetStatusMember, type TopologyPlugin } from '../../shared/src/index.js';
 
 export interface SsmPluginOptions {
   client?: SSMClient;
+  writable?: boolean;
   connectionStringParameter?: string;
   topologyParameter?: string;
 }
@@ -13,6 +14,7 @@ interface Settings {
 }
 
 export class SsmPlugin implements TopologyPlugin {
+  readonly writable: boolean;
   readonly name = 'AWS SSM Parameter Store';
   readonly version = '0.1.0';
   readonly author = 'MongoDB Serverless contributors';
@@ -22,6 +24,7 @@ export class SsmPlugin implements TopologyPlugin {
   #settings: Promise<Settings> | undefined;
 
   constructor(options: SsmPluginOptions = {}) {
+    this.writable = options.writable ?? true;
     this.#client = options.client ?? new SSMClient({});
     this.#uriParameter = options.connectionStringParameter ?? '/mongodb-serverless/connection-string';
     this.#topologyParameter = options.topologyParameter ?? '/mongodb-serverless/topology';
@@ -45,8 +48,18 @@ export class SsmPlugin implements TopologyPlugin {
     await this.#load();
   }
 
-  async write(_status: ReplSetGetStatus): Promise<void> {
-    throw new PluginReadOnlyError('SSM topology writes are disabled');
+  async write(status: ReplSetGetStatus): Promise<void> {
+    if (!this.writable) throw new PluginReadOnlyError('SSM topology writes are disabled');
+    assertStatus(status);
+    const topology = routingTopology(status);
+    const value = JSON.stringify(topology);
+
+    if (Buffer.byteLength(value, 'utf8') > 4096) throw new RangeError('Topology exceeds the SSM Standard parameter limit of 4096 bytes');
+    const settings = await this.#load();
+    await this.#client.send(new PutParameterCommand({
+      Name: this.#topologyParameter, Value: value, Type: 'String', Tier: 'Standard', Overwrite: true
+    }));
+    settings.topology = topology;
   }
 
   #load(): Promise<Settings> {
@@ -72,4 +85,26 @@ export class SsmPlugin implements TopologyPlugin {
 
     return { uri: uri.Value, topology: topology?.Value === undefined ? null : parseStatus(topology.Value) };
   }
+}
+
+function routingTopology(status: ReplSetGetStatus): ReplSetGetStatus {
+  const topology: ReplSetGetStatus = { members: status.members.map(member => {
+    const selected: ReplSetGetStatusMember = { name: member.name };
+
+    if (member.state !== undefined) selected.state = member.state;
+
+    if (member.stateStr !== undefined) selected.stateStr = member.stateStr;
+
+    if (member.health !== undefined) selected.health = member.health;
+
+    return selected;
+  }) };
+
+  if (status.set !== undefined) topology.set = status.set;
+
+  if (status.authentication !== undefined) {
+    topology.authentication = { mechanism: status.authentication.mechanism, source: status.authentication.source };
+  }
+
+  return topology;
 }

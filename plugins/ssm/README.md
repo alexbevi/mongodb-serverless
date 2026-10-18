@@ -20,6 +20,7 @@ const plugin = new SsmPlugin({
   connectionStringParameter: '/my-app/mongodb/uri',
   topologyParameter: '/my-app/mongodb/topology'
 });
+// Supply this plugin to new MongoClient(undefined, { plugin }).
 const uri = await plugin.getConnectionString();
 const topology = await plugin.read();
 ```
@@ -31,7 +32,14 @@ The default parameter names are `/mongodb-serverless/connection-string` and
 
 ## Limitations
 
-This version reads existing topology only. It cannot yet persist discovery.
+Discovery and refresh overwrite only the topology parameter. Writes are enabled
+by default; pass `writable: false` for a pre-populated read-only store. The caller
+needs `ssm:PutParameter` on the topology ARN when writes are enabled.
+
+Topology stores only the set name, member names/roles/health, and resolved
+authentication mechanism/source. Credentials remain in the separate SecureString.
+The compact topology must fit the 4096-byte Standard parameter limit. Concurrent
+Lambda writers use last-write-wins; SSM provides no compare-and-swap here.
 The caller needs `ssm:GetParameters` on both parameter ARNs and `kms:Decrypt`
 when using a customer-managed key. Cached settings last for the plugin instance;
 create a new instance to reload a rotated connection string. Failed requests are

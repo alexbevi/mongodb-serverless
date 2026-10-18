@@ -1,12 +1,12 @@
 
-| New pattern | vs previous main | Previous main median |
-|---|---:|---:|
-| read / No plugin | +3.3% | 42.1 ms |
-| read / SSM topology plugin | +11.8% | 42.1 ms |
-| write / No plugin | +15.4% | 55.1 ms |
-| write / SSM topology plugin | +30.1% | 55.1 ms |
-| write / 1 connection | +23.3% | 55.1 ms |
-| write / 2 connections | +12.8% | 55.1 ms |
+| New pattern | vs previous main/serverless | vs previous native | Previous serverless median |
+|---|---:|---:|---:|
+| read / No plugin | +3.3% | +22.6% | 42.1 ms |
+| read / SSM topology plugin | +11.8% | +29.4% | 42.1 ms |
+| write / No plugin | +15.4% | +29.1% | 55.1 ms |
+| write / SSM topology plugin | +30.1% | +41.4% | 55.1 ms |
+| write / 1 connection | +23.3% | +35.7% | 55.1 ms |
+| write / 2 connections | +12.8% | +26.9% | 55.1 ms |
 
 Historical comparisons are descriptive: the previous main run used detailed profiling, watcher-provided topology, no timed SSM read, and secondary-only reads. Local results also used a different runtime/network harness. These percentages do not isolate the code change.
 

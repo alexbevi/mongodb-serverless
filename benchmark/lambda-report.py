@@ -79,15 +79,15 @@ def markdown(summary):
             label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
             lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['improvementVsMainPercent']:+.1f}% | {group['improvementVsNativePercent']:+.1f}% |")
     if 'historicalBaseline' in summary:
-        history = ['', '| New pattern | vs previous main | Previous main median |', '|---|---:|---:|']
+        history = ['', '| New pattern | vs previous main/serverless | vs previous native | Previous serverless median |', '|---|---:|---:|---:|']
         for operation, groups in summary['operations'].items():
             baseline = summary['historicalBaseline'][operation]['main']['median']
             for variant in ['no-plugin', 'ssm']:
                 group = groups[variant]
-                history.append(f"| {operation} / {LABELS[variant]} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {baseline:.1f} ms |")
+                history.append(f"| {operation} / {LABELS[variant]} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {group['improvementVsHistoricalNativePercent']:+.1f}% | {baseline:.1f} ms |")
         for name, group in summary['writeLandings'].items():
             if group['count']:
-                history.append(f"| write / {'1 connection' if name == 'oneConnection' else '2 connections'} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {summary['historicalBaseline']['write']['main']['median']:.1f} ms |")
+                history.append(f"| write / {'1 connection' if name == 'oneConnection' else '2 connections'} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {group['improvementVsHistoricalNativePercent']:+.1f}% | {summary['historicalBaseline']['write']['main']['median']:.1f} ms |")
         history.extend(['', 'Historical comparisons are descriptive: the previous main run used detailed profiling, watcher-provided topology, no timed SSM read, and secondary-only reads. Local results also used a different runtime/network harness. These percentages do not isolate the code change.'])
         lines = history + [''] + lines
     if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):

@@ -31,9 +31,10 @@ replacement, and elections can require more connections.
 
 ### Lucky landing: reuse the first connection
 
-The selected member can serve the operation: a primary for a write, or a healthy
-secondary for a read. Discovery and the operation use the same authenticated
-connection. Reads can also use the primary when no healthy secondary exists.
+A write reuses a primary landing. An explicit operation-level `nearest` read
+reuses either healthy member role. Other reads keep the secondary-first policy
+and can use the primary when no healthy secondary exists. Discovery and the
+operation use the same authenticated connection.
 
 ![Discovery and the operation share one TCP connection](assets/bootstrap-reuse.png)
 
@@ -59,8 +60,8 @@ sequenceDiagram
 
 The selected member reports topology but has the wrong role for the operation.
 The client opens one connection to the required member and retains the first
-connection for operations that can use it. Later reads prefer an already
-connected healthy secondary.
+connection for operations that can use it. Unrestricted `nearest` reads reuse
+an eligible connected member; other reads prefer a connected healthy secondary.
 
 ![Discovery uses connection one and the operation uses connection two](assets/bootstrap-second-member.png)
 

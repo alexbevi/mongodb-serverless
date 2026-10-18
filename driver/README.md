@@ -103,6 +103,11 @@ client connects to the first member whose `stateStr` is `SECONDARY` with
 `health: 1`. With no healthy secondary, reads fall back to the primary,
 which is what a single-node set needs.
 
+An explicit operation `readPreference: 'nearest'` can reuse an already connected
+primary or secondary, including the bootstrap connection. This permits either
+role but does not implement latency, tag, or staleness filtering; use it only when
+any healthy member is acceptable. Other preferences retain the limitations below.
+
 The bootstrap connection is reused for its member; other connections open on
 first use. When reads fall back to the primary, one client serves both.
 `close()` closes every client it opened.

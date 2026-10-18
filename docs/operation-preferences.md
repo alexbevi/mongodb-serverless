@@ -16,7 +16,7 @@ policy and the gaps below predate this PR.
 | `primaryPreferred` | Prefer the primary; otherwise select an eligible secondary | Select the cached primary. A topology without a healthy primary is rejected; secondary fallback is missing |
 | `secondary` | Select an eligible secondary; wait or fail if none is available | Validate the selected cached secondary, but still fall back to the primary when no healthy secondary is listed |
 | `secondaryPreferred` | Prefer an eligible known secondary; otherwise use the primary | Prefer an already connected cached secondary, then the first healthy cached secondary, then the primary. Tags, staleness, and read-connection failure fallback are incomplete |
-| `nearest` | Select an eligible primary or secondary within the latency window | Use secondary-first routing; no comparison of member latency |
+| `nearest` | Select an eligible primary or secondary within the latency window | Reuse an already connected primary or secondary; otherwise use secondary-first routing. No comparison of member latency |
 | Tag sets / `readPreferenceTags` | Filter eligible members using the ordered tag sets, subject to the mode's fallback rules | Not applied when choosing the direct host; unmatched tags can still produce a read |
 | `maxStalenessSeconds` | Filter secondaries using the driver's staleness estimate | Not applied when choosing the direct host |
 | `localThresholdMS` | Define the acceptable latency window among eligible members | Passed to native clients, but each has one host; the wrapper does not compare members |
@@ -53,6 +53,13 @@ Sources: [read preferences](https://www.mongodb.com/docs/manual/core/read-prefer
 [server selection](https://specifications.readthedocs.io/en/latest/server-selection/server-selection/),
 [read and write concern](https://specifications.readthedocs.io/en/latest/read-write-concern/read-write-concern/),
 and the pinned native driver's `ReadPreference` and command implementation.
+
+## Future work
+
+These differences are deferred compatibility work. They are reproduced concerns
+for applications that need these options, not new regressions from bootstrap reuse.
+The Lambda benchmark deliberately permits reads from any healthy member and
+requires writes to reach the primary. It does not claim full preference parity.
 
 ## Tests
 

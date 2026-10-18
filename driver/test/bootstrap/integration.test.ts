@@ -320,3 +320,31 @@ it('closes a discovered socket when close races with topology persistence', asyn
     await observed.close();
   }
 }, 120_000);
+
+it('reuses either discovered role for an unrestricted nearest read', async () => {
+  const observed = await observeCluster();
+  const { cluster, clients, commands, createClient } = observed;
+
+  try {
+    for (const host of [cluster.primary, ...cluster.secondaries]) {
+      const before = clients.length;
+
+      const client = new ServerlessMongoClient(`mongodb://${host}/bootstrap`, {
+        disableMonitoring: true, maxPoolSize: 1, monitorCommands: true, createClient
+      });
+
+      try {
+        await client.db().collection('anyMember').findOne({}, { readPreference: 'nearest' });
+        const discovery = commands.findLast(event => event.commandName === 'replSetGetStatus');
+        const read = commands.findLast(event => event.commandName === 'find');
+        expect(clients.length - before).toBe(1);
+        expect(read?.address).toBe(discovery?.address);
+        expect(read?.connectionId).toBe(discovery?.connectionId);
+      } finally {
+        await client.close();
+      }
+    }
+  } finally {
+    await observed.close();
+  }
+}, 120_000);

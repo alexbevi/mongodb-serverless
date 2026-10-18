@@ -40,7 +40,9 @@ it('refreshes mismatched cached roles before sending a read and stores them for 
 
           const reads = commands.filter(event => event.commandName === 'find');
           expect(reads).toHaveLength(concurrentReads);
-          const expected = readPreference.startsWith('primary') ? [cluster.primary] : cluster.secondaries;
+
+          const expected = readPreference === 'nearest' ? [cluster.primary, ...cluster.secondaries]
+            : readPreference.startsWith('primary') ? [cluster.primary] : cluster.secondaries;
 
           for (const read of reads) expect(expected.map(portOf)).toContain(portOf(read.address));
           expect(commands.filter(event => event.commandName === 'replSetGetStatus'))

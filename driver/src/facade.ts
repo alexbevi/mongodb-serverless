@@ -7,7 +7,7 @@ import {
   SessionRoutingError,
   UnsupportedOperationError
 } from './errors.js';
-import { COLLECTION_ROUTES, DB_ROUTES, routeFor, type Route } from './routing.js';
+import { COLLECTION_ROUTES, DB_ROUTES, routeFor, readPreferenceMode, type Route } from './routing.js';
 import { createCursorProxy } from './cursor.js';
 import { createBulkProxy } from './bulk.js';
 
@@ -29,7 +29,7 @@ const BULK_METHODS = new Set(['initializeOrderedBulkOp', 'initializeUnorderedBul
 
 /** Hands back the client an operation should run on. */
 export interface Router {
-  read(): Promise<MongoClient>;
+  read(anyMember?: boolean): Promise<MongoClient>;
   write(): Promise<MongoClient>;
 }
 
@@ -123,7 +123,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
       );
     }
 
-    const client = () => (route === 'read' ? router.read() : router.write());
+    const client = () => (route === 'read' ? router.read(readPreferenceMode(args) === 'nearest') : router.write());
 
     if (CURSOR_METHODS.has(method)) {
       return createCursorProxy(async () => {

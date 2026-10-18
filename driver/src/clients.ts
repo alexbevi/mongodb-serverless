@@ -45,15 +45,20 @@ export class ClientPair {
   }
 
   /** The client for reads, targeting a secondary when one is healthy. */
-  async read(): Promise<MongoClient> {
-    return this.#selectMember('read');
+  async read(anyMember = false): Promise<MongoClient> {
+    return this.#selectMember(anyMember ? 'any' : 'read');
   }
 
-  async #selectMember(route: 'read' | 'write', refreshed = false): Promise<MongoClient> {
+  async #selectMember(route: 'read' | 'write' | 'any', refreshed = false): Promise<MongoClient> {
     const topology = await this.#resolveTopology();
     const generation = this.#generation;
     const secondary = topology.secondaries.find(host => this.#clients.has(host)) ?? topology.secondaries[0];
-    const host = route === 'write' ? topology.primary : secondary ?? topology.primary;
+
+    const connected = route === 'any'
+      ? [...this.#clients.keys()].find(host => host === topology.primary || topology.secondaries.includes(host))
+      : undefined;
+
+    const host = route === 'write' ? topology.primary : connected ?? secondary ?? topology.primary;
     const expected = host === topology.primary ? 'RSPrimary' : 'RSSecondary';
     const member = await this.#clientFor(host, topology);
     this.#assertOpen();

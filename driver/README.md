@@ -16,8 +16,8 @@ dependency of this package. Install whichever one you use.
 
 ## Usage
 
-Change `from 'mongodb'` to `from '@mongodb-serverless/driver'`. Nothing else in
-your code changes.
+Change `from 'mongodb'` to `from '@mongodb-serverless/driver'`. Check the
+limitations below before replacing an existing client.
 
 ```ts
 import { MongoClient, ObjectId } from '@mongodb-serverless/driver';
@@ -222,6 +222,13 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 
 ## Limitations
 
+**Read preferences do not yet match the native driver.** The default is
+secondary-first. Inherited preferences, strict-secondary fallback, tags,
+staleness, latency selection, and some command routes have known differences.
+Database and collection options are discarded, including read and write concern.
+Role validation does not resolve these differences. See the
+[preference comparison and executable tests](../docs/operation-preferences.md).
+
 **Reads inside a transaction throw.** The driver rejects a session used with a
 different client than the one that created it, so a session cannot span our
 read and write clients. Any session-bearing operation that would route to the
@@ -243,9 +250,10 @@ does not.
 **Replica sets only.** Sharded and load-balanced clusters do not report their
 topology through `replSetGetStatus`.
 
-**Read failures do not refresh topology.** A client serving only reads can keep
-using stale topology until it is replaced. Topology-related write failures refresh
-the cached members. There is no background polling.
+**Errors from an executed read do not refresh topology.** A role mismatch
+detected before routing does refresh it. With monitoring disabled, a reused
+connection is not polled, so later role changes can remain unnoticed.
+Topology-related write failures also refresh the cached members.
 
 ### Discovery and write recovery
 

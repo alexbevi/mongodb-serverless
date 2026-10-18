@@ -20,7 +20,7 @@ it('refreshes mismatched cached roles before sending a read and stores them for 
   };
 
   for (const disableMonitoring of [false, true]) {
-    for (const readPreference of ['primary', 'secondary'] as const) {
+    for (const readPreference of ['primary', 'primaryPreferred', 'secondary', 'secondaryPreferred', 'nearest'] as const) {
       const plugin = new TestPlugin(stale);
       const stored = vi.spyOn(plugin, 'write');
 
@@ -40,7 +40,7 @@ it('refreshes mismatched cached roles before sending a read and stores them for 
 
           const reads = commands.filter(event => event.commandName === 'find');
           expect(reads).toHaveLength(concurrentReads);
-          const expected = readPreference === 'primary' ? [cluster.primary] : cluster.secondaries;
+          const expected = readPreference.startsWith('primary') ? [cluster.primary] : cluster.secondaries;
 
           for (const read of reads) expect(expected.map(portOf)).toContain(portOf(read.address));
           expect(commands.filter(event => event.commandName === 'replSetGetStatus'))

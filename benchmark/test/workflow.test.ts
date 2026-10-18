@@ -38,3 +38,18 @@ it('renders code-level diagnostics from a separate cohort without instrumenting 
   expect(gate).toContain('python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"');
   expect(steps.find(step => step.includes('name: Summarize benchmark'))).toContain('BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json');
 });
+
+it('runs the cold Lambda patterns on LocalStack 4.14 and publishes their measurements', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const job = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('lambda-patterns:'));
+
+  expect(job, 'dedicated Lambda benchmark job').toBeDefined();
+  expect(job).toContain('fetch-depth: 0');
+  expect(job).toContain('node benchmark/build-lambda.mjs');
+  expect(job).toContain('node benchmark/lambda-local.mjs --samples 20');
+  expect(job).toContain('python3 benchmark/lambda-report.py');
+  expect(job).toContain('lambda-patterns-node-24');
+  expect(job).toContain('GITHUB_STEP_SUMMARY');
+  const compose = readFileSync(new URL('../docker/lambda-compose.yaml', import.meta.url), 'utf8');
+  expect(compose).toContain('localstack/localstack:4.14.0');
+});

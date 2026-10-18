@@ -11,9 +11,15 @@ interface WriteFailure {
 export function isTopologyFailure(error: unknown): error is WriteFailure {
   return isWriteFailure(error) && (
     (error.code !== undefined && TOPOLOGY_CODES.has(error.code)) ||
-    ['MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoServerSelectionError'].includes(error.name ?? '') ||
-    (error.errorLabels?.includes('RetryableWriteError') ?? false)
+    isTransportFailure(error) ||
+    (error.errorLabels?.includes('RetryableWriteError') ?? false) ||
+    (error.name === 'MongoBulkWriteError' && 'errorResponse' in error &&
+      isWriteFailure(error.errorResponse) && isTransportFailure(error.errorResponse))
   );
+}
+
+function isTransportFailure(error: WriteFailure): boolean {
+  return ['MongoNetworkError', 'MongoNetworkTimeoutError', 'MongoServerSelectionError'].includes(error.name ?? '');
 }
 
 export function wasRejectedBeforeWrite(error: unknown): error is WriteFailure {

@@ -26,7 +26,7 @@ function isWriteFailure(error: unknown): error is WriteFailure {
   if (error === null || typeof error !== 'object') return false;
 
   return (!('name' in error) || typeof error.name === 'string') &&
-    (!('code' in error) || typeof error.code === 'number') &&
+    (!('code' in error) || error.code === undefined || typeof error.code === 'number') &&
     (!('errorLabels' in error) || (Array.isArray(error.errorLabels) && error.errorLabels.every(isString)));
 }
 

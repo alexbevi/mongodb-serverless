@@ -1,7 +1,7 @@
 # @mongodb-serverless/plugin-ssm
 
 Reads a MongoDB connection string and cached topology from AWS Systems Manager
-Parameter Store with one decrypted `GetParameters` request per plugin instance.
+Parameter Store with one decrypted [`GetParameters`](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameters.html) request per plugin instance.
 Concurrent reads share that request. The connection string must be a SecureString;
 missing topology returns `null`.
 

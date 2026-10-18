@@ -31,7 +31,7 @@ is not published.
 
 ## Default configuration
 
-Every plugin inherits these, and may add its own by widening the config type.
+Plugins that extend `ServerlessPlugin` inherit these defaults and may add keys by widening the config type. Other plugins define their own configuration.
 Read and change them with `get()` and `set()`.
 
 | Key | Default | Meaning |
@@ -48,6 +48,7 @@ other plugins.
 | Plugin | Package | Directory | Stores topology in | Use for |
 |---|---|---|---|---|
 | Local Environment | `@mongodb-serverless/plugin-local` | [`local/`](local) | A process environment variable | Local development |
+| AWS SSM | `@mongodb-serverless/plugin-ssm` | [`ssm/`](ssm) | An SSM parameter, fetched with the SecureString URI in one request | Shared topology across Lambda instances |
 
 A deployment needs a plugin backed by a shared store, since a process
 environment cannot be updated from outside the process when a failover happens.

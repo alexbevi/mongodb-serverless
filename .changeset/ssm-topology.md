@@ -1,5 +1,6 @@
 ---
 "@mongodb-serverless/plugin-ssm": minor
+"@mongodb-serverless/driver": minor
 ---
 
 Read a SecureString connection string and cached topology in one SSM request.

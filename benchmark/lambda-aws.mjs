@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { CloudFormationClient, CreateStackCommand, UpdateStackCommand, DescribeStacksCommand, waitUntilStackCreateComplete, waitUntilStackUpdateComplete } from '@aws-sdk/client-cloudformation';
@@ -119,7 +120,7 @@ try {
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   await lambda.send(new DeleteFunctionCommand({ FunctionName: `${prefix}-ssm-write`, Qualifier: preparationVersion.Version }));
   const baseline = JSON.parse(readFileSync(`${directory}/baseline.json`, 'utf8'));
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', region: values.region, architecture: 'arm64', memoryMB: 1769, baseline: baseline.revision, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: false });
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), region: values.region, architecture: 'arm64', memoryMB: 1769, baseline: baseline.revision, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: false });
 } finally {
   lambda.destroy();
   ssm.destroy();

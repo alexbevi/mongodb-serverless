@@ -3,7 +3,6 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
-import { resolveSeedOptions, resolveSeeds } from './seeds.js';
 import { discoverTopology } from './discovery.js';
 import { directUri } from './uri.js';
 
@@ -31,13 +30,11 @@ export class ClientPair {
   readonly #clients = new Map<string, Promise<MongoClient>>();
   #topology: Promise<Topology> | undefined;
   #closed = false;
-  #uri: string;
   #refresh: Promise<void> | undefined;
   #generation = 0;
 
   constructor(options: ClientPairOptions) {
     this.#options = options;
-    this.#uri = options.uri;
   }
 
   /** The client for operations that must reach the primary. */
@@ -68,17 +65,14 @@ export class ClientPair {
       this.#assertOpen();
       const known = await this.#topology;
 
-      const seeds = known
-        ? { uri: this.#uri, hosts: [known.primary, ...known.secondaries] }
-        : await resolveSeeds(this.#options.uri);
+      const seeds = known ? [known.primary, ...known.secondaries] : undefined;
 
       const status = await discoverTopology(
-        seeds.uri, this.#options.createClient, this.#options.driverOptions, seeds.hosts
+        this.#options.uri, this.#options.createClient, this.#options.driverOptions, seeds
       );
 
       this.#assertOpen();
       await this.#options.plugin.write(status);
-      this.#uri = seeds.uri;
       this.#topology = Promise.resolve(parseTopology(status));
       this.#generation += 1;
     })().finally(() => { this.#refresh = undefined; });
@@ -108,19 +102,13 @@ export class ClientPair {
       const status = await this.#options.plugin.read();
       this.#assertOpen();
 
-      if (status != null) {
-        this.#uri = await resolveSeedOptions(this.#options.uri);
-
-        return parseTopology(status);
-      }
-
-      this.#uri = (await resolveSeeds(this.#options.uri)).uri;
+      if (status != null) return parseTopology(status);
 
       await this.#options.plugin.setup();
       this.#assertOpen();
 
       const discovered = await discoverTopology(
-        this.#uri, this.#options.createClient, this.#options.driverOptions
+        this.#options.uri, this.#options.createClient, this.#options.driverOptions
       );
 
       this.#assertOpen();
@@ -152,7 +140,7 @@ export class ClientPair {
 
     if (existing != null) return existing;
 
-    const uri = directUri(this.#uri, hostPort);
+    const uri = directUri(this.#options.uri, hostPort);
 
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.

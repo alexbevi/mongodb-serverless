@@ -9,7 +9,7 @@ const probes: [string, string, string, 'sync' | 'async'][] = [
   ['node_modules/mongodb/lib/sdam/server.js', 'operation.buildCommand(conn, session)', 'Command preparation', 'sync'],
   ['node_modules/mongodb/lib/sdam/server.js', 'operation.buildOptions(timeoutContext)', 'Command options', 'sync'],
   ['node_modules/mongodb/lib/operations/execute_operation.js', 'operation.handleOk(result)', 'Result processing', 'sync'],
-  ['driver/dist/driver/src/clients.js', 'directUri(this.#uri, hostPort)', 'Direct URI rewrite', 'sync'],
+  ['driver/dist/driver/src/clients.js', 'directUri(this.#options.uri, hostPort)', 'Direct URI rewrite', 'sync'],
   ['driver/dist/driver/src/clients.js', 'this.#options.createClient(uri, { ...this.#options.driverOptions, directConnection: true, retryWrites: false })', 'Native client construction', 'sync'],
   ['driver/dist/driver/src/clients.js', "import('./no-monitoring/index.js')", 'Load no-monitoring module', 'async'],
   ['driver/dist/driver/src/clients.js', 'disableMonitoring(client)', 'Activate no-monitoring patch', 'sync'],

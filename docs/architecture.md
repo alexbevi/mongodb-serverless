@@ -7,10 +7,12 @@ no AWS plugin in this change.
 
 ## Architecture
 
-Each wrapper owns lazy direct read and write clients. Discovery uses a temporary
-direct connection, tries candidates sequentially, and closes each connection.
-There is no polling service. Native SDAM monitoring on routed clients remains
-on unless `disableMonitoring: true` is selected.
+Each wrapper owns lazy direct read and write clients. Initial discovery uses a
+temporary native MongoDB client with the original URI and constructor options.
+The native driver handles DNS, authentication, and replica-set discovery; the
+temporary client closes after reading status. There is no polling service.
+Native SDAM monitoring on routed clients remains on unless
+`disableMonitoring: true` is selected.
 
 ```mermaid
 flowchart LR
@@ -20,12 +22,10 @@ flowchart LR
     Plugin <-->|Local implementation| Env[Process environment]
     Plugin <-->|Expected deployment implementation| Store[Shared topology store]
     Plugin -->|Read connection string| Secret[Secret store]
-    Driver -->|Temporary direct discovery| Member[One replica-set member]
+    Driver -->|Temporary native discovery| Cluster[Replica set]
     Driver -->|Writes| Primary[Primary direct client]
     Driver -->|Reads| Secondary[Secondary direct client]
 ```
-
-![Architecture diagram](assets/architecture.png)
 
 The facade receives a router for selecting read and write clients and a separate
 write executor for handling failures and deciding whether to retry. The client
@@ -52,6 +52,7 @@ sequenceDiagram
     participant Driver
     participant Plugin
     participant Store as Environment or shared store
+    participant Native as Temporary native MongoDB client
     participant DNS
     participant Member as Replica-set member
     App->>Driver: First operation
@@ -66,15 +67,17 @@ sequenceDiagram
     alt Topology missing
         Store-->>Plugin: Missing
         Plugin-->>Driver: null
-        opt SRV URI
-            Driver->>DNS: Resolve TXT and SRV
-            DNS-->>Driver: Validated member candidates and options
-        end
         Driver->>Plugin: setup()
         Plugin->>Store: Prepare store idempotently
-        Driver->>Member: Direct connect, hello, replSetGetStatus
-        Member-->>Driver: Replica-set status
-        Driver->>Member: Close discovery connection
+        Driver->>Native: Connect with original URI and options
+        opt SRV URI
+            Native->>DNS: Resolve TXT and SRV
+            DNS-->>Native: Native driver validates records and options
+        end
+        Native->>Member: Authenticate, hello, replSetGetStatus
+        Member-->>Native: Replica-set status
+        Native-->>Driver: Validated status
+        Driver->>Native: Close temporary client
         Driver->>Plugin: write(validated status)
         Plugin->>Store: Replace topology atomically
         Store-->>Plugin: Persisted
@@ -82,14 +85,17 @@ sequenceDiagram
     else Cached topology
         Store-->>Plugin: Status
         Plugin-->>Driver: Status
-        Note over Driver,DNS: SRV URIs still resolve TXT options once per client
+        Note over Driver,DNS: No SRV or TXT lookup for cached routing
     end
     Driver->>Member: Direct operation on selected primary or secondary
     Member-->>Driver: Result
     Driver-->>App: Result
 ```
 
-![First use diagram](assets/first-use.png)
+Routed clients and refresh through cached members use the original connection
+settings without SRV or TXT lookups. Supply `authSource` explicitly when
+authentication depends on a TXT default: DNS options used by the temporary
+discovery client are not carried into routed connections.
 
 ## Write failure and refresh
 
@@ -99,9 +105,9 @@ against the same topology generation share one refresh. Different Lambda
 instances can discover concurrently; this contract provides no distributed lock.
 
 A refresh waits 100–249 ms, tries cached members once each, validates the resulting
-status, and awaits persistence before switching routes. Discovery's default
-selection timeout is five seconds per candidate. An explicit
-`serverSelectionTimeoutMS` overrides that timeout.
+status, and awaits persistence before switching routes. The default selection
+timeout is five seconds for initial discovery and five seconds per cached member
+during refresh. An explicit `serverSelectionTimeoutMS` overrides that timeout.
 
 ```mermaid
 sequenceDiagram

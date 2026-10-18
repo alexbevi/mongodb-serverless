@@ -62,10 +62,14 @@ available when `db()` is called. An explicit URI takes precedence. Credentials
 remain in the plugin's connection-string store; topology documents contain no
 copy of them.
 
-SRV discovery resolves one seed at a time after validating its DNS domain.
-TLS remains enabled by default for SRV URIs. DNS TXT options supply `authSource`
-unless the URI overrides it. Cached topology avoids SRV member lookup; TXT
-options are still resolved once per client when using an SRV URI.
+On a cache miss, a temporary native MongoDB client uses the original URI and
+constructor options for DNS resolution, authentication, and replica-set discovery.
+It closes after reading topology. Cached routing and refresh through known
+members use direct connections without SRV or TXT lookups.
+
+Supply `authSource` in the URI or constructor options when authentication depends
+on a DNS TXT default, such as `authSource=admin`. TXT defaults used during discovery
+are not carried into routed clients. TLS remains enabled by default for SRV URIs.
 
 ## Routing
 
@@ -227,8 +231,9 @@ batches, and a cursor may already have returned results or performed writes.
 Create a new operation after handling the error.
 
 Refresh tries the cached members, so losing the original seed does not prevent
-recovery. Discovery tries each candidate once and closes its temporary client.
-Its default server-selection timeout is five seconds per candidate; an explicit
+recovery. Each attempt uses a temporary direct client and closes it afterward.
+The default server-selection timeout is five seconds for initial discovery and
+five seconds per cached member during refresh. An explicit
 `serverSelectionTimeoutMS` overrides it.
 
 See [architecture and plugin sequences](../docs/architecture.md) for the storage

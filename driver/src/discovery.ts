@@ -11,13 +11,17 @@ export async function discoverTopology(
   uri: string,
   createClient: ClientFactory,
   options?: MongoClientOptions,
-  seeds = new ConnectionString(uri).hosts
+  seeds?: string[]
 ): Promise<ReplSetGetStatus> {
   const expectedSet = options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
+  const candidates = seeds?.map(seed => directUri(uri, seed)) ?? [uri];
+  const settings = { serverSelectionTimeoutMS: 5000, ...options, retryWrites: false };
   let failure: unknown;
 
-  for (const seed of seeds) {
-    const client = createClient(directUri(uri, seed), { serverSelectionTimeoutMS: 5000, ...options, directConnection: true, retryWrites: false });
+  if (seeds) settings.directConnection = true;
+
+  for (const candidate of candidates) {
+    const client = createClient(candidate, settings);
 
     try {
       await client.connect();
@@ -29,7 +33,7 @@ export async function discoverTopology(
 
       if (expectedSet != null && hello['setName'] !== expectedSet) {
         throw new ServerlessDriverError(
-          `Expected replica set "${expectedSet}", but "${seed}" reported "${hello['setName']}".`
+          `Expected replica set "${expectedSet}", but "${new ConnectionString(candidate).hosts.join(', ')}" reported "${hello['setName']}".`
         );
       }
 

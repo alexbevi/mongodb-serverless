@@ -2,9 +2,9 @@
 
 The driver owns discovery and refresh after role mismatches or write failures. Topology stays in memory
 for each client; a plugin optionally supplies a connection string and persists
-topology across clients. The local implementation uses `process.env`; a
-deployment plugin can use a durable shared store. There is no AWS plugin in this
-change.
+topology across clients. The local implementation uses `process.env`. The
+[SSM plugin](../plugins/ssm) shares topology across Lambda instances and reads it
+with the SecureString connection string in one request.
 
 ## Architecture
 
@@ -13,8 +13,8 @@ cache miss, the native driver resolves the original URI and connection settings,
 including SRV/TXT records when applicable. The wrapper tries seeds in random
 order, connects directly to one member, validates its status, and retains that
 connection for operations. If a different role is needed, it opens a connection
-to the appropriate member. A healthy secondary already connected is preferred
-for reads.
+to the appropriate member. Explicit operation-level `nearest` reads reuse either
+connected healthy role. Other reads prefer a connected healthy secondary.
 
 See [the two bootstrap diagrams](bootstrap.md) for the one-connection and
 two-connection paths. Those counts require `disableMonitoring: true` and one

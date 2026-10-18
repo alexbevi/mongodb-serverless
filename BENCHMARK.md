@@ -1,4 +1,18 @@
-# Local connection benchmark
+# Connection benchmarks
+
+The current benchmark measures two cold Lambda patterns: uncached discovery and
+SSM topology reuse. Each timed invocation reads its URI from SecureString.
+
+- [LocalStack 4.14 measurements](benchmark/results/lambda-localstack/results.md)
+- [AWS Lambda measurements](benchmark/results/lambda-aws/results.md)
+- [Reproduction steps and timing scope](benchmark/LAMBDA.md)
+
+The new reports compare with the previously recorded main statistics below.
+Those historical runs used detailed profiling and excluded SSM reads; their
+percentages are descriptive, not a controlled estimate of the code change.
+Fresh controls in the new reports use the same harness as the two new patterns.
+
+## Previous main: local connection benchmark
 
 MongoDB driver discovery compared with direct connections through the serverless
 driver, measured against a local three-member TLS replica set.
@@ -41,8 +55,9 @@ python3 -m venv /tmp/mongodb-benchmark-report
 
 The benchmark replaces `benchmark/results/local/samples.json`. The report command
 replaces the local diagram and summary. It does not read or change the AWS snapshot.
-Only one local result set and one AWS result set are retained; replace those
-files instead of adding run folders. SVGs and other generated result files are ignored.
+Keep these diagnostic snapshots as the historical main baseline. The current
+Lambda results live in `lambda-localstack/` and `lambda-aws/`; replace those
+cohorts on a new measurement run. SVGs are ignored.
 
 Repeated execution stacks are stored once in `executionSources`; each segment
 retains a `sourceId` and its original timing measurements.

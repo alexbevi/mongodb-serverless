@@ -1,3 +1,6 @@
+# LocalStack 4.14.0 results
+
+40 cold invocations per driver/operation case.
 
 | New pattern | vs previous main/serverless | vs previous native | Previous serverless median |
 |---|---:|---:|---:|

@@ -1,5 +1,14 @@
 # Cold connection benchmark
 
+The [Lambda pattern benchmark](LAMBDA.md) measures SecureString retrieval,
+uncached discovery, and SSM topology reuse. See its
+[LocalStack 4.14 results](results/lambda-localstack/results.md) and
+[AWS results](results/lambda-aws/results.md).
+
+The diagnostic benchmark below is the previously recorded main snapshot. Its
+profiling, timing boundary, read preference, and local runtime differ from the
+new Lambda measurements.
+
 Compare MongoDB driver discovery with a serverless driver that connects directly
 to a cached replica-set member. Each sample creates a fresh Node process,
 constructs a client, and completes its first operation against a three-member

@@ -101,7 +101,9 @@ def markdown(summary):
     if summary['luckyWriteMedianReductionPercent'] is not None:
         lines.extend(['', f"Lucky-write median reduction versus two-connection writes: **{summary['luckyWriteMedianReductionPercent']:.1f}%**. These are observed landing groups, not paired trials."])
     lines.extend(['', 'Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
-    return '\n'.join(lines) + '\n'
+    title = summary['configuration'].get('environment', 'Cold Lambda')
+    count = summary['configuration']['count']
+    return f'# {title} results\n\n{count} cold invocations per driver/operation case.\n' + '\n'.join(lines) + '\n'
 
 
 def render(data, summary, output):

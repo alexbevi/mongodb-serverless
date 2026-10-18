@@ -1,3 +1,5 @@
+import { once } from 'node:events';
+import { createServer } from 'node:net';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MongoClient as RealMongoClient, type CommandStartedEvent } from 'mongodb';
 import { ServerlessMongoClient, type ServerlessClientOptions } from '../src/client.js';
@@ -9,6 +11,7 @@ import {
   type TestCluster
 } from '../../test/harness/cluster.js';
 import { TestPlugin } from './harness/plugin.js';
+import { tcpPort } from '../../test/harness/relay.js';
 
 const hasDocker = await dockerAvailable();
 
@@ -156,6 +159,52 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       members: expect.arrayContaining([expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })])
     });
   });
+
+  it('refreshes topology after a server-selection error with an undefined code', async () => {
+    const unavailableMember = createServer(socket => socket.destroy());
+    unavailableMember.listen(0, '127.0.0.1');
+    await once(unavailableMember, 'listening');
+
+    try {
+      const stale = {
+        ...cluster.status,
+        members: cluster.status.members.map(member =>
+          member.stateStr === 'PRIMARY'
+            ? { ...member, name: `127.0.0.1:${tcpPort(unavailableMember)}` }
+            : member
+        )
+      };
+
+      const { client, commands, plugin } = connect(stale, cluster.uri, {
+        serverSelectionTimeoutMS: 1000,
+        connectTimeoutMS: 250
+      });
+
+      const collection = client.db('itest').collection('unreachable_primary');
+      const attempt = collection.insertOne({ marker: Date.now() });
+
+      await expect(attempt).rejects.toMatchObject({ name: 'MongoServerSelectionError' });
+      await expect(attempt).rejects.toHaveProperty('code', undefined);
+      expect(portsFor(commands, 'insert')).toEqual([]);
+      expect(
+        portsFor(commands, 'replSetGetStatus'),
+        'A server-selection failure must refresh through a reachable cached member'
+      ).toHaveLength(1);
+      expect(await plugin.read()).toMatchObject({
+        members: expect.arrayContaining([
+          expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })
+        ])
+      });
+
+      await expect(collection.insertOne({ marker: Date.now() }))
+        .resolves.toMatchObject({ acknowledged: true });
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary)]);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        unavailableMember.close(error => error ? reject(error) : resolve());
+      });
+    }
+  }, 10_000);
 
   it('sends a write to the primary', async () => {
     const { client, commands } = connect();

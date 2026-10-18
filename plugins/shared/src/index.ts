@@ -5,7 +5,7 @@ export {
   type TopologyPlugin
 } from './plugin.js';
 
-export { assertStatus, parseStatus, type ReplSetGetStatus, type ReplSetGetStatusMember } from './status.js';
+export { assertStatus, parseStatus, isResolvedAuthentication, type ResolvedAuthentication, type ReplSetGetStatus, type ReplSetGetStatusMember } from './status.js';
 
 export {
   resolvePlugin,

@@ -31,7 +31,7 @@ it('passes the original SRV URI and authentication options to native discovery',
     return native;
   });
 
-  await expect(discoverTopology(uri, createClient, options)).resolves.toEqual(status);
+  await expect(discoverTopology(uri, createClient, options)).resolves.toEqual({ ...status, authentication: { mechanism: 'MONGODB-X509', source: '$external' } });
   expect(createClient).toHaveBeenCalledTimes(1);
   expect(connect).toHaveBeenCalledTimes(1);
   expect(command).toHaveBeenNthCalledWith(1, { hello: 1 });

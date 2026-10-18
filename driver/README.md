@@ -67,9 +67,18 @@ constructor options for DNS resolution, authentication, and replica-set discover
 It closes after reading topology. Cached routing and refresh through known
 members use direct connections without SRV or TXT lookups.
 
-Supply `authSource` in the URI or constructor options when authentication depends
-on a DNS TXT default, such as `authSource=admin`. TXT defaults used during discovery
-are not carried into routed clients. TLS remains enabled by default for SRV URIs.
+Discovery stores the authentication mechanism and the native driver's resolved
+`authSource` alongside topology. Direct read, write, and refresh connections reuse
+that source, including when another wrapper reads the cached topology. Explicit
+`authSource` in the URI or constructor options takes precedence. Passwords,
+certificates, tokens, and provider callbacks come from each wrapper's original
+configuration; they are never stored in topology. TLS remains enabled by default
+for SRV URIs.
+
+Use separate topology records for different clusters or authentication defaults.
+Changing the authentication mechanism triggers native discovery again. Older
+records without authentication metadata still work with explicit `authSource`;
+clear them once to discover a source supplied only by DNS TXT.
 
 ## Routing
 

@@ -18,6 +18,7 @@ it('refreshes topology when deferred cursor and bulk execution fail', async () =
     plugin,
     // SAFETY: This fake supplies the methods exercised by the failure paths below.
     createClient: () => ({
+      options: {},
       async connect() {}, async close() {},
       db: () => ({
         command: async (command: { hello?: number }) => command.hello ? { setName: 'rs0' } : status,
@@ -53,6 +54,7 @@ it('uses cached members for refresh when the original seed is unavailable', asyn
     plugin,
     // SAFETY: This fake exercises a dead seed and a cached member that can report topology.
     createClient: uri => ({
+      options: {},
       async connect() { if (uri.includes('gone:')) throw new Error('seed gone'); },
       async close() {},
       db: () => ({

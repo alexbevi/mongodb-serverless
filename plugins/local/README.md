@@ -23,7 +23,9 @@ await client.close();
 
 Leave `__MONGODB_CLUSTER_TOPOLOGY` unset for first-run discovery. `read()` returns
 `null` for an absent or empty variable, and throws for malformed JSON or status.
-`write()` replaces the variable with the JSON status document.
+`write()` replaces the variable with the JSON status document, including the
+authentication mechanism and resolved source added by discovery. Credentials
+remain in the connection string or driver options.
 
 To supply credentials through the plugin, set `__MONGODB_CONNECTION_STRING`
 and construct `new MongoClient(undefined, { plugin })`. Use an explicit database
@@ -44,7 +46,8 @@ call `verify()` automatically.
 Environment updates only affect this process. They do not update Lambda
 configuration, another process, or later cold starts. Use a shared-store plugin
 for persistence across instances. Concurrent clients in one process share the
-same variable; separate clusters need separate variable names.
+same variable; separate clusters or authentication defaults need separate
+variable names.
 
 Replica sets only. Sharded and load-balanced clusters, change streams, and
 sessions spanning read and write clients are unsupported by the driver.

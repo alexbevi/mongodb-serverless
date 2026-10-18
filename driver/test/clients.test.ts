@@ -274,7 +274,7 @@ it('waits for in-flight discovery on close and does not persist afterward', asyn
     uri: 'mongodb://a:27017/', plugin,
     // SAFETY: The fake blocks the status command to exercise close during discovery.
     createClient: () => ({
-      async connect() {}, close: closed,
+      options: {}, async connect() {}, close: closed,
       db: () => ({ command: async (command: { hello?: number }) => {
         if (command.hello) return { setName: 'rs0' };
 

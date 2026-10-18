@@ -76,9 +76,9 @@ sequenceDiagram
         end
         Native->>Member: Authenticate, hello, replSetGetStatus
         Member-->>Native: Replica-set status
-        Native-->>Driver: Validated status
+        Native-->>Driver: Validated status and resolved auth source
         Driver->>Native: Close temporary client
-        Driver->>Plugin: write(validated status)
+        Driver->>Plugin: write(status with authentication metadata)
         Plugin->>Store: Replace topology atomically
         Store-->>Plugin: Persisted
         Plugin-->>Driver: Complete
@@ -92,10 +92,18 @@ sequenceDiagram
     Driver-->>App: Result
 ```
 
-Routed clients and refresh through cached members use the original connection
-settings without SRV or TXT lookups. Supply `authSource` explicitly when
-authentication depends on a TXT default: DNS options used by the temporary
-discovery client are not carried into routed connections.
+The driver adds `authentication: { mechanism, source }` to the status document
+when the connected native client has credentials. Plugins must preserve this
+non-secret metadata when writing and reading topology. Direct read, write, and
+refresh clients use the resolved source unless the caller supplies `authSource`.
+They retain the original URI and options for passwords, certificates, provider
+callbacks, and other authentication properties. Cached routing needs no SRV or
+TXT lookup. A different authentication mechanism triggers native discovery.
+
+Keep separate records for different authentication defaults, even within one
+cluster. Legacy status documents remain valid. If they depend on a TXT-only
+`authSource`, clear the record once to populate the new metadata, or supply
+`authSource` explicitly.
 
 ## Write failure and refresh
 

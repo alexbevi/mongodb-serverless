@@ -41,6 +41,12 @@ export async function discoverTopology(
       assertStatus(status);
       parseTopology(status);
 
+      const credentials = client.options.credentials;
+
+      if (credentials) {
+        return { ...status, authentication: { mechanism: credentials.mechanism, source: credentials.source } };
+      }
+
       return status;
     } catch (error) {
       failure = error;

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, X509Certificate } from 'node:crypto';
+import { MongoClient } from 'mongodb';
 
 const exec = promisify(execFile);
 
@@ -17,6 +18,45 @@ export function startSecureCluster(): Promise<{ uri: string; ca: string }> {
   fixture ??= start();
 
   return fixture;
+}
+
+export async function createCertificateUser(): Promise<{ certificate: string; cleanup: () => Promise<void> }> {
+  const { uri, ca } = await startSecureCluster();
+  const directory = await mkdtemp(join(tmpdir(), 'mongodb-x509-'));
+  const certificate = join(directory, 'client.pem');
+  const key = join(directory, 'client.key');
+  const request = join(directory, 'client.csr');
+  const signed = join(directory, 'client.crt');
+  const authority = join(directory, 'authority.pem');
+  const cleanup = () => rm(directory, { recursive: true, force: true });
+
+  try {
+    await exec('docker', ['cp', `${container}:/certs/server.pem`, authority]);
+    await exec('openssl', ['req', '-new', '-newkey', 'rsa:2048', '-nodes',
+      '-subj', '/CN=driver-auth-test', '-keyout', key, '-out', request]);
+    await exec('openssl', ['x509', '-req', '-in', request, '-CA', ca, '-CAkey', authority,
+      '-set_serial', `0x${randomBytes(16).toString('hex')}`, '-days', '1', '-out', signed]);
+    await writeFile(certificate, (await readFile(key)) + '\n' + (await readFile(signed)), { mode: 0o600 });
+    await rm(authority);
+    const admin = new MongoClient(uri);
+
+    try {
+      await admin.connect();
+      const external = admin.db('$external');
+      const result = await external.command({ usersInfo: 'CN=driver-auth-test' });
+
+      if (result['users'].length === 0) {
+        await external.command({ createUser: 'CN=driver-auth-test', roles: [{ role: 'root', db: 'admin' }] });
+      }
+    } finally {
+      await admin.close();
+    }
+
+    return { certificate, cleanup };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
 }
 
 async function start(): Promise<{ uri: string; ca: string }> {

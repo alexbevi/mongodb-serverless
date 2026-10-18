@@ -1,3 +1,4 @@
+import { ConnectionString } from 'mongodb-connection-string-url';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
@@ -39,16 +40,16 @@ export class ClientPair {
 
   /** The client for operations that must reach the primary. */
   async write(): Promise<MongoClient> {
-    const { primary } = await this.#resolveTopology();
+    const topology = await this.#resolveTopology();
 
-    return this.#clientFor(primary);
+    return this.#clientFor(topology.primary, topology);
   }
 
   /** The client for reads, targeting a secondary when one is healthy. */
   async read(): Promise<MongoClient> {
     const topology = await this.#resolveTopology();
 
-    return this.#clientFor(selectSecondary(topology) ?? topology.primary);
+    return this.#clientFor(selectSecondary(topology) ?? topology.primary, topology);
   }
 
   get generation(): number {
@@ -68,7 +69,7 @@ export class ClientPair {
       const seeds = known ? [known.primary, ...known.secondaries] : undefined;
 
       const status = await discoverTopology(
-        this.#options.uri, this.#options.createClient, this.#options.driverOptions, seeds
+        this.#options.uri, this.#options.createClient, this.#connectionOptions(known), seeds
       );
 
       this.#assertOpen();
@@ -102,7 +103,13 @@ export class ClientPair {
       const status = await this.#options.plugin.read();
       this.#assertOpen();
 
-      if (status != null) return parseTopology(status);
+      if (status != null) {
+        const topology = parseTopology(status);
+
+        if (!topology.authentication || topology.authentication.mechanism === this.#authenticationMechanism()) {
+          return topology;
+        }
+      }
 
       await this.#options.plugin.setup();
       this.#assertOpen();
@@ -133,7 +140,7 @@ export class ClientPair {
    * throw "MongoClient must be connected" if nothing has connected yet, so an
    * unconnected client breaks initializeOrderedBulkOp as a first operation.
    */
-  async #clientFor(hostPort: string): Promise<MongoClient> {
+  async #clientFor(hostPort: string, topology: Topology): Promise<MongoClient> {
     this.#assertOpen();
 
     const existing = this.#clients.get(hostPort);
@@ -141,11 +148,12 @@ export class ClientPair {
     if (existing != null) return existing;
 
     const uri = directUri(this.#options.uri, hostPort);
+    const options = this.#connectionOptions(topology);
 
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.
     const pending = (async () => {
-      const client = this.#options.createClient(uri, { ...this.#options.driverOptions, directConnection: true, retryWrites: false });
+      const client = this.#options.createClient(uri, { ...options, directConnection: true, retryWrites: false });
 
       try {
         if (this.#options.disableMonitoring) {
@@ -168,6 +176,24 @@ export class ClientPair {
     this.#clients.set(hostPort, pending);
 
     return pending;
+  }
+
+  #authenticationMechanism(): string {
+    const uri = new ConnectionString(this.#options.uri);
+
+    return (this.#options.driverOptions?.authMechanism ?? uri.searchParams.get('authMechanism') ?? 'DEFAULT').toUpperCase();
+  }
+
+  #connectionOptions(topology: Topology | undefined): MongoClientOptions {
+    const options = { ...this.#options.driverOptions };
+    const uri = new ConnectionString(this.#options.uri);
+
+    if (topology?.authentication?.mechanism === this.#authenticationMechanism() &&
+        options.authSource == null && !uri.searchParams.has('authSource')) {
+      options.authSource = topology.authentication.source;
+    }
+
+    return options;
   }
 
   #assertOpen(): void {

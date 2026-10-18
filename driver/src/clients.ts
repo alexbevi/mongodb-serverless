@@ -4,7 +4,7 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
-import { discoverTopology } from './discovery.js';
+import { discoverTopology, openDiscovery } from './discovery.js';
 import { directUri } from './uri.js';
 
 /** Builds a real client. Injectable so tests observe the uri without connecting. */
@@ -69,7 +69,7 @@ export class ClientPair {
       const seeds = known ? [known.primary, ...known.secondaries] : undefined;
 
       const status = await discoverTopology(
-        this.#options.uri, this.#options.createClient, this.#connectionOptions(known), seeds
+        this.#options.uri, this.#options.createClient, this.#connectionOptions(known), seeds, this.#options.disableMonitoring
       );
 
       this.#assertOpen();
@@ -114,14 +114,30 @@ export class ClientPair {
       await this.#options.plugin.setup();
       this.#assertOpen();
 
-      const discovered = await discoverTopology(
-        this.#options.uri, this.#options.createClient, this.#options.driverOptions
+      const discovered = await openDiscovery(
+        this.#options.uri, this.#options.createClient, this.#options.driverOptions,
+        undefined, this.#options.disableMonitoring
       );
 
-      this.#assertOpen();
-      await this.#options.plugin.write(discovered);
+      let retained = false;
 
-      return parseTopology(discovered);
+      try {
+        this.#assertOpen();
+        await this.#options.plugin.write(discovered.status);
+        this.#assertOpen();
+        const topology = parseTopology(discovered.status);
+        const { host, client } = discovered;
+
+        if (client.options.directConnection && host &&
+            (host === topology.primary || topology.secondaries.includes(host))) {
+          this.#clients.set(host, Promise.resolve(client));
+          retained = true;
+        }
+
+        return topology;
+      } finally {
+        if (!retained) await discovered.client.close().catch(() => {});
+      }
     })().catch(
       error => {
         this.#topology = undefined;

@@ -65,7 +65,9 @@ copy of them.
 
 On a cache miss, a temporary native MongoDB client uses the original URI and
 constructor options for DNS resolution, authentication, and replica-set discovery.
-It closes after reading topology. Cached routing and refresh through known
+For a `mongodb://` URI, discovery connects directly to a seed and retains that
+client for operations targeting the same member. SRV discovery still uses a
+temporary native client. Cached routing and refresh through known
 members use direct connections without SRV or TXT lookups.
 
 Discovery stores the authentication mechanism and the native driver's resolved
@@ -101,7 +103,8 @@ primary, one client serves both. `close()` closes every client it opened.
 ### Disable monitoring
 
 Opt in with `disableMonitoring: true` on the wrapper. It applies to both lazy
-clients, including clients returned by `createClient`. The default remains
+clients and direct bootstrap connections, including clients returned by
+`createClient`. The default remains
 unchanged.
 
 The same patch works on a native client without a plugin. Install

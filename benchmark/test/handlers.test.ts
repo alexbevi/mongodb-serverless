@@ -18,7 +18,12 @@ test.each(['native', 'serverless', 'serverless-no-monitoring'])('%s handlers cre
       });
       const clients = new Set();
       const originalDb = MongoClient.prototype.db;
-      MongoClient.prototype.connect = async function () { return this; };
+      MongoClient.prototype.connect = async function () {
+        this.emit('serverDescriptionChanged', {
+          newDescription: { type: this.options.hosts[0].port === 27018 ? 'RSSecondary' : 'RSPrimary' }
+        });
+        return this;
+      };
       MongoClient.prototype.db = function (...args) {
         clients.add(this);
         const database = originalDb.apply(this, args);

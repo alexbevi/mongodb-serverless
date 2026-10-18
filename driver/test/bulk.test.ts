@@ -1,3 +1,4 @@
+import { handshake } from './harness/handshake.js';
 import type { Document, FindOperators, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
@@ -62,6 +63,7 @@ const setup = () => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+    const hello = handshake(host.startsWith('primary:') ? 'RSPrimary' : 'RSSecondary');
 
     const build = (ordered: boolean) => () => {
       const builder = new FakeBulkOp(host, ordered);
@@ -72,6 +74,7 @@ const setup = () => {
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       db: () => ({
         collection: () => ({
           initializeOrderedBulkOp: vi.fn(build(true)),
@@ -79,6 +82,8 @@ const setup = () => {
         })
       }),
       connect: vi.fn(async function (this: MongoClient) {
+        hello.connected();
+
         return this;
       }),
       close: vi.fn(async () => {})

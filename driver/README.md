@@ -107,6 +107,14 @@ The bootstrap connection is reused for its member; other connections open on
 first use. When reads fall back to the primary, one client serves both.
 `close()` closes every client it opened.
 
+Before returning a routed client, the wrapper checks the role reported by the
+native driver against the cached topology. A mismatch triggers one discovery
+refresh, awaits the plugin's topology write, and selects the member again. A
+second mismatch fails before sending the application operation. Matching roles
+need no extra `hello` command. The check uses native server-description events;
+with monitoring disabled, it does not poll reused connections for role changes.
+An election can still occur between validation and execution.
+
 ### Disable monitoring
 
 Opt in with `disableMonitoring: true` on the wrapper. It applies to bootstrap,

@@ -173,7 +173,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       .resolves.toMatchObject({ acknowledged: true });
   });
 
-  it('refreshes a stale primary and retries a rejected write once', async () => {
+  it('refreshes a stale primary before sending a write', async () => {
     const stale = {
       ...cluster.status,
       members: cluster.status.members.map(member => ({
@@ -186,9 +186,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     const { client, commands, plugin } = connect(stale);
     await client.db('itest').collection('recovery').insertOne({ marker: Date.now() });
 
-    expect(portsFor(commands, 'insert')).toEqual([
-      portOf(cluster.secondaries[0]!), portOf(cluster.primary)
-    ]);
+    expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary)]);
     expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
     expect(await plugin.read()).toMatchObject({
       members: expect.arrayContaining([expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })])

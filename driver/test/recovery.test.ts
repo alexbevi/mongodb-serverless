@@ -1,3 +1,4 @@
+import { handshake } from './harness/handshake.js';
 import { MongoServerError } from 'mongodb';
 import { expect, it, vi } from 'vitest';
 import { createWriteExecutor } from '../src/recovery.js';
@@ -7,6 +8,7 @@ const status = { set: 'rs0', members: [{ name: 'a:27017', stateStr: 'PRIMARY' }]
 
 it('refreshes topology when deferred cursor and bulk execution fail', async () => {
   const failure = new MongoServerError({ code: 10107, message: 'not primary' });
+  const hello = handshake('RSPrimary');
   const write = vi.fn(async () => {});
 
   const plugin = {
@@ -18,8 +20,8 @@ it('refreshes topology when deferred cursor and bulk execution fail', async () =
     plugin,
     // SAFETY: This fake supplies the methods exercised by the failure paths below.
     createClient: () => ({
-      options: {},
-      async connect() {}, async close() {},
+      options: {}, on: hello.on,
+      async connect() { hello.connected(); }, async close() {},
       db: () => ({
         command: async (command: { hello?: number }) => command.hello ? { setName: 'rs0' } : status,
         collection: () => ({
@@ -42,6 +44,7 @@ it('refreshes topology when deferred cursor and bulk execution fail', async () =
 
 it('uses cached members for refresh when the original seed is unavailable', async () => {
   const failure = new MongoServerError({ code: 10107, message: 'not primary' });
+  const hello = handshake('RSPrimary');
 
   const plugin = {
     name: 'test', version: '1', author: 'test',
@@ -54,8 +57,11 @@ it('uses cached members for refresh when the original seed is unavailable', asyn
     plugin,
     // SAFETY: This fake exercises a dead seed and a cached member that can report topology.
     createClient: uri => ({
-      options: {},
-      async connect() { if (uri.includes('gone:')) throw new Error('seed gone'); },
+      options: {}, on: hello.on,
+      async connect() {
+        if (uri.includes('gone:')) throw new Error('seed gone');
+        hello.connected();
+      },
       async close() {},
       db: () => ({
         command: async (command: { hello?: number }) => command.hello ? { setName: 'rs0' } : status,

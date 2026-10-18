@@ -1,15 +1,35 @@
-# Bootstrap without cached topology
+# Connections with and without stored topology
 
 A client can discover and route operations without a plugin. It keeps topology
 and connections in memory until `close()`. A plugin optionally shares topology
 with later client instances.
+
+## With stored topology
+
+A new client reads the plugin's topology, selects the cached member, and opens a
+direct connection. The native handshake supplies the member's current role.
+Matching roles allow the operation to proceed without status discovery or an
+extra `hello` command.
+
+On a mismatch, the client reruns discovery through known members, awaits
+`plugin.write(status)`, and selects a member from the corrected topology. A
+second mismatch fails the operation. Concurrent mismatches share one refresh
+within the wrapper. A storage failure also fails the operation. A later client
+reads the corrected topology from the plugin.
+
+The check uses native server-description events. With monitoring disabled,
+reusing a connection does not request a new role check over the network. An
+election can occur between validation and execution. This change does not
+implement the remaining read-preference features.
+
+## Without a plugin
 
 These diagrams show `disableMonitoring: true`, `maxPoolSize: 1`, and
 `minPoolSize: 0` on a healthy replica set. They count TCP connections opened for
 bootstrap and sequential operations. Concurrent work, failed seeds, idle socket
 replacement, and elections can require more connections.
 
-## Lucky landing: reuse the first connection
+### Lucky landing: reuse the first connection
 
 The selected member can serve the operation: a primary for a write, or a healthy
 secondary for a read. Discovery and the operation use the same authenticated
@@ -35,7 +55,7 @@ sequenceDiagram
 
 </details>
 
-## Other member needed: add one connection
+### Other member needed: add one connection
 
 The selected member reports topology but has the wrong role for the operation.
 The client opens one connection to the required member and retains the first
@@ -101,19 +121,21 @@ connection is owned by the wrapper and closes with it. No credentials are
 persisted in topology; optional shared records contain only the authentication
 mechanism and resolved source alongside replica-set status.
 
-A cached topology skips seed resolution and status discovery. Direct connections
-then open only for members needed by operations. Without a plugin, each new
+A matching cached topology skips seed resolution and status discovery. Direct
+connections open only for members needed by operations; a role mismatch refreshes
+topology before the application operation. Without a plugin, each new
 client discovers for itself. Write-error recovery continues to use known members;
 see [recovery and plugin behavior](architecture.md#write-failure-and-refresh).
 
 ## Verification
 
-Run `pnpm exec vitest run driver/test/bootstrap driver/test/seeds.test.ts`.
+Run `pnpm exec vitest run driver/test/bootstrap driver/test/roles driver/test/seeds.test.ts`.
 The bootstrap suites use real MongoDB servers, command events, and TCP relays
 that count actual sockets. Only DNS records are stubbed for SRV tests.
 
 | Case | Assertion |
 |---|---|
+| Cached role mismatch | Refresh and persist before the read; the next cold start uses the corrected record |
 | Primary landing, first write | Discovery and insert share one socket |
 | Secondary landing, first read | Discovery and find share one socket, even when another secondary is listed first |
 | Wrong role, first read or write | Two sockets; correct member serves the operation |

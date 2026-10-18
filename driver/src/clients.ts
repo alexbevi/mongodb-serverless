@@ -6,6 +6,7 @@ import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
 import { discoverTopology, openDiscovery } from './discovery.js';
 import { directUri } from './uri.js';
+import { observeMember, type MemberConnection } from './member.js';
 
 /** Builds a real client. Injectable so tests observe the uri without connecting. */
 export type ClientFactory = (uri: string, options?: MongoClientOptions) => MongoClient;
@@ -28,7 +29,7 @@ export interface ClientPairOptions {
  */
 export class ClientPair {
   readonly #options: ClientPairOptions;
-  readonly #clients = new Map<string, Promise<MongoClient>>();
+  readonly #clients = new Map<string, Promise<MemberConnection>>();
   #topology: Promise<Topology> | undefined;
   #closed = false;
   #refresh: Promise<void> | undefined;
@@ -40,18 +41,34 @@ export class ClientPair {
 
   /** The client for operations that must reach the primary. */
   async write(): Promise<MongoClient> {
-    const topology = await this.#resolveTopology();
-
-    return this.#clientFor(topology.primary, topology);
+    return this.#selectMember('write');
   }
 
   /** The client for reads, targeting a secondary when one is healthy. */
   async read(): Promise<MongoClient> {
+    return this.#selectMember('read');
+  }
+
+  async #selectMember(route: 'read' | 'write', refreshed = false): Promise<MongoClient> {
     const topology = await this.#resolveTopology();
-
+    const generation = this.#generation;
     const secondary = topology.secondaries.find(host => this.#clients.has(host)) ?? topology.secondaries[0];
+    const host = route === 'write' ? topology.primary : secondary ?? topology.primary;
+    const expected = host === topology.primary ? 'RSPrimary' : 'RSSecondary';
+    const member = await this.#clientFor(host, topology);
+    this.#assertOpen();
 
-    return this.#clientFor(secondary ?? topology.primary, topology);
+    if (member.type === expected) return member.client;
+
+    if (refreshed) {
+      throw new ServerlessDriverError(
+        `Member "${host}" reports ${member.type}, but refreshed topology expects ${expected}.`
+      );
+    }
+
+    await this.refreshTopology(generation);
+
+    return this.#selectMember(route, true);
   }
 
   get generation(): number {
@@ -92,7 +109,7 @@ export class ClientPair {
 
     await Promise.allSettled(
       pending.map(async client => {
-        await (await client).close().catch(() => {});
+        await (await client).client.close().catch(() => {});
       })
     );
   }
@@ -132,7 +149,7 @@ export class ClientPair {
 
         if (client.options.directConnection && host &&
             (host === topology.primary || topology.secondaries.includes(host))) {
-          this.#clients.set(host, Promise.resolve(client));
+          this.#clients.set(host, Promise.resolve(discovered));
           retained = true;
         }
 
@@ -158,7 +175,7 @@ export class ClientPair {
    * throw "MongoClient must be connected" if nothing has connected yet, so an
    * unconnected client breaks initializeOrderedBulkOp as a first operation.
    */
-  async #clientFor(hostPort: string, topology: Topology): Promise<MongoClient> {
+  async #clientFor(hostPort: string, topology: Topology): Promise<MemberConnection> {
     this.#assertOpen();
 
     const existing = this.#clients.get(hostPort);
@@ -174,18 +191,20 @@ export class ClientPair {
       const client = this.#options.createClient(uri, { ...options, directConnection: true, retryWrites: false });
 
       try {
+        const member = observeMember(client);
+
         if (this.#options.disableMonitoring) {
           const { disableMonitoring } = await import('./no-monitoring/index.js');
           disableMonitoring(client);
         }
 
         await client.connect();
+
+        return member;
       } catch (error) {
         await client.close().catch(() => {});
         throw error;
       }
-
-      return client;
     })().catch(error => {
       this.#clients.delete(hostPort);
       throw error;

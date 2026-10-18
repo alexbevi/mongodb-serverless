@@ -1,3 +1,4 @@
+import { reportRole } from '../harness/handshake.js';
 import { createRequire } from 'node:module';
 import { MongoClient, type MongoClientOptions } from 'mongodb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -115,6 +116,8 @@ function mockConnections() {
 
     vi.spyOn(native, 'connect').mockImplementation(async () => {
       if (native.options.srvHost) await resolveSRVRecord(native.options);
+
+      reportRole(native, uri.includes('secondary.') ? 'RSSecondary' : 'RSPrimary');
 
       return native;
     });

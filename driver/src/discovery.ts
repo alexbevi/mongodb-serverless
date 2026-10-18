@@ -2,15 +2,15 @@ import { ConnectionString } from 'mongodb-connection-string-url';
 import { assertStatus } from '../../plugins/shared/src/index.js';
 import type { ReplSetGetStatus } from './plugin.js';
 import type { ClientFactory } from './clients.js';
-import type { MongoClient, MongoClientOptions } from 'mongodb';
+import type { MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
 import { parseTopology } from './topology.js';
 import { directUri } from './uri.js';
 import { resolveSeeds } from './seeds.js';
+import { observeMember, type MemberConnection } from './member.js';
 
-export interface DiscoveryConnection {
+export interface DiscoveryConnection extends MemberConnection {
   status: ReplSetGetStatus;
-  client: MongoClient;
   host: string | undefined;
 }
 
@@ -51,6 +51,8 @@ export async function openDiscovery(
     const client = createClient(candidate, settings);
 
     try {
+      const member = observeMember(client);
+
       if (disableMonitoring) {
         const patch = await import('./no-monitoring/index.js');
         patch.disableMonitoring(client);
@@ -81,7 +83,7 @@ export async function openDiscovery(
 
       const host = isString(hello['me']) ? hello['me'] : new ConnectionString(candidate).hosts[0];
 
-      return { status: resolved, client, host };
+      return Object.assign(member, { status: resolved, host });
     } catch (error) {
       failure = error;
       await client.close().catch(() => {});

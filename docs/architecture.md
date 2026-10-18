@@ -1,6 +1,6 @@
 # Driver discovery and plugin contract
 
-The driver owns discovery and exception-driven refresh. Topology stays in memory
+The driver owns discovery and refresh after role mismatches or write failures. Topology stays in memory
 for each client; a plugin optionally supplies a connection string and persists
 topology across clients. The local implementation uses `process.env`; a
 deployment plugin can use a durable shared store. There is no AWS plugin in this
@@ -20,6 +20,14 @@ See [the two bootstrap diagrams](bootstrap.md) for the one-connection and
 two-connection paths. Those counts require `disableMonitoring: true` and one
 application socket per member. Monitoring remains enabled by default. The
 monitoring patch applies to bootstrap, routed clients, and refresh clients.
+
+Before selecting a connected client for an operation, the wrapper compares its
+latest native server description with the cached member role. A mismatch shares
+the existing refresh path, persists the corrected topology, and selects again.
+Only one refresh is attempted for a role mismatch; a second mismatch fails
+before the application operation is sent. A matching handshake adds no explicit
+`hello` command. Monitoring-disabled clients do not poll between operations, and
+an election can occur after validation.
 
 The facade receives a router for selecting read and write clients and a separate
 write executor for handling failures and deciding whether to retry. The client

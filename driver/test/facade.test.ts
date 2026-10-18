@@ -1,3 +1,4 @@
+import { handshake } from './harness/handshake.js';
 import { MongoClient } from 'mongodb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDbFacade } from '../src/facade.js';
@@ -33,6 +34,7 @@ const fakeClients = () => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+    const hello = handshake(host.startsWith('primary:') ? 'RSPrimary' : 'RSSecondary');
 
     const collection = (dbName: string, name: string) =>
       new Proxy(
@@ -63,8 +65,11 @@ const fakeClients = () => {
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       db: vi.fn(db),
       connect: vi.fn(async function (this: MongoClient) {
+        hello.connected();
+
         return this;
       }),
       close: vi.fn(async () => void closed.push(host))

@@ -1,3 +1,4 @@
+import { handshake } from './harness/handshake.js';
 import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
@@ -36,12 +37,15 @@ const factory = () => {
 
   const create = vi.fn((uri: string) => {
     built.push(uri);
+    const hello = handshake(new URL(uri).hostname === 'a' ? 'RSPrimary' : 'RSSecondary');
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       uri,
       connect: vi.fn(async function (this: MongoClient) {
         connected.push(uri);
+        hello.connected();
 
         return this;
       }),
@@ -246,8 +250,9 @@ describe('ClientPair', () => {
 });
 
 it('keeps routed connections direct even when native options request discovery', async () => {
-  // SAFETY: This fake only observes connection options and implements connection lifecycle.
-  const createClient = vi.fn(() => ({ async connect() {}, async close() {} } as never));
+  const hello = handshake('RSPrimary');
+  // SAFETY: This fake reports its handshake role and implements connection lifecycle.
+  const createClient = vi.fn(() => ({ on: hello.on, async connect() { hello.connected(); }, async close() {} } as never));
 
   const pair = new ClientPair({
     uri: 'mongodb://seed:27017/', plugin: pluginFor(singleNode), createClient,
@@ -274,7 +279,7 @@ it('waits for in-flight discovery on close and does not persist afterward', asyn
     uri: 'mongodb://a:27017/', plugin,
     // SAFETY: The fake blocks the status command to exercise close during discovery.
     createClient: () => ({
-      options: {}, async connect() {}, close: closed,
+      options: {}, on() {}, async connect() {}, close: closed,
       db: () => ({ command: async (command: { hello?: number }) => {
         if (command.hello) return { setName: 'rs0' };
 
@@ -306,7 +311,7 @@ it('closes a routed client when connection fails', async () => {
   const pair = new ClientPair({
     uri: 'mongodb://a:27017/', plugin: pluginFor(singleNode),
     // SAFETY: This fake only exercises failed connection cleanup.
-    createClient: () => ({ async connect() { throw new Error('connect failed'); }, close: closed } as never)
+    createClient: () => ({ on() {}, async connect() { throw new Error('connect failed'); }, close: closed } as never)
   });
 
   await expect(pair.write()).rejects.toThrow('connect failed');

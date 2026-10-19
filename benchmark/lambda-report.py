@@ -80,7 +80,7 @@ def markdown(summary):
         lines += ['', f"Deployment package: {configuration['packageZipBytes']:,} bytes ZIP; identical for all patterns, including both drivers and diagnostic probes."]
     checks = configuration.get('warmVerification', [])
     if checks:
-        lines += ['', f'{len(checks)} separate warm checks verified reuse of the environment and MongoDB socket, without further SSM requests, cluster DNS, discovery or connections.',
+        lines += ['', f'{len(checks)} separate warm checks verified environment and client reuse, without further SSM requests, cluster DNS or discovery. Serverless calls reused their direct sockets. A native nearest read may open a pool connection to another member.',
                   '', '| Warm check | Handler time | Serving role |', '|---|---:|---|']
         lines += [f"| {check['operation']} / {LABELS[check['variant']]} | {check['totalMs']:.1f} ms | {check['servedRole']} |" for check in checks]
         lines += ['', 'One warm invocation per case validates reuse; these timings are not a warm latency distribution.']

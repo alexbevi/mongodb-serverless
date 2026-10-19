@@ -23,8 +23,9 @@ The local runner creates a TLS replica set, DNS SRV/TXT records, a SecureString,
 and six Lambda functions. It discovers and stores topology before collecting
 cache hits. The preparation result is retained separately in the JSON. Before measuring cold
 cohorts, each function receives a cold and warm call on `$LATEST`. The runner
-checks environment and socket reuse, with no further SSM, DNS, discovery or
-connections. These six warm checks are recorded separately. It removes
+checks environment and client reuse, with no further SSM, cluster DNS or
+discovery. Serverless calls must reuse their direct sockets; native nearest reads
+may open a connection in another member's pool. These six warm checks are recorded separately. It removes
 its Docker deployment on completion, including failures.
 
 After local validation, deploy to AWS using a profile allowed to manage the

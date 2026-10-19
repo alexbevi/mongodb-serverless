@@ -33,10 +33,20 @@ export async function invokeCold(lambda, name, version, event) {
 export function assertWarmReuse(cold, warm) {
   assert.ok(cold.cold && !warm.cold && warm.verified);
   assert.equal(warm.environmentId, cold.environmentId, 'The warm call must reuse its execution environment');
-  assert.equal(warm.trace.command.socket.start, cold.trace.command.socket.start, 'The warm call must reuse its MongoDB socket');
+  assert.equal(cold.clientConstructions, 1);
+  assert.equal(warm.clientConstructions, 1, 'The warm call must retain the client');
+  assert.equal(warm.monitorSockets, 0);
+
+  if (warm.variant === 'native' && warm.operation === 'read') {
+    assert.ok(warm.sockets <= 1, 'A nearest read may open a pool connection to another member');
+    assert.equal(warm.sockets, warm.authenticatedSockets);
+  } else {
+    assert.equal(warm.sockets, 0);
+    assert.equal(warm.trace.command.socket.start, cold.trace.command.socket.start, 'The warm call must reuse its MongoDB socket');
+  }
   assert.ok(warm.trace.command.start >= warm.trace.start, 'The command must belong to this invocation');
 
-  for (const field of ['sockets', 'ssmReads', 'ssmWrites', 'discoveryCommands']) assert.equal(warm[field], 0, field);
+  for (const field of ['ssmReads', 'ssmWrites', 'discoveryCommands']) assert.equal(warm[field], 0, field);
   assert.deepEqual(warm.dns, []);
 }
 
@@ -49,7 +59,7 @@ export async function verifyWarmInvocations(lambda, prefix) {
     assertWarmReuse(cold, warm);
     checks.push({ variant, operation, verified: true, totalMs: warm.totalMs, servedRole: warm.servedRole,
       sockets: warm.sockets, ssmReads: warm.ssmReads, ssmWrites: warm.ssmWrites,
-      discoveryCommands: warm.discoveryCommands, dns: warm.dns, sameEnvironment: true, sameSocket: true });
+      discoveryCommands: warm.discoveryCommands, dns: warm.dns, sameEnvironment: true, sameClient: true, sameSocket: warm.trace.command.socket.start === cold.trace.command.socket.start });
   }
 
   return checks;

@@ -73,7 +73,11 @@ let invocations = 0;
 
 let discoveryCommands = 0;
 
+let clientConstructions = 0;
+
 const getClient = await initializeLazyClient(fetchConnectionString, uri => {
+  clientConstructions += 1;
+
   const options: MongoClientOptions = {
     monitorCommands: true, maxPoolSize: 1, minPoolSize: 0, authMechanism: 'SCRAM-SHA-1',
     serverSelectionTimeoutMS: 8000, connectTimeoutMS: 5000, socketTimeoutMS: 10000,
@@ -160,7 +164,7 @@ export async function handler(
     ...evidence, verified: true, totalMs: end - start,
     ssmMs: calls.reduce((sum, call) => sum + call.end - call.start, 0), ssmPhase: 'init',
     initialization: cold ? initialization : undefined,
-    environmentId, nodeVersion: process.version, driverVersion: telemetry.version,
+    environmentId, clientConstructions, nodeVersion: process.version, driverVersion: telemetry.version,
     trace: { start, end, execution: measurement.execution, activities: measurement.activities,
       exchanges: [...telemetry.exchanges], dns: [...telemetry.dns], sockets, command, ssm: [...ssmCalls] },
     connections: telemetry.connections().map(({ uri: _uri, ...connection }) => connection)

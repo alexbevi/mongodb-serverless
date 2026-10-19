@@ -50,19 +50,22 @@ def summarize(data):
         group = statistics([sample for sample in writes if sample['sockets'] == sockets])
         group['sharePercent'] = group['count'] / len(writes) * 100
         landings[name] = group
-    summary = dict(configuration=data['configuration'], operations=operations, writeLandings=landings)
+    summary = dict(measuredAt=data.get('createdAt'),
+                   runtimes=sorted({sample['nodeVersion'] for sample in samples if 'nodeVersion' in sample}),
+                   configuration={key: value for key, value in data['configuration'].items() if key != 'preparation'},
+                   operations=operations, writeLandings=landings)
     return summary
 
 
 def markdown(summary):
-    lines = ['| Operation / pattern | n | Median | p95 | SSM median |', '|---|---:|---:|---:|---:|']
+    lines = ['| Operation / pattern | n | Median | p95 | SSM median | Median excluding SSM |', '|---|---:|---:|---:|---:|---:|']
     for operation, groups in summary['operations'].items():
         for variant, group in groups.items():
-            lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms |")
+            lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms | {group['medianExcludingSsmMs']:.1f} ms |")
     for name, group in summary['writeLandings'].items():
         if group['count']:
             label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
-            lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms |")
+            lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms | {group['medianExcludingSsmMs']:.1f} ms |")
     if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):
         lines.extend(['', '| Pattern | Median INIT | Median INIT + handler |', '|---|---:|---:|'])
         for operation, groups in summary['operations'].items():
@@ -71,15 +74,18 @@ def markdown(summary):
                 lines.append(f"| {operation} / {LABELS[variant]} | {group['medianInitMs']:.1f} ms | {group['medianInitPlusHandlerMs']:.1f} ms |")
         lines.extend(['', 'INIT + handler excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
     lines.extend(['', 'Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
-    lines.extend(['', '![Measured connection breakdown](latency.png)', '', 'Each panel shows a measured trace nearest its cohort median. The timeline accounts for SSM, DNS, all MongoDB connections, authentication, discovery, role validation, the operation, measured code scopes, and callback/dispatch time. Parallel socket lanes overlap and must not be added. Detailed probes add overhead.'])
+    lines.extend(['', '![Measured connection breakdown](latency.png)', '', 'Each panel shows a measured trace nearest its cohort median. The timeline accounts for SSM, DNS, all MongoDB connections, authentication, discovery, role validation, the operation, measured code scopes, and callback/dispatch time. Parallel socket lanes overlap and must not be added. Detailed probes add overhead. Each SSM-excluded value is calculated per sample before taking the median; it is not a subtraction of cohort medians.'])
     title = summary['configuration'].get('environment', 'Cold Lambda')
     count = summary['configuration']['count']
-    return f'# {title} results\n\n{count} cold invocations per driver/operation case.\n' + '\n'.join(lines) + '\n'
+    return f"# {title} results\n\nMeasured {summary.get('measuredAt') or 'date not recorded'} · Node {', '.join(summary['runtimes']) or 'not recorded'}.\n\n{count} cold invocations per driver/operation case.\n\n" + '\n'.join(lines) + '\n'
 
 
 spec = importlib.util.spec_from_file_location('breakdown', Path(__file__).with_name('report.py'))
 breakdown = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(breakdown)
+codec_spec = importlib.util.spec_from_file_location('compact', Path(__file__).with_name('compact.py'))
+codec = importlib.util.module_from_spec(codec_spec)
+codec_spec.loader.exec_module(codec)
 
 
 def timeline(sample):
@@ -128,6 +134,7 @@ def illustrated_cases(data):
 
 
 def render(data, summary, output):
+    codec.expand_diagnostics(data)
     plt = breakdown.plt
     cases = illustrated_cases(data)
     # Validate every sample, not only the illustrated traces.

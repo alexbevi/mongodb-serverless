@@ -15,7 +15,7 @@ pnpm benchmark:build
 node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
 node benchmark/lambda-local.mjs --samples 40
 python3 -m pip install -r benchmark/requirements-report.txt
-python3 benchmark/compact.py --diagnostics benchmark/results/local/samples.json
+python3 benchmark/compact.py benchmark/results/local/samples.json
 python3 benchmark/lambda-report.py benchmark/results/local/samples.json
 ```
 
@@ -36,7 +36,7 @@ The script copies the URI directly to SecureString without logging it.
 ```sh
 AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 100 \
   --source-function mongodb-serverless-prod-worker-1 --region ap-southeast-2
-python3 benchmark/compact.py --diagnostics benchmark/results/aws/samples.json
+python3 benchmark/compact.py benchmark/results/aws/samples.json
 python3 benchmark/lambda-report.py benchmark/results/aws/samples.json
 ```
 

@@ -18,7 +18,7 @@ python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
 node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
 node benchmark/lambda-local.mjs --samples 40
-/tmp/mongodb-benchmark-report/bin/python benchmark/compact.py --diagnostics benchmark/results/local/samples.json
+/tmp/mongodb-benchmark-report/bin/python benchmark/compact.py benchmark/results/local/samples.json
 /tmp/mongodb-benchmark-report/bin/python benchmark/lambda-report.py benchmark/results/local/samples.json
 ```
 

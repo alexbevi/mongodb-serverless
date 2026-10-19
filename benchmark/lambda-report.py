@@ -225,7 +225,7 @@ def render(data, summary, output):
             init = case['sample']['lambda']['initMs']
             init_ssm = sum(call['end']-call['start'] for call in case['sample'].get('initialization', {}).get('ssm', []))
             axis.set_title(f"{operation.title()} · {case['label']}\nCold median {stats['medianInitPlusHandlerMs']:.1f} ms · p95 {stats['p95InitPlusHandlerMs']:.1f} ms · n={stats['count']}\nShown INIT {init:.1f} ms (SSM {init_ssm:.1f} ms included) + handler {measured['total']:.1f} ms\nHandler mean {stats['meanMs']:.1f} ms · {variation}", loc='left', fontsize=10, weight='bold', pad=14)
-            axis.set_xlabel('Milliseconds since handler entry · SSM completed during INIT', fontsize=9)
+            axis.set_xlabel('Milliseconds since handler measurement started · SSM completed during INIT', fontsize=9)
             axis.grid(axis='x', alpha=.15)
             axis.set_axisbelow(True)
             axis.spines[['top', 'right', 'left']].set_visible(False)
@@ -240,7 +240,7 @@ def render(data, summary, output):
     for (title, phases), x in zip(groups.items(), [.06, .27, .49, .79]):
         handles = [breakdown.Patch(facecolor=breakdown.COLORS.get(phase) or breakdown.phase_color(phase),
                    label=breakdown.phase_label(phase).removeprefix('Application ')) for phase in phases if phase in visible]
-        legend = figure.legend(handles=handles, title=title, loc='upper left', bbox_to_anchor=(x,.21), fontsize=8, title_fontsize=11, frameon=False)
+        legend = figure.legend(handles=handles, title=title, loc='upper left', bbox_to_anchor=(x,.21), fontsize=8, title_fontsize=11, frameon=False, ncol=2 if title == 'Code & scheduling' else 1, columnspacing=1)
         legend.get_title().set_fontweight('bold')
     configuration = data['configuration']
     figure.suptitle(f"Cold Lambda connection breakdown · {configuration['environment']}", x=.08, ha='left', y=.985, fontsize=23, weight='bold')
@@ -248,7 +248,7 @@ def render(data, summary, output):
     package = configuration.get('packageZipBytes', 0)
     init_source = 'Local INIT uses the Node process clock; AWS INIT uses Lambda REPORT.'
     figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. Hatching marks callbacks with ≥2 ms off CPU. Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
-    figure.subplots_adjust(left=.08, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
+    figure.subplots_adjust(left=.12, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
     figure.savefig(output, dpi=150, facecolor='white')
     plt.close(figure)
 

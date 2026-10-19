@@ -16,7 +16,7 @@ for (const path of ['driver', 'plugins/ssm']) {
   cpSync(join(root, path, 'package.json'), join(output, path, 'package.json'));
 }
 
-const modules = ['lambda-worker', 'patterns', 'instrument', 'activities', 'execution', 'cpu', 'types'];
+const modules = ['lambda-worker', 'patterns', 'instrument', 'activities', 'execution', 'cpu', 'types', 'aws-diagnostics', 'source-probes'];
 
 mkdirSync(join(output, 'benchmark/dist'), { recursive: true });
 
@@ -28,6 +28,8 @@ writeFileSync(join(output, 'package.json'), JSON.stringify({
 }, null, 2));
 
 execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: output, stdio: 'inherit' });
+
+execFileSync(process.execPath, ['benchmark/dist/source-probes.js'], { cwd: output });
 
 rmSync(resolve(output, '../lambda-worker.zip'), { force: true });
 

@@ -74,6 +74,7 @@ export function instrument(mongoOnly = false) {
   };
   const traces: SocketTrace[] = [];
   const commands: RecordedCommand[] = [];
+  const exchanges: RecordedCommand[] = [];
   const originalTls = tls.connect;
   tls.connect = function (...args) {
     if (mongoOnly && Number(args[0].port) !== 27017) return originalTls.apply(this, args);
@@ -133,6 +134,7 @@ export function instrument(mongoOnly = false) {
     try {
       const result = await originalCommand.call(this, ns, document, ...args);
       command.end = performance.now();
+      exchanges.push({ ...command, connectionId: this.id, socket: trace });
 
       if (name === 'hello' || name === 'ismaster') {
         trace.hello ??= [start, command.end];
@@ -147,5 +149,5 @@ export function instrument(mongoOnly = false) {
       return result;
     } finally { if (active.get(this) === command) active.delete(this); }
   };
-  return { traces, commands, version, connections, dns: dnsQueries };
+  return { traces, commands, exchanges, version, connections, dns: dnsQueries };
 }

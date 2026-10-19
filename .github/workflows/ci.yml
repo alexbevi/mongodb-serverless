@@ -161,6 +161,7 @@ jobs:
         run: |
           pnpm benchmark:build
           pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/patterns.test.ts benchmark/test/workflow.test.ts
+          python3 -m pip install -r benchmark/requirements-report.txt
           python3 -m unittest discover -s benchmark/test -p lambda_report_test.py
           node benchmark/build-lambda.mjs "$RUNNER_TEMP/lambda/worker"
       - name: Measure verified cold Lambda patterns

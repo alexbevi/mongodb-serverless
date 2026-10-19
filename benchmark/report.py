@@ -18,6 +18,9 @@ from matplotlib.path import Path as PlotPath
 
 COLORS = {
     "clusterDns": "#4338ca",
+    "ssm": "#475569",
+    "discovery": "#b45309",
+    "roleCheck": "#be185d",
     "lookup": "#854d0e",
     "tcp": "#2563eb",
     "tls": "#38bdf8",
@@ -142,6 +145,9 @@ def event_gap_segments(sample):
 
 PHASE_LABELS = {
     "clusterDns": "Cluster DNS (SRV + TXT union)",
+    "ssm": "SSM decrypted parameter request",
+    "discovery": "Topology discovery command",
+    "roleCheck": "Role validation hello",
     "lookup": "Application host DNS",
     "tcp": "Application TCP connect",
     "tls": "Application TLS handshake",
@@ -165,8 +171,12 @@ def accounting_segments(timeline):
     application = next(c for c in reversed(timeline["connections"])
                        if c["kind"] == "application" and c["selected"])
     first_socket = min(c["start"] for c in timeline["connections"])
-    intervals = [(phase, *interval) for phase, interval in timeline["command"].items()]
+    intervals = [(request["phase"], request["start"], request["end"]) for request in timeline.get("requests", [])]
+    intervals += [(phase, *interval) for phase, interval in timeline["command"].items()]
     intervals += [(phase, *interval) for phase, interval in application["phases"].items()]
+    intervals += [(phase, *interval) for c in timeline["connections"]
+                  if c["kind"] == "application" and c is not application
+                  for phase, interval in c["phases"].items()]
     intervals += [("clusterDns", q["start"], q["end"]) for q in timeline.get("dns", [])]
     intervals += [("monitor", *interval) for c in timeline["connections"]
                   if c["kind"] == "monitor" for interval in c["phases"].values()]
@@ -800,6 +810,8 @@ def render(data, environment, output):
     phase_names = {"clusterDns": "Cluster DNS", "lookup": "Host DNS", "tcp": "TCP", "tls": "TLS",
                    "hello": "Hello", "auth": "Auth", "send": "Command → write", "receive": "Write → reply"}
     for phase, color in COLORS.items():
+        if phase not in phase_names:
+            continue
         group = "Setup" if phase == "clusterDns" else "Operation" if phase in ("send", "receive") else "Connection"
         groups[group].append(Patch(facecolor=color, label=phase_names[phase], gid=phase))
     if diagnostic:

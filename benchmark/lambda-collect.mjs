@@ -33,9 +33,10 @@ export async function collect(lambda, prefix, count, file, metadata) {
 
   const samples = [];
   const seen = new Set();
-  const data = { createdAt: new Date(start).toISOString(), configuration: { count, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'handler through result, including SSM; excludes INIT and close', ...metadata }, samples, failures: [] };
+  const data = { createdAt: new Date(start).toISOString(), configuration: { count, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'handler through result, including SSM; excludes INIT and close', ...metadata }, samples, executionSources: [], failures: [] };
   mkdirSync(dirname(file), { recursive: true });
   const members = new Map();
+  const sourceIds = new Map();
 
   const member = address => {
     const host = address.replace(/:\d+$/, '');
@@ -79,6 +80,17 @@ export async function collect(lambda, prefix, count, file, metadata) {
             const sample = await invokeCold(lambda, name, versions.get(name), { variant, operation });
             assert.ok(!seen.has(sample.environmentId), 'Lambda execution environment was reused');
             seen.add(sample.environmentId);
+
+            for (const segment of sample.trace.execution.segments) {
+              if (!sourceIds.has(segment.source)) {
+                sourceIds.set(segment.source, data.executionSources.length);
+                data.executionSources.push(segment.source);
+              }
+
+              segment.sourceId = sourceIds.get(segment.source);
+              delete segment.source;
+            }
+
             samples.push({ iteration, batch: Math.min(3, Math.floor(iteration / (count / 4))), ...sample });
             save();
           }

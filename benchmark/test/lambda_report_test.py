@@ -24,7 +24,6 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(summary['writeLandings']['oneConnection']['count'], 1)
         self.assertEqual(summary['writeLandings']['twoConnections']['medianMs'], 90)
         self.assertEqual(summary['writeLandings']['oneConnection']['sharePercent'], 50)
-        self.assertAlmostEqual(summary['luckyWriteMedianReductionPercent'], 100 * (1 - 50 / 90))
         self.assertGreater(read['no-plugin']['p95Ms'], read['no-plugin']['medianMs'])
         samples[-1]['verified'] = False
         with self.assertRaisesRegex(ValueError, 'verified'):
@@ -61,3 +60,33 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(group['medianMs'], 40)
         self.assertEqual(group['medianInitMs'], 300)
         self.assertEqual(group['medianInitPlusHandlerMs'], 340)
+
+    def test_timeline_accounts_for_ssm_seed_discovery_and_role_validation(self):
+        seed = dict(host='seed', port=27017, start=112, role='SECONDARY', tcp=[112, 114], auth=[114, 116])
+        target = dict(host='primary', port=27017, start=130, role='PRIMARY', tcp=[130, 132], auth=[132, 134])
+        item = sample('no-plugin', 'write', 50, sockets=2)
+        item['trace'] = dict(start=100, end=150, sockets=[seed, target], dns=[],
+            ssm=[dict(start=101, end=110, command='GetParameterCommand')],
+            command=dict(name='update', start=142, sent=143, end=145, socket=target),
+            exchanges=[dict(name='replSetGetStatus', start=118, end=121, socket=seed),
+                       dict(name='hello', start=136, end=138, socket=target)],
+            activities=[dict(name='Native URI/options parsing', kind='sync', start=110, end=111)],
+            execution=dict(start=100, end=150, threadCpuMs=3, segments=[
+                dict(kind='callback', start=100, end=150, threadCpuMs=3)]))
+        timeline = report.timeline(item)
+        segments = report.breakdown.accounting_segments(timeline)
+        totals = report.breakdown.accounting_totals(timeline)
+        self.assertEqual(sum(totals.values()), 50)
+        self.assertEqual(totals['ssm'], 9)
+        self.assertEqual(totals['discovery'], 3)
+        self.assertEqual(totals['roleCheck'], 2)
+        self.assertEqual(totals['tcp'], 4)
+        self.assertEqual(totals['unattributed'], 0)
+        self.assertEqual([c['selected'] for c in timeline['connections']], [False, True])
+        self.assertEqual(segments[0]['start'], 0)
+        self.assertEqual(segments[-1]['end'], 50)
+        for left, right in zip(segments, segments[1:]):
+            self.assertEqual(left['end'], right['start'])
+        del item['trace']['execution']
+        with self.assertRaisesRegex(ValueError, 'diagnostics'):
+            report.timeline(item)

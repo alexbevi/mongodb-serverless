@@ -69,7 +69,7 @@ try {
 
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: false });
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: true });
 } finally {
   lambda.destroy();
   ssm.destroy();

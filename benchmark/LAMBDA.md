@@ -53,8 +53,9 @@ collection, and majority write concern. Retryable reads and writes are disabled.
 Timing starts in the handler before the SSM read and stops at the operation
 result. Lambda INIT and REPORT durations are saved separately. Client close,
 function publication, deployment, and SDK module initialization are outside the
-primary latency metric. Socket/DNS/command probes are enabled equally; callback
-profiling and source probes are disabled. These are measured instrumented runs,
+primary latency metric. Socket/DNS/command probes, callback profiling, and source probes are enabled
+equally. The chart shows each connection and accounts for the full measured
+interval, including SSM, discovery, role checks, and callback dispatch. These are measured instrumented runs,
 not an overhead-free estimate.
 
 - Native and no-plugin invocations each fetch the URI through `GetParameter` with

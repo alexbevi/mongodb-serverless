@@ -47,26 +47,27 @@ groups, both parameters, and the `mongodb-serverless-pattern-permissions` stack.
 ## Measurements
 
 Each round publishes a fresh version of every function. Each version receives
-one invocation. The worker rejects reuse and the collector checks unique execution
+one measured cold invocation. The collector rejects warm samples and checks unique execution
 environment identifiers. Variant order rotates and reverses across rounds; read/write order alternates.
 All variants share the same package, MongoDB driver, TLS verification, SCRAM-SHA-1,
 collection, and majority write concern. Retryable reads and writes are disabled.
 
-Timing starts in the handler before the SSM read and stops at the operation
-result. Lambda INIT and REPORT durations are saved separately. Client close,
-function publication, deployment, and SDK module initialization are outside the
-primary latency metric. Socket/DNS/command probes, callback profiling, and source
+SSM retrieval completes during INIT, before handler entry. The handler creates
+the MongoDB client lazily and retains it for warm calls. Handler timing stops at
+the operation result. Lambda INIT and REPORT durations are saved separately;
+INIT includes the SSM request. Publication, deployment and caller transport are
+outside these measurements. Socket/DNS/command probes, callback profiling, and source
 probes are enabled equally. The chart shows each connection and accounts for the full measured
 interval, including SSM, discovery, role checks, and callback dispatch.
 Instrumentation contributes to the recorded duration.
 
-- Native and no-plugin invocations each fetch the URI through `GetParameter` with
-  decryption, then perform SRV and TXT resolution. No topology crosses invocations.
+- Native and no-plugin execution environments each fetch the URI through `GetParameter` with
+  decryption, then perform SRV and TXT resolution. Warm invocations reuse the existing client.
 - No-plugin reads explicitly permit either healthy member role with `nearest`.
   They reuse the discovery connection. Writes reuse a primary landing or open one
   additional connection after a secondary landing. Both landing groups are reported
   with their observed sample counts; random selection is not forced.
-- The SSM variant fetches URI and topology together with `GetParameters`.
+- During INIT, the SSM variant fetches URI and topology together with `GetParameters`.
   Cache hits open one authenticated direct connection, without SRV/TXT or discovery.
 - Every sample checks the serving role, authenticated/monitor socket counts, DNS,
   discovery commands, SSM request count, and SDK attempts. A failure stops the run;

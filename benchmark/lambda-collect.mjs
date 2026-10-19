@@ -6,7 +6,9 @@ import { randomUUID } from 'node:crypto';
 
 const variants = ['native', 'no-plugin', 'ssm'];
 
-export const workerNames = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => `${prefix}-${variant}-${operation}`));
+export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => ({ name: `${prefix}-${variant}-${operation}`, variant, operation })));
+
+export const workerNames = prefix => workerPatterns(prefix).map(pattern => pattern.name);
 
 export async function invokeCold(lambda, name, version, event) {
   const response = await lambda.send(new InvokeCommand({ FunctionName: name, Qualifier: version, LogType: 'Tail', Payload: Buffer.from(JSON.stringify(event)) }));
@@ -33,7 +35,7 @@ export async function collect(lambda, prefix, count, file, metadata) {
 
   const samples = [];
   const seen = new Set();
-  const data = { createdAt: new Date(start).toISOString(), configuration: { count, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'handler through result, including SSM; excludes INIT and close', ...metadata }, samples, executionSources: [], failures: [] };
+  const data = { createdAt: new Date(start).toISOString(), configuration: { count, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during INIT; handler through result; client retained for warm invocations', ...metadata }, samples, executionSources: [], failures: [] };
   mkdirSync(dirname(file), { recursive: true });
   const members = new Map();
   const sourceIds = new Map();

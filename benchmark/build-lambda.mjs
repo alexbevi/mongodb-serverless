@@ -16,7 +16,7 @@ for (const path of ['driver', 'plugins/aws-ssm']) {
   cpSync(join(root, path, 'package.json'), join(output, path, 'package.json'));
 }
 
-const modules = ['lambda-worker', 'patterns', 'instrument', 'activities', 'execution', 'cpu', 'types', 'aws-diagnostics', 'source-probes'];
+const modules = ['lambda-worker', 'lambda-lifecycle', 'patterns', 'instrument', 'activities', 'execution', 'cpu', 'types', 'aws-diagnostics', 'source-probes'];
 
 mkdirSync(join(output, 'benchmark/dist'), { recursive: true });
 

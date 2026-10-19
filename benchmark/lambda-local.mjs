@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { LambdaClient, CreateFunctionCommand, waitUntilFunctionActiveV2, PublishVersionCommand } from '@aws-sdk/client-lambda';
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
-import { collect, invokeCold, workerNames } from './lambda-collect.mjs';
+import { collect, invokeCold, workerPatterns } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: { samples: { type: 'string', default: '40' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, package: { type: 'string', default: '/tmp/mongodb-pattern-runtime/worker' } } });
 
@@ -62,8 +62,8 @@ try {
   const zip = readFileSync(resolve(directory, '../lambda-worker.zip'));
   const variables = { URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: 'bench', MONGODB_CA: '/var/task/ca.crt', BENCHMARK_DNS: '172.30.91.14', SSM_ENDPOINT: 'http://localstack:4566' };
 
-  for (const name of workerNames(prefix)) {
-    await lambda.send(new CreateFunctionCommand({ FunctionName: name, Role: 'arn:aws:iam::000000000000:role/benchmark', Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', Architectures: [process.arch === 'arm64' ? 'arm64' : 'x86_64'], MemorySize: 1769, Timeout: 30, Code: { ZipFile: zip }, Environment: { Variables: variables } }));
+  for (const { name, variant } of workerPatterns(prefix)) {
+    await lambda.send(new CreateFunctionCommand({ FunctionName: name, Role: 'arn:aws:iam::000000000000:role/benchmark', Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', Architectures: [process.arch === 'arm64' ? 'arm64' : 'x86_64'], MemorySize: 1769, Timeout: 30, Code: { ZipFile: zip }, Environment: { Variables: { ...variables, BENCHMARK_VARIANT: variant } } }));
     await waitUntilFunctionActiveV2({ client: lambda, maxWaitTime: 120, minDelay: 1, maxDelay: 2 }, { FunctionName: name });
   }
 

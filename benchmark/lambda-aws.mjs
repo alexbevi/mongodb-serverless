@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { CloudFormationClient, CreateStackCommand, UpdateStackCommand, DescribeStacksCommand, waitUntilStackCreateComplete, waitUntilStackUpdateComplete } from '@aws-sdk/client-cloudformation';
 import { LambdaClient, GetFunctionConfigurationCommand, CreateFunctionCommand, UpdateFunctionCodeCommand, UpdateFunctionConfigurationCommand, PublishVersionCommand, DeleteFunctionCommand, waitUntilFunctionActiveV2, waitUntilFunctionUpdatedV2 } from '@aws-sdk/client-lambda';
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
-import { collect, invokeCold, workerNames } from './lambda-collect.mjs';
+import { collect, invokeCold, workerPatterns } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: {
   samples: { type: 'string', default: '100' }, output: { type: 'string', default: 'benchmark/results/aws/samples.json' },
@@ -87,13 +87,13 @@ try {
   const zip = readFileSync(resolve(directory, '../lambda-worker.zip'));
   const variables = { URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: source.Environment.Variables.DATABASE ?? 'bench' };
 
-  for (const name of workerNames(prefix)) {
+  for (const { name, variant } of workerPatterns(prefix)) {
     let exists = false;
 
     try { await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: name })); exists = true; }
     catch (error) { if (error.name !== 'ResourceNotFoundException') throw error; }
 
-    const configuration = { FunctionName: name, Role: role, Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', MemorySize: 1769, Timeout: 30, Environment: { Variables: variables }, Description: 'Cold MongoDB routing benchmark; credentials fetched from SSM' };
+    const configuration = { FunctionName: name, Role: role, Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', MemorySize: 1769, Timeout: 30, Environment: { Variables: { ...variables, BENCHMARK_VARIANT: variant } }, Description: 'Cold MongoDB routing benchmark; credentials fetched from SSM' };
 
     if (exists) {
       await lambda.send(new UpdateFunctionCodeCommand({ FunctionName: name, ZipFile: zip, Architectures: ['arm64'] }));

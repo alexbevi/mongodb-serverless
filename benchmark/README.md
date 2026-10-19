@@ -34,7 +34,9 @@ cohort median, p95, mean, standard deviation (SD), coefficient of variation
 actual duration. No-plugin writes have separate panels for a primary landing
 (one connection) and a secondary landing (two connections).
 
-The timer starts before SSM retrieval and ends at the operation result. Every
+SSM retrieval is awaited during module initialization. The handler lazily creates
+a client and retains it for warm invocations; it does not close the client after
+each operation. The handler timer ends at the operation result. Every
 measured interval is accounted for. Colours identify SSM, cluster and host DNS,
 TCP, TLS, hello, authentication, topology discovery, role validation, command
 preparation, socket write, reply, and measured code scopes. Callback and dispatch

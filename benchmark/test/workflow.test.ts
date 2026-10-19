@@ -44,7 +44,8 @@ it('runs the cold Lambda patterns on LocalStack 4.14 and publishes their measure
   const job = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('lambda-patterns:'));
 
   expect(job, 'dedicated Lambda benchmark job').toBeDefined();
-  expect(job).toContain('fetch-depth: 0');
+  expect(job).not.toContain('fetch-depth: 0');
+  expect(job).not.toContain('origin/main');
   expect(job).toContain('node benchmark/build-lambda.mjs');
   expect(job).toContain('node benchmark/lambda-local.mjs --samples 20');
   expect(job).toContain('python3 benchmark/lambda-report.py');

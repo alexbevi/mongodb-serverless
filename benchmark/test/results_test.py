@@ -35,3 +35,30 @@ class ResultsTest(unittest.TestCase):
                 for forbidden in ['historicalBaseline', 'improvementVs', '"baseline":', '"main"', 'previous main']:
                     self.assertNotIn(forbidden, text)
             self.assertTrue((directory / 'latency.png').read_bytes().startswith(b'\x89PNG'))
+
+    def test_latest_runs_fetch_settings_before_handler_entry_and_reuse_warm_clients(self):
+        for environment in ['local', 'aws']:
+            data = json.loads((Path(__file__).parents[1] / 'results' / environment / 'samples.json').read_text())
+            self.assertGreater(data['configuration']['packageZipBytes'], 0)
+            checks = data['configuration']['warmVerification']
+            self.assertEqual(len(checks), 6)
+            for check in checks:
+                self.assertTrue(check['verified'] and check['sameEnvironment'] and check['sameClient'])
+                self.assertEqual(check['ssmReads'] + check['ssmWrites'] + check['discoveryCommands'], 0)
+                self.assertEqual(check['dns'], [])
+                if check['variant'] != 'native':
+                    self.assertTrue(check['sameSocket'])
+                    self.assertEqual(check['sockets'], 0)
+            for sample in data['samples']:
+                self.assertEqual(sample['ssmPhase'], 'init')
+                self.assertEqual(sample['clientConstructions'], 1)
+                self.assertEqual(sample['trace']['ssm'], [])
+                self.assertTrue(all(socket['start'] >= sample['trace']['start'] for socket in sample['trace']['sockets']))
+                calls = sample['initialization']['ssm']
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0]['command'], 'GetParametersCommand' if sample['variant'] == 'ssm' else 'GetParameterCommand')
+                self.assertLessEqual(calls[0]['end'], sample['initialization']['processReadyMs'])
+                self.assertLessEqual(sample['initialization']['processReadyMs'], sample['trace']['start'])
+                self.assertAlmostEqual(calls[0]['end'] - calls[0]['start'], sample['ssmMs'])
+                self.assertGreater(sample['lambda']['initMs'], sample['ssmMs'])
+                self.assertEqual(sample['lambda']['initSource'], 'lambda-report' if environment == 'aws' else 'node-process-clock')

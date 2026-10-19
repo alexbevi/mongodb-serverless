@@ -1,31 +1,39 @@
 # AWS Lambda results
 
-Measured 2026-10-19T02:27:46.858Z · Node v24.21.0.
+Measured 2026-10-19T14:00:40.948Z · Node v24.21.0.
 
 100 cold invocations per driver/operation case.
 
-| Operation / pattern | n | Median | p95 | SSM median | Median excluding SSM |
-|---|---:|---:|---:|---:|---:|
-| read / Native MongoDB | 100 | 352.5 ms | 385.9 ms | 120.9 ms | 222.8 ms |
-| read / No plugin | 100 | 329.3 ms | 379.6 ms | 118.4 ms | 211.4 ms |
-| read / SSM topology plugin | 100 | 300.5 ms | 342.7 ms | 126.1 ms | 171.9 ms |
-| write / Native MongoDB | 100 | 350.4 ms | 408.8 ms | 120.8 ms | 228.2 ms |
-| write / No plugin | 100 | 394.4 ms | 461.3 ms | 120.2 ms | 280.5 ms |
-| write / SSM topology plugin | 100 | 304.3 ms | 342.7 ms | 123.3 ms | 177.4 ms |
-| No plugin / lucky write, 1 connection | 32 | 340.7 ms | 387.4 ms | 119.7 ms | 216.5 ms |
-| No plugin / write, 2 connections | 68 | 414.0 ms | 465.4 ms | 121.1 ms | 290.9 ms |
+| Operation / pattern | n | Handler median | Handler p95 | INIT median | SSM median | INIT + handler median |
+|---|---:|---:|---:|---:|---:|---:|
+| read / Native MongoDB | 100 | 227.1 ms | 246.0 ms | 693.3 ms | 85.3 ms | 921.9 ms |
+| read / No plugin | 100 | 204.5 ms | 236.3 ms | 586.7 ms | 81.5 ms | 789.9 ms |
+| read / aws-ssm · cached topology | 100 | 170.5 ms | 200.5 ms | 598.2 ms | 85.8 ms | 761.6 ms |
+| write / Native MongoDB | 100 | 221.4 ms | 262.0 ms | 593.8 ms | 82.2 ms | 815.5 ms |
+| write / No plugin | 100 | 269.6 ms | 330.7 ms | 608.6 ms | 82.0 ms | 891.9 ms |
+| write / aws-ssm · cached topology | 100 | 168.9 ms | 201.9 ms | 588.7 ms | 85.4 ms | 759.3 ms |
+| No plugin / lucky write, 1 connection | 35 | 209.1 ms | 270.8 ms | 608.8 ms | 79.8 ms | 801.4 ms |
+| No plugin / write, 2 connections | 65 | 290.9 ms | 331.6 ms | 608.3 ms | 82.1 ms | 895.2 ms |
 
-| Pattern | Median INIT | Median INIT + measured interval |
-|---|---:|---:|
-| read / No plugin | 509.5 ms | 840.3 ms |
-| read / SSM topology plugin | 517.1 ms | 812.9 ms |
-| write / No plugin | 511.9 ms | 916.4 ms |
-| write / SSM topology plugin | 519.4 ms | 811.4 ms |
+SSM is fetched during INIT. Handler latency starts after that fetch and ends at the operation result. INIT + handler is calculated per invocation before taking the median. The client is created lazily and retained for warm calls.
 
-INIT + measured interval excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.
+INIT includes runtime and module initialization. Provisioning, caller transport, and post-result reporting are outside the measured interval. Detailed probes add overhead. Write landing groups occur naturally and have unequal sample counts.
 
-Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.
+Deployment package: 4,995,900 bytes ZIP; identical for all patterns, including both drivers and diagnostic probes.
+
+6 separate warm checks verified environment and client reuse, without further SSM requests, cluster DNS or discovery. Serverless calls reused their direct sockets. A native nearest read may open a pool connection to another member.
+
+| Warm check | Handler time | Serving role |
+|---|---:|---|
+| read / Native MongoDB | 61.3 ms | SECONDARY |
+| write / Native MongoDB | 54.5 ms | PRIMARY |
+| read / No plugin | 9.3 ms | PRIMARY |
+| write / No plugin | 13.1 ms | PRIMARY |
+| read / aws-ssm · cached topology | 11.4 ms | SECONDARY |
+| write / aws-ssm · cached topology | 14.4 ms | PRIMARY |
+
+One warm invocation per case validates reuse; these timings are not a warm latency distribution.
 
 ![Measured connection breakdown](latency.png)
 
-Each panel shows a measured trace nearest its cohort median. The timeline accounts for SSM, DNS, all MongoDB connections, authentication, discovery, role validation, the operation, measured code scopes, and callback/dispatch time. Parallel socket lanes overlap and must not be added. Detailed probes add overhead. Each SSM-excluded value is calculated per sample before taking the median; it is not a subtraction of cohort medians.
+Each panel shows a real invocation nearest its cohort median of INIT + handler time. INIT and its SSM request are shown above the handler detail. Each socket has its own row; DNS and other work have separate rows. Parallel rows must not be added. The summary accounts for every measured millisecond once.

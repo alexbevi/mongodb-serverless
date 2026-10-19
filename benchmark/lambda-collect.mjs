@@ -18,7 +18,7 @@ export async function invokeCold(lambda, name, version, event) {
   assert.ok(result.verified && result.cold);
   const log = Buffer.from(response.LogResult ?? '', 'base64').toString('utf8');
   const init = /Init Duration: ([\d.]+) ms/.exec(log);
-  const duration = /REPORT[^\n]*\bDuration: ([\d.]+) ms/.exec(log);
+  const duration = /REPORT[^\n]*?\bDuration: ([\d.]+) ms/.exec(log);
 
   return { ...result, lambda: { version, initMs: init ? Number(init[1]) : null, durationMs: duration ? Number(duration[1]) : null } };
 }

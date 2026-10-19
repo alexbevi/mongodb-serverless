@@ -25,7 +25,7 @@ See the [Lambda benchmark](benchmark/LAMBDA.md), [recorded AWS results](benchmar
 | `driver/` | `@mongodb-serverless/driver` | Replaces `MongoClient` and routes operations to a read or write client |
 | `plugins/shared/` | not published | The plugin contract, compiled into each plugin |
 | `plugins/local/` | `@mongodb-serverless/plugin-local` | Reads topology from an environment variable |
-| `plugins/ssm/` | `@mongodb-serverless/plugin-ssm` | Fetches a SecureString URI and cached topology in one SSM request |
+| `plugins/aws-ssm/` | `@mongodb-serverless/plugin-aws-ssm` | Fetches a SecureString URI and cached topology in one SSM request |
 
 ## Quickstart
 
@@ -50,7 +50,7 @@ for the supported authentication modes and connection-count limits.
 
 The optional local plugin stores discovered topology in the current process
 environment.
-For shared topology across Lambda instances, use the [SSM plugin](plugins/ssm),
+For shared topology across Lambda instances, use the [SSM plugin](plugins/aws-ssm),
 which fetches the connection string and topology together. See [the architecture and plugin sequences](docs/architecture.md).
 
 ## Scope

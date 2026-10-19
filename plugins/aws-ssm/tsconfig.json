@@ -7,7 +7,7 @@
     "rootDir": "..",
     "outDir": "dist",
     // Outside dist, so build metadata stays out of the published tarball.
-    "tsBuildInfoFile": "../tsconfig.ssm.tsbuildinfo"
+    "tsBuildInfoFile": "../tsconfig.aws-ssm.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "../shared/src/**/*.ts"]
 }

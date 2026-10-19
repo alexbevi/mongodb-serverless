@@ -48,7 +48,7 @@ other plugins.
 | Plugin | Package | Directory | Stores topology in | Use for |
 |---|---|---|---|---|
 | Local Environment | `@mongodb-serverless/plugin-local` | [`local/`](local) | A process environment variable | Local development |
-| AWS SSM | `@mongodb-serverless/plugin-ssm` | [`ssm/`](ssm) | An SSM parameter, fetched with the SecureString URI in one request | Shared topology across Lambda instances |
+| AWS SSM | `@mongodb-serverless/plugin-aws-ssm` | [`aws-ssm/`](aws-ssm) | An SSM parameter, fetched with the SecureString URI in one request | Shared topology across Lambda instances |
 
 A deployment needs a plugin backed by a shared store, since a process
 environment cannot be updated from outside the process when a failover happens.

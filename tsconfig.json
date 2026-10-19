@@ -2,7 +2,7 @@
   "files": [],
   "references": [
     { "path": "./plugins/local" },
-    { "path": "./plugins/ssm" },
+    { "path": "./plugins/aws-ssm" },
     { "path": "./driver" },
     { "path": "./benchmark" }
   ]

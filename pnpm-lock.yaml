@@ -54,13 +54,13 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  plugins/local: {}
-
-  plugins/ssm:
+  plugins/aws-ssm:
     dependencies:
       '@aws-sdk/client-ssm':
         specifier: 3.1146.0
         version: 3.1146.0
+
+  plugins/local: {}
 
 packages:
 

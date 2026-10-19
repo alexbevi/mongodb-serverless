@@ -45,14 +45,14 @@ jobs:
           # any test noticing, so pack and install for real.
           mkdir -p /tmp/packcheck && cd /tmp/packcheck
           npm init -y > /dev/null
-          npm pack "$GITHUB_WORKSPACE/driver" "$GITHUB_WORKSPACE/plugins/local" "$GITHUB_WORKSPACE/plugins/ssm" > /dev/null
+          npm pack "$GITHUB_WORKSPACE/driver" "$GITHUB_WORKSPACE/plugins/local" "$GITHUB_WORKSPACE/plugins/aws-ssm" > /dev/null
           npm install ./*.tgz mongodb@7 > /dev/null
           node -e "
             const assert = require('node:assert');
             Promise.all([
               import('@mongodb-serverless/driver'),
               import('@mongodb-serverless/plugin-local'),
-              import('@mongodb-serverless/plugin-ssm')
+              import('@mongodb-serverless/plugin-aws-ssm')
             ]).then(([driver, local, ssm]) => {
               assert.equal(driver.MongoClient.name, 'ServerlessMongoClient');
               assert.equal(typeof local.LocalPlugin, 'function');

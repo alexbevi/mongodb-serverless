@@ -1,4 +1,4 @@
-# @mongodb-serverless/plugin-ssm
+# @mongodb-serverless/plugin-aws-ssm
 
 Reads a MongoDB connection string and cached topology from AWS Systems Manager
 Parameter Store with one decrypted [`GetParameters`](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameters.html) request per plugin instance.
@@ -8,13 +8,13 @@ missing topology returns `null`.
 ## Install
 
 ```sh
-npm install @mongodb-serverless/plugin-ssm
+npm install @mongodb-serverless/plugin-aws-ssm
 ```
 
 ## Usage
 
 ```ts
-import { SsmPlugin } from '@mongodb-serverless/plugin-ssm';
+import { SsmPlugin } from '@mongodb-serverless/plugin-aws-ssm';
 
 const plugin = new SsmPlugin({
   connectionStringParameter: '/my-app/mongodb/uri',

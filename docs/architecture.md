@@ -3,7 +3,7 @@
 The driver owns discovery and refresh after role mismatches or write failures. Topology stays in memory
 for each client; a plugin optionally supplies a connection string and persists
 topology across clients. The local implementation uses `process.env`. The
-[SSM plugin](../plugins/ssm) shares topology across Lambda instances and reads it
+[SSM plugin](../plugins/aws-ssm) shares topology across Lambda instances and reads it
 with the SecureString connection string in one request.
 
 ## Architecture

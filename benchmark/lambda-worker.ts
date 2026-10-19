@@ -18,7 +18,7 @@ const { MongoClient } = await import('mongodb');
 const { MongoClient: ServerlessClient } = await import(new URL('../../driver/dist/driver/src/index.js', import.meta.url).href) as typeof import('../driver/dist/driver/src/index.js');
 
 // SAFETY: This is the SSM package built by the same TypeScript project.
-const { SsmPlugin } = await import(new URL('../../plugins/ssm/dist/ssm/src/index.js', import.meta.url).href) as typeof import('../plugins/ssm/dist/ssm/src/index.js');
+const { SsmPlugin } = await import(new URL('../../plugins/aws-ssm/dist/aws-ssm/src/index.js', import.meta.url).href) as typeof import('../plugins/aws-ssm/dist/aws-ssm/src/index.js');
 
 const ssmOptions: SSMClientConfig = { maxAttempts: 1 };
 

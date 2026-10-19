@@ -1,14 +1,14 @@
 {
-  "name": "@mongodb-serverless/plugin-ssm",
+  "name": "@mongodb-serverless/plugin-aws-ssm",
   "version": "0.1.0",
   "description": "AWS SSM Parameter Store topology and connection settings",
   "type": "module",
-  "main": "./dist/ssm/src/index.js",
-  "types": "./dist/ssm/src/index.d.ts",
+  "main": "./dist/aws-ssm/src/index.js",
+  "types": "./dist/aws-ssm/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/ssm/src/index.d.ts",
-      "default": "./dist/ssm/src/index.js"
+      "types": "./dist/aws-ssm/src/index.d.ts",
+      "default": "./dist/aws-ssm/src/index.js"
     }
   },
   "files": [
@@ -26,7 +26,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alexbevi/mongodb-serverless.git",
-    "directory": "plugins/ssm"
+    "directory": "plugins/aws-ssm"
   },
   "license": "MIT",
   "homepage": "https://github.com/alexbevi/mongodb-serverless#readme",

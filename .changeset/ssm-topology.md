@@ -1,5 +1,5 @@
 ---
-"@mongodb-serverless/plugin-ssm": minor
+"@mongodb-serverless/plugin-aws-ssm": minor
 "@mongodb-serverless/driver": minor
 ---
 

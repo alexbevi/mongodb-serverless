@@ -11,7 +11,7 @@ rmSync(output, { recursive: true, force: true });
 
 mkdirSync(output, { recursive: true });
 
-for (const path of ['driver', 'plugins/ssm']) {
+for (const path of ['driver', 'plugins/aws-ssm']) {
   cpSync(join(root, path, 'dist'), join(output, path, 'dist'), { recursive: true });
   cpSync(join(root, path, 'package.json'), join(output, path, 'package.json'));
 }

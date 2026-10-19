@@ -84,8 +84,12 @@ try {
   await ssm.send(new PutParameterCommand({ Name: uriParameter, Type: 'SecureString', Tier: 'Standard', Value: uri, Overwrite: true }));
   const role = await deployPermissions();
   const directory = resolve(values.package);
+
+  const diagnostics = JSON.parse(readFileSync(resolve(directory, 'package.json'), 'utf8')).benchmarkDiagnostics;
+
+  if (![true, false].includes(diagnostics)) throw new Error('Rebuild the Lambda package to record its instrumentation mode');
   const zip = readFileSync(resolve(directory, '../lambda-worker.zip'));
-  const variables = { URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: source.Environment.Variables.DATABASE ?? 'bench' };
+  const variables = { BENCHMARK_DIAGNOSTICS: String(diagnostics), URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: source.Environment.Variables.DATABASE ?? 'bench' };
 
   for (const { name, variant } of workerPatterns(prefix)) {
     let exists = false;
@@ -119,7 +123,7 @@ try {
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   await lambda.send(new DeleteFunctionCommand({ FunctionName: `${prefix}-ssm-write`, Qualifier: preparationVersion.Version }));
   const warmVerification = await verifyWarmInvocations(lambda, prefix);
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics: true });
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics, overview: 'handler' });
 } finally {
   lambda.destroy();
   ssm.destroy();

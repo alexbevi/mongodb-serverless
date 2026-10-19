@@ -60,9 +60,13 @@ SSM retrieval completes during INIT, before handler entry. The handler creates
 the MongoDB client lazily and retains it for warm calls. Handler timing stops at
 the operation result. Lambda INIT and REPORT durations are saved separately;
 INIT includes the SSM request. Publication, deployment and caller transport are
-outside these measurements. Socket/DNS/command probes, callback profiling, and source
-probes are enabled equally. The chart shows each connection and accounts for the full measured
-interval, including SSM, discovery, role checks, and callback dispatch.
+outside these measurements. The default package records socket, DNS and command
+intervals without stack capture, callback CPU profiling or injected source probes.
+Build with `node benchmark/build-lambda.mjs --diagnostics /path/to/worker` to
+include those detailed probes. Both runners read the mode from the package and
+verify it in every sample. All variants use the same instrumentation mode.
+Without detailed probes, time outside protocol intervals is reported together
+as other handler work and scheduling; its internal causes are not measured.
 Instrumentation contributes to the recorded duration. AWS INIT comes from the
 Lambda REPORT line. LocalStack omits that field, so its startup measurement uses
 the Node performance clock through completed module initialization. The JSON

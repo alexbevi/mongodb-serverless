@@ -28,3 +28,23 @@ test.skipIf(!process.threadCpuUsage)('captures an AWS operation with continuous 
   expect(next.result).toBe('next operation');
   expect(next.execution.start).toBeGreaterThan(measured.end);
 });
+
+test('measures protocol-only operations without execution or activity probes', async () => {
+  const { measureProtocolOperation } = await import('../aws-diagnostics.js');
+  activities.start();
+  activities.stop(performance.now());
+
+  const measured = await measureProtocolOperation(async () => {
+    activities.sync('Native URI/options parsing', () => JSON.parse('{"value":42}'));
+    await new Promise(resolve => setTimeout(resolve, 5));
+
+    return 42;
+  });
+
+  expect(measured.result).toBe(42);
+  expect(measured.end - measured.start).toBeGreaterThanOrEqual(4);
+  expect(measured).not.toHaveProperty('execution');
+  expect(measured).not.toHaveProperty('activities');
+  expect(activities.stop(measured.end)).toEqual([]);
+  await expect(measureProtocolOperation(async () => { throw new Error('operation failed'); })).rejects.toThrow('operation failed');
+});

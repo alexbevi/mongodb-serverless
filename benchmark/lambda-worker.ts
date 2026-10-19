@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setServers } from 'node:dns';
 import { GetParameterCommand, SSMClient, type SSMClientConfig } from '@aws-sdk/client-ssm';
-import { measureAwsOperation } from './aws-diagnostics.js';
+import { measureAwsOperation, measureProtocolOperation } from './aws-diagnostics.js';
 import { initializeLazyClient } from './lambda-lifecycle.js';
 import type { ServerlessClientOptions } from '../driver/src/client.js';
 import { activities } from './activities.js';
@@ -13,6 +13,8 @@ import type { MongoClientOptions } from 'mongodb';
 if (process.env['BENCHMARK_DNS']) setServers([process.env['BENCHMARK_DNS']]);
 
 const telemetry = instrument(true);
+
+const measureOperation = process.env['BENCHMARK_DIAGNOSTICS'] === 'true' ? measureAwsOperation : measureProtocolOperation;
 
 const { MongoClient } = await import('mongodb');
 
@@ -123,7 +125,7 @@ export async function handler(
   ssmCalls.length = 0;
   const cold = invocations === 1;
 
-  const measurement = await measureAwsOperation(async () => {
+  const measurement = await measureOperation(async () => {
     const collection = getClient().db(process.env['DATABASE'] ?? 'bench').collection<{ _id: string; value: number }>('serverless_patterns');
 
     return event.operation === 'read'
@@ -131,7 +133,8 @@ export async function handler(
       : await collection.updateOne({ _id: 'seed' }, { $inc: { value: 1 } }, { upsert: event.prepare === true });
   });
 
-  const { start, end, result } = measurement;
+  const { result, ...timing } = measurement;
+  const { start, end } = timing;
   assert.ok(result);
 
   if ('matchedCount' in result) assert.equal(result.matchedCount + result.upsertedCount, 1);
@@ -165,7 +168,7 @@ export async function handler(
     ssmMs: calls.reduce((sum, call) => sum + call.end - call.start, 0), ssmPhase: 'init',
     initialization: cold ? initialization : undefined,
     environmentId, clientConstructions, nodeVersion: process.version, driverVersion: telemetry.version,
-    trace: { start, end, execution: measurement.execution, activities: measurement.activities,
+    trace: { ...timing,
       exchanges: [...telemetry.exchanges], dns: [...telemetry.dns], sockets, command, ssm: [...ssmCalls] },
     connections: telemetry.connections().map(({ uri: _uri, ...connection }) => connection)
   };

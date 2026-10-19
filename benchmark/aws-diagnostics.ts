@@ -21,3 +21,10 @@ export async function measureAwsOperation<T>(operation: () => Promise<T>) {
 
   return { result, start, end: execution.end, execution, activities: spans };
 }
+
+export async function measureProtocolOperation<T>(operation: () => Promise<T>) {
+  const start = performance.now();
+  const result = await operation();
+
+  return { result, start, end: performance.now() };
+}

@@ -47,6 +47,10 @@ const topologyParameter = '/mongodb-pattern/topology';
 
 const directory = resolve(values.package);
 
+const diagnostics = JSON.parse(readFileSync(resolve(directory, 'package.json'), 'utf8')).benchmarkDiagnostics;
+
+if (![true, false].includes(diagnostics)) throw new Error('Rebuild the Lambda package to record its instrumentation mode');
+
 try {
   compose('build');
   compose('run', '--rm', '--no-deps', 'certificates');
@@ -60,7 +64,7 @@ try {
   execFileSync('zip', ['-q', '../lambda-worker.zip', 'ca.crt'], { cwd: directory });
   await ready(() => ssm.send(new PutParameterCommand({ Name: uriParameter, Type: 'SecureString', Value: 'mongodb+srv://bench:benchmark-only@cluster.bench.test/bench?authSource=admin', Overwrite: true })));
   const zip = readFileSync(resolve(directory, '../lambda-worker.zip'));
-  const variables = { URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: 'bench', MONGODB_CA: '/var/task/ca.crt', BENCHMARK_DNS: '172.30.91.14', SSM_ENDPOINT: 'http://localstack:4566' };
+  const variables = { BENCHMARK_DIAGNOSTICS: String(diagnostics), URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: 'bench', MONGODB_CA: '/var/task/ca.crt', BENCHMARK_DNS: '172.30.91.14', SSM_ENDPOINT: 'http://localstack:4566' };
 
   for (const { name, variant } of workerPatterns(prefix)) {
     await lambda.send(new CreateFunctionCommand({ FunctionName: name, Role: 'arn:aws:iam::000000000000:role/benchmark', Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', Architectures: [process.arch === 'arm64' ? 'arm64' : 'x86_64'], MemorySize: 1769, Timeout: 30, Code: { ZipFile: zip }, Environment: { Variables: { ...variables, BENCHMARK_VARIANT: variant } } }));
@@ -70,7 +74,7 @@ try {
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   const warmVerification = await verifyWarmInvocations(lambda, prefix);
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics: true });
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics, overview: 'handler' });
 } finally {
   lambda.destroy();
   ssm.destroy();

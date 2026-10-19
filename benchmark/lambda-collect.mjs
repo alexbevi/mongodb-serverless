@@ -124,9 +124,12 @@ export async function collect(lambda, prefix, count, file, metadata) {
             const name = `${prefix}-${variant}-${operation}`;
             const sample = await invokeCold(lambda, name, versions.get(name), { variant, operation });
             assert.ok(!seen.has(sample.environmentId), 'Lambda execution environment was reused');
+            assert.equal(Boolean(sample.trace.execution), metadata.diagnostics, 'The worker must use the requested instrumentation mode');
+
+            if (!metadata.diagnostics) assert.equal(sample.trace.activities, undefined);
             seen.add(sample.environmentId);
 
-            for (const segment of sample.trace.execution.segments) {
+            for (const segment of sample.trace.execution?.segments ?? []) {
               if (!sourceIds.has(segment.source)) {
                 sourceIds.set(segment.source, data.executionSources.length);
                 data.executionSources.push(segment.source);

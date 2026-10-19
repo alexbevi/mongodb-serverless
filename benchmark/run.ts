@@ -1,14 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { cpus, totalmem } from 'node:os';
+import { cpus, totalmem, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 process.chdir(root);
 
-const { values } = parseArgs({ options: { 'cpu-profile': { type: 'boolean', default: false }, diagnostics: { type: 'boolean', default: false }, 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
+const { values } = parseArgs({ options: { 'cpu-profile': { type: 'boolean', default: false }, diagnostics: { type: 'boolean', default: false }, 'no-monitoring': { type: 'boolean', default: false }, samples: { type: 'string', default: '48' }, output: { type: 'string', default: resolve(tmpdir(), 'mongodb-diagnostic/samples.json') }, 'local-rtt': { type: 'string', default: '0.5' }, 'cross-rtt': { type: 'string', default: '2' } } });
 const count = Number(values.samples);
 const localRtt = Number(values['local-rtt']);
 const crossRtt = Number(values['cross-rtt']);

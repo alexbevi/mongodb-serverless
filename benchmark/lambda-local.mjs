@@ -7,7 +7,7 @@ import { LambdaClient, CreateFunctionCommand, waitUntilFunctionActiveV2, Publish
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
 import { collect, invokeCold, workerNames } from './lambda-collect.mjs';
 
-const { values } = parseArgs({ options: { samples: { type: 'string', default: '40' }, output: { type: 'string', default: 'benchmark/results/lambda-localstack/samples.json' }, package: { type: 'string', default: '/tmp/mongodb-pattern-runtime/worker' } } });
+const { values } = parseArgs({ options: { samples: { type: 'string', default: '40' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, package: { type: 'string', default: '/tmp/mongodb-pattern-runtime/worker' } } });
 
 const count = Number(values.samples);
 

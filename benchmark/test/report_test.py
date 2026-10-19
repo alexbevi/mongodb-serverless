@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from report_fixtures import local_data, aws_data
 
 
 class ReportTest(unittest.TestCase):
@@ -14,7 +15,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        data = json.loads((root / "results/local/samples.json").read_text())
+        data = local_data()
         sample = next(s for s in data["samples"] if s["variant"] == "native")
         trace = sample["trace"]
         monitor = min(trace["sockets"], key=lambda socket: socket["start"])
@@ -105,7 +106,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        sample = json.loads((root / 'results/aws/samples.json').read_text())['samples'][0]
+        sample = aws_data()['samples'][0]
         trace = sample['trace']
         trace['execution'] = {'threadCpuMs': 1, 'segments': [
             {'start': trace['start'], 'end': trace['end'], 'kind': 'callback', 'threadCpuMs': 1}]}
@@ -198,7 +199,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        local = json.loads((root / "results/local/samples.json").read_text())
+        local = local_data()
         local["environment"]["host"] = {"cpu": "Apple M4 Max", "memoryBytes": 64 * 1024**3}
         local["samples"] = [{"variant": mode, "operation": operation}
                             for mode in ("native", "serverless", "serverless-no-monitoring")
@@ -208,7 +209,7 @@ class ReportTest(unittest.TestCase):
         caption = report.run_caption(local, "local")
         for expected in ("100 iterations per driver/operation", "600 total", "elapsed ~2m 05s", "4 batches", "Local host", "Apple M4 Max", "64 GiB", "1 GiB", "no CPU quota"):
             self.assertIn(expected, caption)
-        aws = json.loads((root / "results/aws/samples.json").read_text())
+        aws = aws_data()
         aws["architecture"] = "arm64"
         aws["memoryMB"] = 1769
         aws["samples"] = [{"mode": mode, "operation": operation}
@@ -222,7 +223,7 @@ class ReportTest(unittest.TestCase):
         import importlib.util
         from unittest.mock import patch
         root = Path(__file__).parents[1]
-        data = json.loads((root / "results/local/samples.json").read_text())
+        data = local_data()
         cohort = data.get("diagnostic", data)
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
@@ -234,7 +235,7 @@ class ReportTest(unittest.TestCase):
                 self.assertIn("% less)", axis.get_title(loc="left"))
                 self.assertNotIn("\n", axis.get_title(loc="left"))
         self.assertTrue(data["configuration"]["diagnostics"])
-        self.assertGreaterEqual(data["configuration"]["count"], 100)
+        self.assertEqual(data["configuration"]["count"], 2)
         self.assertNotIn("diagnostic", data)
         self.assertEqual(data["environment"]["cpuMax"].split()[0], "max")
         for sample in data["samples"]:
@@ -298,7 +299,7 @@ class ReportTest(unittest.TestCase):
         self.assertEqual([(s["label"], s["start"], s["end"]) for s in sections], [
             ("Setup", 0, 3), ("Monitor Connection", 3, 8),
             ("Application Connection", 10, 18), ("Operation", 18, 25)])
-        data = json.loads((Path(__file__).parents[1] / "results/aws/samples.json").read_text())
+        data = aws_data()
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(report.plt, "close") as close:
                 report.render(data, "aws", Path(directory))
@@ -371,7 +372,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        data = json.loads((root / "results/local/samples.json").read_text())
+        data = local_data()
         sample = next(s for s in data["samples"] if s["variant"] == "native")
         start = sample["trace"]["start"]
         sample["trace"]["dns"] = [
@@ -397,7 +398,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        data = json.loads((root / "results/aws/samples.json").read_text())
+        data = aws_data()
         for sample in data["samples"]:
             sample["timeline"]["dns"] = [
                 {"kind": "SRV", "start": 1, "end": 4},
@@ -466,7 +467,7 @@ class ReportTest(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("report", root / "report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
-        data = json.loads((root / "results/aws/samples.json").read_text())
+        data = aws_data()
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(report.plt, "close") as close:
                 report.render(data, "aws", Path(directory))
@@ -506,16 +507,20 @@ class ReportTest(unittest.TestCase):
         root = Path(__file__).parents[1]
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
+            local_input = output / 'local-input.json'
+            aws_input = output / 'aws-input.json'
+            local_input.write_text(json.dumps(local_data()))
+            aws_input.write_text(json.dumps(aws_data()))
             aws = output / "aws"
             aws.mkdir()
             snapshot = aws / "results.md"
-            snapshot.write_text("Historical AWS snapshot\n")
+            snapshot.write_text("Independent AWS report\n")
             before = hashlib.sha256(snapshot.read_bytes()).hexdigest()
             subprocess.run(
                 [
                     sys.executable,
                     str(root / "report.py"),
-                    str(root / "results/local/samples.json"),
+                    str(local_input),
                     "--environment",
                     "local",
                     "--output-dir",
@@ -536,7 +541,7 @@ class ReportTest(unittest.TestCase):
                 for s in summary
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
-            samples = json.loads((root / "results/local/samples.json").read_text())
+            samples = local_data()
             totals = [
                 sample["timings"]["total"]
                 for sample in samples["samples"]
@@ -552,7 +557,7 @@ class ReportTest(unittest.TestCase):
                 [
                     sys.executable,
                     str(root / "report.py"),
-                    str(root / "results/aws/samples.json"),
+                    str(aws_input),
                     "--environment",
                     "aws",
                     "--output-dir",
@@ -567,15 +572,15 @@ class ReportTest(unittest.TestCase):
                 for s in summary
                 if s["driver"] == "native-cluster" and s["operation"] == "read"
             )
-            self.assertGreaterEqual(read["n"], 100)
-            data = json.loads((root / "results/aws/samples.json").read_text())
+            self.assertEqual(read["n"], 2)
+            data = aws_data()
             totals = [s["phases"]["total"] for s in data["samples"]
                       if s["mode"] == "native-cluster" and s["operation"] == "read"]
             self.assertEqual(read["n"], len(totals))
             self.assertAlmostEqual(read["mean"], sum(totals) / len(totals))
-            self.assertEqual(snapshot.read_text(), "Historical AWS snapshot\n")
+            self.assertEqual(snapshot.read_text(), "Independent AWS report\n")
             self.assertFalse(list(output.rglob("*.svg")))
-            evidence = (root / "results/aws/samples.json").read_text()
+            evidence = aws_input.read_text()
             self.assertNotIn(".mongodb.net", evidence)
             self.assertNotRegex(evidence, r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
             for key in ["requestId", "roundId", "environmentId"]:

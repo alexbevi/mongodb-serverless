@@ -15,8 +15,8 @@ Reads prefer a healthy secondary; writes go to the primary.
 
 ## Benchmark
 
-![Cold Lambda routing and SSM topology reuse](benchmark/results/lambda-aws/latency.png)
-See the [Lambda benchmark](benchmark/LAMBDA.md), [recorded AWS results](benchmark/results/lambda-aws/results.md), [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
+![Cold Lambda routing and SSM topology reuse](benchmark/results/aws/latency.png)
+See the [Lambda benchmark](benchmark/LAMBDA.md), [recorded AWS results](benchmark/results/aws/results.md), [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
 
 ## Components
 

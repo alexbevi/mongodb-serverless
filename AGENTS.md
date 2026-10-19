@@ -139,3 +139,8 @@ it and re-verify:
 - `aggregate` detecting a write stage from the last pipeline stage only
 - the set of public methods on `Collection` and `Db`, which the routing
   exhaustiveness test covers
+
+## Benchmark work
+
+Read `benchmark/AGENTS.md` before changing benchmark code, results, documentation,
+or CI. It defines the two result folders and the required full timeline format.

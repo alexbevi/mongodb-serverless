@@ -14,7 +14,7 @@ class TraceCodecTest(unittest.TestCase):
             dict(kind='callback', resource='PROMISE', sourceId=0, start=1.123456789, end=4.2, threadCpuMs=2.2),
             dict(kind='dispatch', resource='TCPWRAP', sourceId=1, start=4.2, end=9.87654321, threadCpuMs=0)]),
             activities=[dict(name='URI parsing', kind='sync', start=1.2, end=2.3, threadCpuMs=.8),
-                        dict(name='Plugin read', kind='async', start=2.4, end=8.3)])
+                        dict(name='Plugin read', kind='async', start=2.4, end=8.3, note=None)])
         data = dict(samples=[dict(trace=trace)], executionSources=['first stack', 'second stack'])
         original = copy.deepcopy(data)
         compact.compact_diagnostics(data)

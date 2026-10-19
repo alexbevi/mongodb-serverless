@@ -15,7 +15,8 @@ pnpm benchmark:build
 node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
 node benchmark/lambda-local.mjs --samples 40
 python3 -m pip install -r benchmark/requirements-report.txt
-python3 benchmark/lambda-report.py benchmark/results/lambda-localstack/samples.json
+python3 benchmark/compact.py --diagnostics benchmark/results/local/samples.json
+python3 benchmark/lambda-report.py benchmark/results/local/samples.json
 ```
 
 The local runner creates a TLS replica set, DNS SRV/TXT records, a SecureString,
@@ -31,7 +32,8 @@ The script copies the URI directly to SecureString without logging it.
 ```sh
 AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 100 \
   --source-function mongodb-serverless-prod-worker-1 --region ap-southeast-2
-python3 benchmark/lambda-report.py benchmark/results/lambda-aws/samples.json
+python3 benchmark/compact.py --diagnostics benchmark/results/aws/samples.json
+python3 benchmark/lambda-report.py benchmark/results/aws/samples.json
 ```
 
 This creates dedicated `mongodb-serverless-pattern-*` functions and an IAM
@@ -53,10 +55,10 @@ collection, and majority write concern. Retryable reads and writes are disabled.
 Timing starts in the handler before the SSM read and stops at the operation
 result. Lambda INIT and REPORT durations are saved separately. Client close,
 function publication, deployment, and SDK module initialization are outside the
-primary latency metric. Socket/DNS/command probes, callback profiling, and source probes are enabled
-equally. The chart shows each connection and accounts for the full measured
-interval, including SSM, discovery, role checks, and callback dispatch. These are measured instrumented runs,
-not an overhead-free estimate.
+primary latency metric. Socket/DNS/command probes, callback profiling, and source
+probes are enabled equally. The chart shows each connection and accounts for the full measured
+interval, including SSM, discovery, role checks, and callback dispatch.
+Instrumentation contributes to the recorded duration.
 
 - Native and no-plugin invocations each fetch the URI through `GetParameter` with
   decryption, then perform SRV and TXT resolution. No topology crosses invocations.

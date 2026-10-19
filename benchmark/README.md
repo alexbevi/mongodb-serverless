@@ -54,6 +54,25 @@ stored once in `executionSources`; each segment retains its source identifier
 and measured times. [Trace encoding](TRACE_FORMAT.md) describes the lossless
 column format and how to expand it for inspection.
 
+For a read-only view that includes recorded Lambda INIT, use the deployment ZIP
+from the measurement run. The renderer verifies its SHA-256 against the samples
+before reporting its compressed and unpacked sizes.
+
+```sh
+/tmp/mongodb-benchmark-report/bin/python benchmark/cold-start-report.py \
+  benchmark/results/aws/samples.json \
+  --package /path/to/the/measured/lambda-worker.zip \
+  --output /tmp/mongodb-cold-start
+```
+
+This produces `cold-start.png`, `connection-details.png`, and `cold-start.json`.
+The overview accounts for INIT through the read result. The detail view places
+SSM, DNS, and each MongoDB socket on separate rows. Both use the same invocation,
+selected nearest the median of INIT plus measured read time. INIT has no internal
+phase breakdown in these samples. Provisioning, caller transport, and cleanup
+after the read are outside this view. All variants share a benchmark package
+containing both drivers and probes; its size is not a production bundle estimate.
+
 ## Diagnostic harness and CI
 
 A separate Docker harness exercises native discovery and direct routing with

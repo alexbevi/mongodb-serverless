@@ -1,11 +1,11 @@
-"""Summarize verified cold Lambda samples without mixing write landing groups."""
+"""Report cold Lambda latency, variability, and complete connection timelines."""
 import argparse
 import json
 import math
 import importlib.util
 from collections import Counter
 from pathlib import Path
-from statistics import median
+from statistics import mean, median, stdev
 
 VARIANTS = ['native', 'no-plugin', 'ssm']
 LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
@@ -25,6 +25,9 @@ def statistics(samples):
     initializations = [sample.get('lambda', {}).get('initMs') for sample in samples]
     has_init = all(value is not None for value in initializations)
     return dict(count=len(values), medianMs=median(values), p95Ms=percentile(values, .95),
+                meanMs=mean(values), standardDeviationMs=stdev(values) if len(values) > 1 else None,
+                coefficientOfVariationPercent=100 * stdev(values) / mean(values) if len(values) > 1 else None,
+                medianAbsoluteDeviationMs=median(abs(value - median(values)) for value in values),
                 medianSsmMs=median([sample['ssmMs'] for sample in samples]),
                 medianExcludingSsmMs=median([sample['totalMs'] - sample['ssmMs'] for sample in samples]),
                 sockets=dict(Counter(sample['sockets'] for sample in samples)),
@@ -67,12 +70,12 @@ def markdown(summary):
             label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
             lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms | {group['medianExcludingSsmMs']:.1f} ms |")
     if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):
-        lines.extend(['', '| Pattern | Median INIT | Median INIT + handler |', '|---|---:|---:|'])
+        lines.extend(['', '| Pattern | Median INIT | Median INIT + measured interval |', '|---|---:|---:|'])
         for operation, groups in summary['operations'].items():
             for variant in ['no-plugin', 'ssm']:
                 group = groups[variant]
                 lines.append(f"| {operation} / {LABELS[variant]} | {group['medianInitMs']:.1f} ms | {group['medianInitPlusHandlerMs']:.1f} ms |")
-        lines.extend(['', 'INIT + handler excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
+        lines.extend(['', 'INIT + measured interval excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
     lines.extend(['', 'Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
     lines.extend(['', '![Measured connection breakdown](latency.png)', '', 'Each panel shows a measured trace nearest its cohort median. The timeline accounts for SSM, DNS, all MongoDB connections, authentication, discovery, role validation, the operation, measured code scopes, and callback/dispatch time. Parallel socket lanes overlap and must not be added. Detailed probes add overhead. Each SSM-excluded value is calculated per sample before taking the median; it is not a subtraction of cohort medians.'])
     title = summary['configuration'].get('environment', 'Cold Lambda')
@@ -180,7 +183,8 @@ def render(data, summary, output):
             axis.set_ylim(0, len(connections)+1.4)
             axis.set_xlim(0, maximum)
             stats = case['statistics']
-            axis.set_title(f"{operation.title()} · {case['label']}\nMedian {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}", loc='left', fontsize=12, weight='bold', pad=14)
+            variation = f"SD {stats['standardDeviationMs']:.1f} ms · CV {stats['coefficientOfVariationPercent']:.1f}%" if stats['count'] > 1 else 'SD / CV unavailable for n=1'
+            axis.set_title(f"{operation.title()} · {case['label']}\nMedian {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}\nMean {stats['meanMs']:.1f} ms · {variation}", loc='left', fontsize=10, weight='bold', pad=14)
             axis.set_xlabel('Milliseconds since handler invocation', fontsize=9)
             axis.grid(axis='x', alpha=.15)
             axis.set_axisbelow(True)
@@ -195,7 +199,7 @@ def render(data, summary, output):
     groups['Code & scheduling'] += sorted(phase for phase in visible if phase.startswith('code:'))
     for (title, phases), x in zip(groups.items(), [.06, .27, .49, .79]):
         handles = [breakdown.Patch(facecolor=breakdown.COLORS.get(phase) or breakdown.phase_color(phase),
-                   label=breakdown.phase_label(phase)) for phase in phases if phase in visible]
+                   label=breakdown.phase_label(phase).removeprefix('Application ')) for phase in phases if phase in visible]
         legend = figure.legend(handles=handles, title=title, loc='upper left', bbox_to_anchor=(x,.21), fontsize=8, title_fontsize=11, frameon=False)
         legend.get_title().set_fontweight('bold')
     configuration = data['configuration']

@@ -21,6 +21,10 @@ class ReportTest(unittest.TestCase):
         summary = report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
         read = summary['operations']['read']
         self.assertEqual(read['ssm']['medianMs'], 40)
+        self.assertEqual(read['ssm']['meanMs'], 40)
+        self.assertAlmostEqual(read['ssm']['standardDeviationMs'], 200 ** .5)
+        self.assertAlmostEqual(read['ssm']['coefficientOfVariationPercent'], 100 * 200 ** .5 / 40)
+        self.assertEqual(read['ssm']['medianAbsoluteDeviationMs'], 10)
         self.assertEqual(summary['writeLandings']['oneConnection']['count'], 1)
         self.assertEqual(summary['writeLandings']['twoConnections']['medianMs'], 90)
         self.assertEqual(summary['writeLandings']['oneConnection']['sharePercent'], 50)

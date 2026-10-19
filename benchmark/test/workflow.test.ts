@@ -7,6 +7,11 @@ it('runs the performance gate once on an independent Node 24 runner', () => {
   const benchmark = jobs.find(job => job.startsWith('benchmark:'));
 
   expect(benchmark, 'dedicated benchmark job').toBeDefined();
+
+  for (const name of ['test:', 'benchmark:']) {
+    expect(jobs.find(job => job.startsWith(name)), 'MongoDB 8 needs a compatible runner kernel').toContain('runs-on: ubuntu-22.04');
+  }
+
   expect(jobs.filter(job => job.includes('pnpm benchmark --'))).toEqual([benchmark]);
   expect(benchmark).not.toMatch(/\b(?:needs|strategy|matrix):/);
   expect(benchmark).not.toContain('matrix.node');

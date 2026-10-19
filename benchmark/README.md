@@ -98,6 +98,10 @@ performance samples.
 
 ## Limitations
 
+CI jobs that start MongoDB 8 use Ubuntu 22.04 to avoid the hosted-runner kernel
+incompatibility tracked in [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912).
+Revisit this runner pin when the MongoDB image supports the current hosted kernels.
+
 Protocol timers add overhead; optional detailed probes add more. INIT and its
 SSM request are excluded from the default overview and retained in the JSON. Provisioning and invocation transport are
 outside both measurements. Clients stay open for warm calls.

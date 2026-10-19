@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # MongoDB 8 rejects newer hosted kernels: SERVER-121912.
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +67,7 @@ jobs:
 
   benchmark:
     name: benchmark (Node 24)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4

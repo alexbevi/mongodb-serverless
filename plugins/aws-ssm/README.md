@@ -30,6 +30,8 @@ through `client` to configure an endpoint or share an existing SDK client.
 The default parameter names are `/mongodb-serverless/connection-string` and
 `/mongodb-serverless/topology`.
 
+See [integration tests](TESTING.md) for running the plugin against LocalStack.
+
 ## Limitations
 
 Discovery and refresh overwrite only the topology parameter. Writes are enabled

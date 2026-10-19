@@ -68,9 +68,11 @@ pnpm benchmark --diagnostics --no-monitoring --samples 100 --output /tmp/mongodb
 /tmp/mongodb-benchmark-report/bin/python -m unittest discover -s benchmark/test -p results_test.py
 ```
 
-The LocalStack CI job also verifies fresh Lambda environments, serving roles,
-connection counts, DNS activity, SSM request counts, and complete timeline
-accounting. It publishes JSON and images as workflow artifacts.
+The independent `plugin-aws-ssm` CI job tests the plugin against LocalStack 4.14
+SSM and KMS services. It checks parameter retrieval, decryption, topology writes,
+and cache behavior. The [Lambda benchmark](LAMBDA.md) remains an explicit local
+or AWS measurement run; CI runs its report tests without collecting Lambda
+performance samples.
 
 ## Limitations
 

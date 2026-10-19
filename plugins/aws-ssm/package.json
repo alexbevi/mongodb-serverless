@@ -18,7 +18,8 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "test:integration": "vitest run --config vitest.localstack.config.ts"
   },
   "publishConfig": {
     "access": "public"

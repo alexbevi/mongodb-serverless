@@ -82,13 +82,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Check benchmark reports
+        run: |
+          python3 -m pip install -r benchmark/requirements-report.txt
+          python3 -m unittest discover -s benchmark/test -p "*_test.py"
+
       - name: Require 10% benchmark improvement (100 iterations)
         id: benchmark
         timeout-minutes: 10
         run: |
           pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/workflow.test.ts
-          python3 -m unittest discover -s benchmark/test -p performance_test.py
-          python3 -m unittest discover -s benchmark/test -p ci_summary_test.py
           pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
           python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
 
@@ -141,10 +144,24 @@ jobs:
           BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
         run: python3 benchmark/ci_summary.py
 
-  lambda-patterns:
-    name: Lambda patterns (LocalStack 4.14 / Node 24)
+  plugin-aws-ssm:
+    name: plugin-aws-ssm
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    services:
+      localstack:
+        image: localstack/localstack:4.14.0
+        env:
+          SERVICES: ssm,kms
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "awslocal ssm describe-parameters"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SSM_ENDPOINT: http://127.0.0.1:4566
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -155,28 +172,6 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build Lambda package
-        run: |
-          pnpm benchmark:build
-          pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/patterns.test.ts benchmark/test/workflow.test.ts
-          python3 -m pip install -r benchmark/requirements-report.txt
-          python3 -m unittest discover -s benchmark/test -p "*report_test.py"
-          python3 -m unittest discover -s benchmark/test -p results_test.py
-          python3 -m unittest discover -s benchmark/test -p trace_codec_test.py
-          node benchmark/build-lambda.mjs "$RUNNER_TEMP/lambda/worker"
-      - name: Measure verified cold Lambda patterns
-        run: node benchmark/lambda-local.mjs --samples 20 --package "$RUNNER_TEMP/lambda/worker" --output "$RUNNER_TEMP/lambda/results/samples.json"
-      - name: Render and summarize measurements
-        run: |
-          python3 -m pip install -r benchmark/requirements-report.txt
-          python3 benchmark/compact.py --diagnostics "$RUNNER_TEMP/lambda/results/samples.json"
-          python3 benchmark/lambda-report.py "$RUNNER_TEMP/lambda/results/samples.json"
-          cat "$RUNNER_TEMP/lambda/results/results.md" >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload Lambda measurements and chart
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: lambda-patterns-node-24
-          path: ${{ runner.temp }}/lambda/results/
-          retention-days: 7
-          if-no-files-found: ignore
+      - run: pnpm --filter @mongodb-serverless/plugin-aws-ssm typecheck
+      - name: Test the plugin against emulated SSM and KMS
+        run: pnpm --filter @mongodb-serverless/plugin-aws-ssm test:integration

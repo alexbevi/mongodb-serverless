@@ -39,18 +39,17 @@ it('renders code-level diagnostics from a separate cohort without instrumenting 
   expect(steps.find(step => step.includes('name: Summarize benchmark'))).toContain('BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json');
 });
 
-it('runs the cold Lambda patterns on LocalStack 4.14 and publishes their measurements', () => {
+it('checks the AWS SSM plugin against LocalStack alongside the other jobs', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
-  const job = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('lambda-patterns:'));
+  const job = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('plugin-aws-ssm:'));
 
-  expect(job, 'dedicated Lambda benchmark job').toBeDefined();
-  expect(job).not.toContain('fetch-depth: 0');
-  expect(job).not.toContain('origin/main');
-  expect(job).toContain('node benchmark/build-lambda.mjs');
-  expect(job).toContain('node benchmark/lambda-local.mjs --samples 20');
-  expect(job).toContain('python3 benchmark/lambda-report.py');
-  expect(job).toContain('lambda-patterns-node-24');
-  expect(job).toContain('GITHUB_STEP_SUMMARY');
-  const compose = readFileSync(new URL('../docker/lambda-compose.yaml', import.meta.url), 'utf8');
-  expect(compose).toContain('localstack/localstack:4.14.0');
+  expect(job, 'dedicated AWS SSM plugin job').toBeDefined();
+  expect(job).toContain('name: plugin-aws-ssm');
+  expect(job).not.toMatch(/\bneeds:/);
+  expect(job).toContain('localstack/localstack:4.14.0');
+  expect(job).toContain('SERVICES: ssm,kms');
+  expect(job).toContain('SSM_ENDPOINT: http://127.0.0.1:4566');
+  expect(job).toContain('pnpm --filter @mongodb-serverless/plugin-aws-ssm test:integration');
+  expect(job).not.toContain('benchmark/lambda-');
+  expect(workflow).not.toContain('lambda-patterns:');
 });

@@ -8,7 +8,7 @@ from pathlib import Path
 from statistics import mean, median, stdev
 
 VARIANTS = ['native', 'no-plugin', 'ssm']
-LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
+LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'aws-ssm · cached topology'}
 
 
 def percentile(values, fraction):
@@ -29,9 +29,10 @@ def statistics(samples):
                 coefficientOfVariationPercent=100 * stdev(values) / mean(values) if len(values) > 1 else None,
                 medianAbsoluteDeviationMs=median(abs(value - median(values)) for value in values),
                 medianSsmMs=median([sample['ssmMs'] for sample in samples]),
-                medianExcludingSsmMs=median([sample['totalMs'] - sample['ssmMs'] for sample in samples]),
+                medianExcludingSsmMs=median([sample['totalMs'] - (sample['ssmMs'] if sample.get('ssmPhase') != 'init' else 0) for sample in samples]),
                 sockets=dict(Counter(sample['sockets'] for sample in samples)),
                 medianInitMs=median(initializations) if has_init else None,
+                p95InitPlusHandlerMs=percentile([value + init for value, init in zip(values, initializations)], .95) if has_init else None,
                 medianInitPlusHandlerMs=median([value + init for value, init in zip(values, initializations)]) if has_init else None)
 
 
@@ -61,25 +62,32 @@ def summarize(data):
 
 
 def markdown(summary):
-    lines = ['| Operation / pattern | n | Median | p95 | SSM median | Median excluding SSM |', '|---|---:|---:|---:|---:|---:|']
-    for operation, groups in summary['operations'].items():
-        for variant, group in groups.items():
-            lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms | {group['medianExcludingSsmMs']:.1f} ms |")
-    for name, group in summary['writeLandings'].items():
-        if group['count']:
-            label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
-            lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms | {group['medianExcludingSsmMs']:.1f} ms |")
-    if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):
-        lines.extend(['', '| Pattern | Median INIT | Median INIT + measured interval |', '|---|---:|---:|'])
-        for operation, groups in summary['operations'].items():
-            for variant in ['no-plugin', 'ssm']:
-                group = groups[variant]
-                lines.append(f"| {operation} / {LABELS[variant]} | {group['medianInitMs']:.1f} ms | {group['medianInitPlusHandlerMs']:.1f} ms |")
-        lines.extend(['', 'INIT + measured interval excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
-    lines.extend(['', 'Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
-    lines.extend(['', '![Measured connection breakdown](latency.png)', '', 'Each panel shows a measured trace nearest its cohort median. The timeline accounts for SSM, DNS, all MongoDB connections, authentication, discovery, role validation, the operation, measured code scopes, and callback/dispatch time. Parallel socket lanes overlap and must not be added. Detailed probes add overhead. Each SSM-excluded value is calculated per sample before taking the median; it is not a subtraction of cohort medians.'])
-    title = summary['configuration'].get('environment', 'Cold Lambda')
-    count = summary['configuration']['count']
+    def duration(value):
+        return f'{value:.1f} ms' if value is not None else '—'
+
+    lines = ['| Operation / pattern | n | Handler median | Handler p95 | INIT median | SSM median | INIT + handler median |',
+             '|---|---:|---:|---:|---:|---:|---:|']
+    groups = [(f'{operation} / {LABELS[variant]}', group) for operation, variants in summary['operations'].items() for variant, group in variants.items()]
+    groups += [('No plugin / ' + ('lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'), group)
+               for name, group in summary['writeLandings'].items() if group['count']]
+    for label, group in groups:
+        values = [duration(group.get(key)) for key in ['medianMs', 'p95Ms', 'medianInitMs', 'medianSsmMs', 'medianInitPlusHandlerMs']]
+        lines.append(f"| {label} | {group['count']} | " + ' | '.join(values) + ' |')
+    configuration = summary['configuration']
+    lines += ['', 'SSM is fetched during INIT. Handler latency starts after that fetch and ends at the operation result. INIT + handler is calculated per invocation before taking the median. The client is created lazily and retained for warm calls.',
+              '', 'INIT includes runtime and module initialization. Provisioning, caller transport, and post-result reporting are outside the measured interval. Detailed probes add overhead. Write landing groups occur naturally and have unequal sample counts.']
+    if configuration.get('packageZipBytes'):
+        lines += ['', f"Deployment package: {configuration['packageZipBytes']:,} bytes ZIP; identical for all patterns, including both drivers and diagnostic probes."]
+    checks = configuration.get('warmVerification', [])
+    if checks:
+        lines += ['', f'{len(checks)} separate warm checks verified reuse of the environment and MongoDB socket, without further SSM requests, cluster DNS, discovery or connections.',
+                  '', '| Warm check | Handler time | Serving role |', '|---|---:|---|']
+        lines += [f"| {check['operation']} / {LABELS[check['variant']]} | {check['totalMs']:.1f} ms | {check['servedRole']} |" for check in checks]
+        lines += ['', 'One warm invocation per case validates reuse; these timings are not a warm latency distribution.']
+    lines += ['', '![Measured connection breakdown](latency.png)', '',
+              'Each panel shows a real invocation nearest its cohort median of INIT + handler time. INIT and its SSM request are shown above the handler detail. Each socket has its own row; DNS and other work have separate rows. Parallel rows must not be added. The summary accounts for every measured millisecond once.']
+    title = configuration.get('environment', 'Cold Lambda')
+    count = configuration['count']
     return f"# {title} results\n\nMeasured {summary.get('measuredAt') or 'date not recorded'} · Node {', '.join(summary['runtimes']) or 'not recorded'}.\n\n{count} cold invocations per driver/operation case.\n\n" + '\n'.join(lines) + '\n'
 
 
@@ -118,6 +126,50 @@ def timeline(sample):
         threadCpuMs=trace['execution']['threadCpuMs'])
 
 
+def handler_lanes(sample):
+    trace = sample['trace']
+    start = trace['start']
+    measured = timeline(sample)
+    spans = breakdown.accounting_segments(measured)
+    lanes = [dict(kind='ssm', label='SSM · decrypted parameters', spans=[
+        dict(phase='ssm', start=call['start']-start, end=call['end']-start) for call in trace['ssm']])]
+    if not trace['ssm']:
+        lanes = []
+    if trace['dns']:
+        lanes.append(dict(kind='dns', label='Cluster DNS · SRV + TXT', spans=[
+            dict(phase='clusterDns', start=query['start']-start, end=query['end']-start) for query in trace['dns']]))
+    for socket in trace['sockets']:
+        events = [dict(phase=phase, start=socket[phase][0]-start, end=socket[phase][1]-start)
+                  for phase in ['lookup', 'tcp', 'tls', 'hello', 'auth'] if phase in socket]
+        for exchange in trace.get('exchanges', []):
+            if exchange['socket']['start'] != socket['start']:
+                continue
+            phase = 'discovery' if exchange['name'] == 'replSetGetStatus' else 'roleCheck' if exchange['name'] == 'hello' and exchange['start'] != socket.get('hello', [None])[0] else None
+            if phase and exchange['end'] <= trace['end']:
+                events.append(dict(phase=phase, start=exchange['start']-start, end=exchange['end']-start))
+        selected = trace['command']['socket']['start'] == socket['start']
+        if selected:
+            events.extend(dict(phase=phase, start=interval[0], end=interval[1]) for phase, interval in measured['command'].items())
+        role = socket.get('role', 'UNKNOWN').capitalize()
+        kind = 'Application' if 'auth' in socket else 'Monitor'
+        lanes.append(dict(kind='connection', label=f'{kind} · {role} · {socket["host"]}', spans=events, selected=selected))
+    code = [dict(span) for span in spans
+            if span['phase'].startswith('code:') or span['phase'] in ['callback', 'dispatch']]
+    lanes.append(dict(kind='code', label='Other handler work / scheduling', spans=code))
+    return lanes
+
+
+def cold_accounting(sample):
+    totals = breakdown.accounting_totals(timeline(sample))
+    init = sample['lambda']['initMs']
+    ssm = sum(call['end'] - call['start'] for call in sample.get('initialization', {}).get('ssm', []))
+    if ssm > init:
+        raise ValueError('SSM duration exceeds recorded INIT')
+    totals['init'] = init - ssm
+    totals['ssm'] += ssm
+    return totals
+
+
 def illustrated_cases(data):
     cases = []
     for operation in ['read', 'write']:
@@ -129,8 +181,8 @@ def illustrated_cases(data):
                            [sample for sample in cohort if sample['sockets'] == sockets]) for sockets in [1, 2]]
             for label, group in groups:
                 if group:
-                    middle = median(sample['totalMs'] for sample in group)
-                    representative = min(group, key=lambda sample: abs(sample['totalMs'] - middle))
+                    middle = median(sample['totalMs'] + sample['lambda']['initMs'] for sample in group)
+                    representative = min(group, key=lambda sample: abs(sample['totalMs'] + sample['lambda']['initMs'] - middle))
                     cases.append(dict(operation=operation, label=label, statistics=statistics(group),
                                       sample=representative, timeline=timeline(representative)))
     return cases
@@ -143,7 +195,7 @@ def render(data, summary, output):
     # Validate every sample, not only the illustrated traces.
     for sample in data['samples']:
         breakdown.accounting_segments(timeline(sample))
-    figure, axes = plt.subplots(4, 2, figsize=(23, 20))
+    figure, axes = plt.subplots(4, 2, figsize=(25, 23))
     maximum = max(case['timeline']['total'] for case in cases) * 1.14
     summary['illustratedTraces'] = []
     visible = set()
@@ -151,48 +203,33 @@ def render(data, summary, output):
         current = [case for case in cases if case['operation'] == operation]
         for axis, case in zip(axes[:, column], current):
             measured = case['timeline']
-            connections = measured['connections']
-            selected = next(index for index, connection in enumerate(connections) if connection['selected'])
+            lanes = handler_lanes(case['sample'])
             segments = breakdown.accounting_segments(measured)
-            visible.update(segment['phase'] for segment in breakdown.display_segments(segments))
-            visible.update(phase for connection in connections for phase in connection['phases'])
-            lanes = list(range(len(connections), 0, -1))
-            y = lanes[selected]
-            for index, connection in enumerate(connections):
-                breakdown.draw_connection(axis, connection, lanes[index], measured)
-            breakdown.draw_gaps(axis, measured, y)
-            for segment in segments:
-                phase = segment['phase']
-                if phase in ['ssm', 'clusterDns', 'discovery', 'roleCheck']:
-                    axis.barh(y, segment['end'] - segment['start'], left=segment['start'], height=.36, color=breakdown.COLORS[phase], zorder=4)
-            breakdown.draw_command(axis, measured, y)
-            breakdown.draw_off_cpu(axis, measured, y)
-            first = min(connection['start'] for connection in connections)
-            command_start = measured['command']['send'][0]
-            for label, begin, end in [('Setup', 0, first), ('Connections & topology', first, command_start), ('Operation', command_start, measured['total'])]:
-                bracket = len(connections) + .58
-                axis.plot([begin, begin, end, end], [bracket-.06, bracket, bracket, bracket-.06], color='#64748b', linewidth=.7)
-                # Small operation labels sit on the right to avoid the neighboring bracket.
-                axis.text(end if label == 'Operation' else (begin+end)/2, bracket+.08,
-                          f'{label}\n{end-begin:.1f} ms', fontsize=8, ha='left' if label == 'Operation' else 'center')
-            labels = [f"{'Application' if c['kind'] == 'application' else 'Monitor'}\n{c['role'].capitalize()} · {c['host']}" for c in connections]
-            axis.set_yticks(lanes, labels, fontsize=8)
-            for label, connection in zip(axis.get_yticklabels(), connections):
-                if connection['role'] == 'PRIMARY':
-                    label.set_fontweight('bold')
-            axis.set_ylim(0, len(connections)+1.4)
+            visible.update(span['phase'] for lane in lanes for span in lane['spans'])
+            for index, lane in enumerate(lanes):
+                y = len(lanes)-index
+                for span in lane['spans']:
+                    phase = span['phase']
+                    axis.barh(y, span['end']-span['start'], left=span['start'], height=.36,
+                              color=breakdown.COLORS.get(phase) or breakdown.phase_color(phase))
+                if lane['kind'] == 'code':
+                    breakdown.draw_off_cpu(axis, measured, y)
+            axis.set_yticks(list(reversed(range(1, len(lanes)+1))), [lane['label'] for lane in lanes], fontsize=8)
+            axis.set_ylim(0, len(lanes)+1)
             axis.set_xlim(0, maximum)
             stats = case['statistics']
             variation = f"SD {stats['standardDeviationMs']:.1f} ms · CV {stats['coefficientOfVariationPercent']:.1f}%" if stats['count'] > 1 else 'SD / CV unavailable for n=1'
-            axis.set_title(f"{operation.title()} · {case['label']}\nMedian {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}\nMean {stats['meanMs']:.1f} ms · {variation}", loc='left', fontsize=10, weight='bold', pad=14)
-            axis.set_xlabel('Milliseconds since handler invocation', fontsize=9)
+            init = case['sample']['lambda']['initMs']
+            init_ssm = sum(call['end']-call['start'] for call in case['sample'].get('initialization', {}).get('ssm', []))
+            axis.set_title(f"{operation.title()} · {case['label']}\nCold median {stats['medianInitPlusHandlerMs']:.1f} ms · p95 {stats['p95InitPlusHandlerMs']:.1f} ms · n={stats['count']}\nShown INIT {init:.1f} ms (SSM {init_ssm:.1f} ms included) + handler {measured['total']:.1f} ms\nHandler mean {stats['meanMs']:.1f} ms · {variation}", loc='left', fontsize=10, weight='bold', pad=14)
+            axis.set_xlabel('Milliseconds since handler entry · SSM completed during INIT', fontsize=9)
             axis.grid(axis='x', alpha=.15)
             axis.set_axisbelow(True)
             axis.spines[['top', 'right', 'left']].set_visible(False)
             axis.text(0, -.31, breakdown.cpu_annotation(measured), transform=axis.transAxes, fontsize=8, color='#475569')
             summary['illustratedTraces'].append(dict(operation=operation, pattern=case['label'],
-                iteration=case['sample'].get('iteration'), totalMs=measured['total'],
-                accountingMs=breakdown.accounting_totals(measured), segments=segments))
+                iteration=case['sample'].get('iteration'), totalMs=init+measured['total'], initMs=init, handlerMs=measured['total'],
+                accountingMs=cold_accounting(case['sample']), segments=segments))
         for axis in axes[len(current):, column]:
             axis.set_visible(False)
     groups = {'Setup': ['ssm', 'clusterDns'], 'Connection': ['lookup', 'tcp', 'tls', 'hello', 'auth', 'monitor', 'discovery', 'roleCheck'], 'Code & scheduling': ['callback', 'dispatch'], 'Operation': ['send', 'receive']}
@@ -204,9 +241,10 @@ def render(data, summary, output):
         legend.get_title().set_fontweight('bold')
     configuration = data['configuration']
     figure.suptitle(f"Cold Lambda connection breakdown · {configuration['environment']}", x=.08, ha='left', y=.985, fontsize=23, weight='bold')
-    figure.text(.08,.95, f"Measured {data.get('createdAt', '')[:10]} · {configuration['count']} cold invocations per pattern/operation · {configuration['memoryMB']} MB · MongoDB driver 7.7.0\nEach panel shows one measured trace nearest its cohort median. Detailed code and callback probes are enabled.", fontsize=12)
-    figure.text(.08,.025, 'SSM through operation result; Lambda INIT and client close are outside the timeline. Concurrent socket lanes must not be added.\nEvery measured millisecond is accounted for. Other callbacks and dispatch retain time without inferring its cause. Hatching marks callbacks with ≥2 ms off CPU.\nLocalStack timings do not predict AWS latency. Results describe the recorded runtime, cluster and measurement window.', fontsize=10)
-    figure.subplots_adjust(left=.08, right=.97, top=.89, bottom=.27, hspace=.9, wspace=.28)
+    figure.text(.08,.95, f"Measured {data.get('createdAt', '')[:10]} · {configuration['count']} cold invocations per pattern/operation · {configuration['memoryMB']} MB · MongoDB driver 7.7.0\nOne real invocation nearest each cold cohort median. INIT includes SSM; timelines below show the handler. Detailed probes are enabled.", fontsize=12)
+    package = configuration.get('packageZipBytes', 0)
+    figure.text(.08,.025, f'INIT includes runtime, modules and SSM. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. Hatching marks callbacks with ≥2 ms off CPU. Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
+    figure.subplots_adjust(left=.08, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
     figure.savefig(output, dpi=150, facecolor='white')
     plt.close(figure)
 

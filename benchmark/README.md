@@ -28,10 +28,10 @@ report, and image together for the environment being measured.
 
 ## Read the timeline
 
-Each panel shows a measured trace nearest its cohort median. Headings give the
-cohort median, p95, mean, standard deviation (SD), coefficient of variation
-(CV), and count; the number at the end of the trace is that sample's
-actual duration. No-plugin writes have separate panels for a primary landing
+Each panel shows a measured trace nearest its cohort median of INIT plus handler. Headings give the
+cold cohort median, p95 and count, with handler mean, standard deviation (SD)
+and coefficient of variation (CV). Each panel lists the illustrated invocation's
+INIT duration, including SSM, and handler duration. No-plugin writes have separate panels for a primary landing
 (one connection) and a secondary landing (two connections).
 
 SSM retrieval is awaited during module initialization. The handler lazily creates
@@ -70,8 +70,8 @@ before reporting its compressed and unpacked sizes.
 This produces `cold-start.png`, `connection-details.png`, and `cold-start.json`.
 The overview accounts for INIT through the read result. The detail view places
 SSM, DNS, and each MongoDB socket on separate rows. Both use the same invocation,
-selected nearest the median of INIT plus measured read time. INIT has no internal
-phase breakdown in these samples. Provisioning, caller transport, and cleanup
+selected nearest the median of INIT plus measured read time. The SSM request is
+measured inside INIT; the rest of INIT has no internal phase breakdown. Provisioning, caller transport, and cleanup
 after the read are outside this view. All variants share a benchmark package
 containing both drivers and probes; its size is not a production bundle estimate.
 
@@ -97,9 +97,9 @@ performance samples.
 
 ## Limitations
 
-Detailed probes add overhead. Lambda INIT, module loading, client close,
-provisioning, and invocation transport are outside the main timer. INIT and
-reported handler durations are retained separately when available.
+Detailed probes add overhead. The handler detail excludes INIT, whose duration
+and SSM request are shown separately. Provisioning and invocation transport are
+outside both measurements. Clients stay open for warm calls.
 
 LocalStack tests API behavior and Lambda execution locally. Its CPU allocation,
 network, and KMS emulation do not predict AWS performance. AWS measurements apply

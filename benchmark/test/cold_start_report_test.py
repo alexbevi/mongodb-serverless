@@ -43,3 +43,24 @@ class ColdStartReportTest(unittest.TestCase):
         samples[0]['lambda']['initMs'] = None
         with self.assertRaisesRegex(ValueError, 'INIT'):
             report.read_case(samples)
+
+    def test_counts_init_ssm_once_without_subtracting_it_from_handler_time(self):
+        spec = importlib.util.spec_from_file_location('cold_start_report', Path(__file__).parents[1] / 'cold-start-report.py')
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        socket = dict(host='member', start=110, role='PRIMARY', tcp=[110, 115], auth=[115, 120])
+        sample = dict(iteration=0, variant='ssm', operation='read', totalMs=50, ssmMs=9, ssmPhase='init',
+                      sockets=1, cold=True, verified=True, initialization=dict(ssm=[dict(start=61, end=70)]),
+                      trace=dict(start=100, end=150, sockets=[socket], ssm=[], dns=[], exchanges=[],
+                                 command=dict(start=140, sent=141, end=149, socket=socket),
+                                 activities=[dict(name='Native URI/options parsing', kind='sync', start=100, end=101)],
+                                 execution=dict(threadCpuMs=2, segments=[dict(kind='callback', start=100, end=150, threadCpuMs=2)])),
+                      **{'lambda': dict(initMs=300)})
+        case = report.read_case([sample])
+        self.assertEqual(case['accountingMs']['ssm'], 9)
+        self.assertEqual(case['accountingMs']['init'], 291)
+        self.assertEqual(sum(case['accountingMs'].values()), 350)
+        self.assertFalse(any(lane['kind'] == 'ssm' for lane in case['lanes']))
+        stats = report.lambda_report.statistics([sample])
+        self.assertEqual(stats['medianExcludingSsmMs'], 50)
+        self.assertEqual(stats['medianInitPlusHandlerMs'], 350)

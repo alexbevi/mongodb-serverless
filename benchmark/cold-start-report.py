@@ -34,31 +34,12 @@ def read_case(samples, encoding=None):
     start = trace['start']
     init = sample['lambda']['initMs']
     spans = breakdown.accounting_segments(measured)
-    accounting = breakdown.accounting_totals(measured)
-    accounting['init'] = init
-    lanes = [dict(kind='ssm', label='SSM · decrypted parameters', spans=[
-        dict(phase='ssm', start=call['start']-start, end=call['end']-start) for call in trace['ssm']])]
-    if trace['dns']:
-        lanes.append(dict(kind='dns', label='Cluster DNS · SRV + TXT', spans=[
-            dict(phase='clusterDns', start=query['start']-start, end=query['end']-start) for query in trace['dns']]))
-    for socket in trace['sockets']:
-        events = [dict(phase=phase, start=socket[phase][0]-start, end=socket[phase][1]-start)
-                  for phase in ['lookup', 'tcp', 'tls', 'hello', 'auth'] if phase in socket]
-        for exchange in trace.get('exchanges', []):
-            if exchange['socket']['start'] != socket['start']:
-                continue
-            phase = 'discovery' if exchange['name'] == 'replSetGetStatus' else 'roleCheck' if exchange['name'] == 'hello' and exchange['start'] != socket.get('hello', [None])[0] else None
-            if phase and exchange['end'] <= trace['end']:
-                events.append(dict(phase=phase, start=exchange['start']-start, end=exchange['end']-start))
-        selected = trace['command']['socket']['start'] == socket['start']
-        if selected:
-            events.extend(dict(phase=phase, start=interval[0], end=interval[1]) for phase, interval in measured['command'].items())
-        role = socket.get('role', 'UNKNOWN').capitalize()
-        kind = 'Application' if 'auth' in socket else 'Monitor'
-        lanes.append(dict(kind='connection', label=f'{kind} · {role} · {socket["host"]}', spans=events, selected=selected))
-    code = [dict(span, phase='code' if span['phase'].startswith('code:') else span['phase']) for span in spans
-            if span['phase'].startswith('code:') or span['phase'] in ['callback', 'dispatch']]
-    lanes.append(dict(kind='code', label='Other handler work / scheduling', spans=code))
+    accounting = lambda_report.cold_accounting(sample)
+    lanes = lambda_report.handler_lanes(sample)
+    for lane in lanes:
+        for span in lane['spans']:
+            if span['phase'].startswith('code:'):
+                span['phase'] = 'code'
     return dict(variant=sample['variant'], iteration=sample['iteration'], count=len(samples), medianMs=middle,
                 p95Ms=lambda_report.percentile(totals, .95), totalMs=init+sample['totalMs'],
                 initMs=init, handlerMs=sample['totalMs'], accountingMs=accounting,
@@ -119,7 +100,7 @@ def render_overview(cases, package, configuration, date, path):
         for span in merged(spans):
             axis.barh(y, span['end']-span['start'], left=span['start'], height=.38, color=COLORS[span['phase']], linewidth=0)
             if span['phase'] == 'init':
-                axis.text((span['start']+span['end'])/2, y, f'INIT  {case["initMs"]:.1f} ms', color='white', ha='center', va='center', fontsize=11, weight='bold')
+                axis.text((span['start']+span['end'])/2, y, f'INIT  {case["initMs"]:.1f} ms\nSSM included', color='white', ha='center', va='center', fontsize=11, weight='bold')
         axis.text(-20, y+.06, NAMES[case['variant']], ha='right', va='center', fontsize=12, weight='bold')
         axis.text(-20, y-.22, f'Median {case["medianMs"]:.1f} ms · p95 {case["p95Ms"]:.1f} ms', ha='right', va='center', fontsize=10, color='#475569')
         axis.text(case['totalMs']+6, y, f'{case["totalMs"]:.1f}', va='center', fontsize=11, weight='bold')
@@ -133,7 +114,7 @@ def render_overview(cases, package, configuration, date, path):
                   loc='upper center', bbox_to_anchor=(.5, .617), ncol=5, fontsize=10, frameon=False)
     figure.text(.055, .548, 'Full wall-time breakdown of the three illustrated invocations', fontsize=15, weight='bold')
     figure.text(.055, .526, 'One real invocation nearest each cohort median. Every measured millisecond is allocated once; values are rounded.', fontsize=10, color='#475569')
-    rows = [('init', 'Lambda INIT · runtime + module initialization'), ('ssm', 'SSM · SecureString fetch and decryption'),
+    rows = [('init', 'Lambda INIT · excluding the SSM request'), ('ssm', 'SSM · SecureString fetch and decryption'),
             ('clusterDns', 'Cluster DNS · SRV + TXT'), ('monitor', 'Monitor handshakes · overlapping time counted once'),
             ('lookup', 'Application connection · host DNS'), ('tcp', 'Application connection · TCP'), ('tls', 'Application connection · TLS'),
             ('hello', 'Application connection · initial hello'), ('auth', 'Application connection · authentication'),
@@ -161,7 +142,7 @@ def render_overview(cases, package, configuration, date, path):
             cell.set_text_props(weight='bold')
         elif row % 2 == 0:
             cell.set_facecolor('#f8fafc')
-    figure.text(.055, .101, 'Timing boundary: reported INIT + handler measurement → read result. INIT has no recorded internal phase split.', fontsize=10)
+    figure.text(.055, .101, 'Timing boundary: reported INIT + handler measurement → read result. SSM is included in INIT; the remaining INIT time has no internal phase split.', fontsize=10)
     figure.text(.055, .080, 'Provisioning, caller/network round trip and post-read cleanup are outside this view. Parallel socket timings are not added.', fontsize=10)
     figure.text(.055, .059, 'The package contains both drivers and diagnostic probes; these are instrumented measurements, not minimal production bundles.', fontsize=10)
     figure.text(.055, .038, 'Connection details show the same invocations. Tiny intervals are rounded here; exact durations are retained in cold-start.json.', fontsize=10, color='#475569')
@@ -192,9 +173,9 @@ def render_connections(cases, path):
         axis.set_title(f'{NAMES[case["variant"]]} · {sockets} MongoDB connection' + ('s' if sockets != 1 else '') +
                        f'\nINIT {case["initMs"]:.1f} ms  +  handler to read {case["handlerMs"]:.1f} ms  =  {case["totalMs"]:.1f} ms',
                        loc='left', fontsize=13, weight='bold', pad=12)
-        axis.set_xlabel('Milliseconds since handler measurement started · INIT is outside this zoom', fontsize=10.5)
+        axis.set_xlabel('Milliseconds since handler measurement started · INIT (including SSM) is outside this zoom', fontsize=10.5)
     figure.suptitle('What happens after Lambda INIT', x=.06, ha='left', fontsize=24, weight='bold', y=.976)
-    figure.text(.06, .939, 'SSM and DNS have their own rows. Each MongoDB row shows only activity on that socket. Reads permit either healthy role.', fontsize=11)
+    figure.text(.06, .939, 'SSM completes during INIT. Each MongoDB row shows only activity on that socket. Reads permit either healthy role.', fontsize=11)
     legend = [(key, breakdown.phase_label(key).removeprefix('Application ')) for key in
               ['ssm', 'clusterDns', 'lookup', 'tcp', 'tls', 'hello', 'auth', 'roleCheck', 'discovery', 'send', 'receive']]
     legend += [('code', 'Other measured code'), ('callback', 'Other callbacks'), ('dispatch', 'Other dispatch / wait')]

@@ -100,7 +100,7 @@ def render_overview(cases, package, configuration, date, path):
         for span in merged(spans):
             axis.barh(y, span['end']-span['start'], left=span['start'], height=.38, color=COLORS[span['phase']], linewidth=0)
             if span['phase'] == 'init':
-                axis.text((span['start']+span['end'])/2, y, f'INIT  {case["initMs"]:.1f} ms\nSSM included', color='white', ha='center', va='center', fontsize=11, weight='bold')
+                axis.text((span['start']+span['end'])/2, y, f'INIT  {case["initMs"]:.1f} ms · includes SSM', color='white', ha='center', va='center', fontsize=11, weight='bold')
         axis.text(-20, y+.06, NAMES[case['variant']], ha='right', va='center', fontsize=12, weight='bold')
         axis.text(-20, y-.22, f'Median {case["medianMs"]:.1f} ms · p95 {case["p95Ms"]:.1f} ms', ha='right', va='center', fontsize=10, color='#475569')
         axis.text(case['totalMs']+6, y, f'{case["totalMs"]:.1f}', va='center', fontsize=11, weight='bold')
@@ -108,7 +108,7 @@ def render_overview(cases, package, configuration, date, path):
     axis.set_ylim(-.55, 2.55)
     axis.set_yticks([])
     axis.set_xlabel('Milliseconds · recorded INIT + measured handler time through read result', fontsize=11, labelpad=10)
-    legend = [('init', 'Lambda INIT'), ('ssm', 'SSM fetch'), ('clusterDns', 'SRV / TXT'), ('mongo', 'MongoDB handshakes'),
+    legend = [('init', 'Lambda INIT · includes SSM'), ('clusterDns', 'SRV / TXT'), ('mongo', 'MongoDB handshakes'),
               ('topology', 'Role / topology checks'), ('read', 'Read exchange'), ('code', 'Driver / runtime code'), ('callback', 'Callbacks'), ('dispatch', 'Dispatch / wait')]
     figure.legend(handles=[breakdown.Patch(facecolor=COLORS[key], label=label) for key, label in legend],
                   loc='upper center', bbox_to_anchor=(.5, .617), ncol=5, fontsize=10, frameon=False)
@@ -143,7 +143,7 @@ def render_overview(cases, package, configuration, date, path):
         elif row % 2 == 0:
             cell.set_facecolor('#f8fafc')
     figure.text(.055, .101, 'Timing boundary: reported INIT + handler measurement → read result. SSM is included in INIT; the remaining INIT time has no internal phase split.', fontsize=10)
-    figure.text(.055, .080, 'Provisioning, caller/network round trip and post-read cleanup are outside this view. Parallel socket timings are not added.', fontsize=10)
+    figure.text(.055, .080, 'Provisioning, caller transport and post-result reporting are outside this view. Clients stay open for warm calls.', fontsize=10)
     figure.text(.055, .059, 'The package contains both drivers and diagnostic probes; these are instrumented measurements, not minimal production bundles.', fontsize=10)
     figure.text(.055, .038, 'Connection details show the same invocations. Tiny intervals are rounded here; exact durations are retained in cold-start.json.', fontsize=10, color='#475569')
     figure.savefig(path, dpi=160, facecolor='white')

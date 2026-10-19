@@ -16,20 +16,35 @@ class ResultsTest(unittest.TestCase):
             self.assertFalse(data['failures'])
             self.assertNotIn('.mongodb.net', (directory / 'samples.json').read_text())
             self.assertNotIn('mongodb+srv://', (directory / 'samples.json').read_text())
-            self.assertTrue(data['configuration']['diagnostics'])
+            diagnostics = data['configuration']['diagnostics']
+            self.assertEqual(summary['configuration']['diagnostics'], diagnostics)
+            if not diagnostics:
+                self.assertEqual(data['executionSources'], [])
             self.assertEqual({s['variant'] for s in data['samples']}, {'native', 'no-plugin', 'ssm'})
             for operation in ['read', 'write']:
                 for variant in ['native', 'no-plugin', 'ssm']:
                     cohort = [s for s in data['samples'] if s['variant'] == variant and s['operation'] == operation]
                     self.assertEqual(len(cohort), data['configuration']['count'])
-                    self.assertEqual(summary['operations'][operation][variant]['count'], len(cohort))
+                    group = summary['operations'][operation][variant]
+                    self.assertEqual(group['count'], len(cohort))
+                    if data['configuration'].get('overview') == 'handler':
+                        self.assertAlmostEqual(sum(group['phaseMeansMs'].values()), group['meanMs'])
+                        self.assertNotIn('init', group['phaseMeansMs'])
+                        self.assertEqual(group['phaseMeansMs']['ssm'], 0)
                     for sample in cohort:
                         self.assertTrue(sample['verified'] and sample['cold'])
-                        self.assertEqual(sample['trace']['execution']['start'], sample['trace']['start'])
-                        self.assertEqual(sample['trace']['execution']['end'], sample['trace']['end'])
+                        if diagnostics:
+                            self.assertEqual(sample['trace']['execution']['start'], sample['trace']['start'])
+                            self.assertEqual(sample['trace']['execution']['end'], sample['trace']['end'])
+                        else:
+                            self.assertNotIn('execution', sample['trace'])
+                            self.assertNotIn('activities', sample['trace'])
             for trace in summary['illustratedTraces']:
                 self.assertAlmostEqual(sum(trace['accountingMs'].values()), trace['totalMs'])
                 self.assertEqual(trace['accountingMs']['unattributed'], 0)
+                if data['configuration'].get('overview') == 'handler':
+                    self.assertEqual(trace['totalMs'], trace['handlerMs'])
+                    self.assertNotIn('init', trace['accountingMs'])
             for document in ['samples.json', 'summary.json', 'results.md']:
                 text = (directory / document).read_text()
                 for forbidden in ['historicalBaseline', 'improvementVs', '"baseline":', '"main"', 'previous main']:

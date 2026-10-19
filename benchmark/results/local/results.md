@@ -1,41 +1,64 @@
 # LocalStack 4.14.0 results
 
-Measured 2026-10-19T13:52:35.300Z · Node v24.21.0.
+Measured 2026-10-19T19:01:58.376Z · Node v24.21.0.
 
-40 cold invocations per driver/operation case.
-
-| Operation / pattern | n | Handler median | Handler p95 | INIT median | SSM median | INIT + handler median |
+| Operation / pattern | n | Mean | Median | SD | p95 | Mean 95% CI |
 |---|---:|---:|---:|---:|---:|---:|
-| read / Native MongoDB | 40 | 50.7 ms | 54.2 ms | 163.9 ms | 19.3 ms | 215.2 ms |
-| read / No plugin | 40 | 53.9 ms | 56.3 ms | 164.0 ms | 19.3 ms | 218.2 ms |
-| read / aws-ssm · cached topology | 40 | 44.7 ms | 46.9 ms | 164.3 ms | 19.7 ms | 208.8 ms |
-| write / Native MongoDB | 40 | 51.7 ms | 54.5 ms | 163.8 ms | 19.2 ms | 215.6 ms |
-| write / No plugin | 40 | 67.2 ms | 69.9 ms | 163.8 ms | 19.2 ms | 230.4 ms |
-| write / aws-ssm · cached topology | 40 | 45.3 ms | 48.3 ms | 165.2 ms | 19.6 ms | 210.5 ms |
-| No plugin / lucky write, 1 connection | 10 | 54.9 ms | 56.6 ms | 164.4 ms | 19.2 ms | 218.9 ms |
-| No plugin / write, 2 connections | 30 | 68.1 ms | 70.0 ms | 163.8 ms | 19.3 ms | 231.6 ms |
+| read / Native MongoDB | 40 | 23.9 | 23.6 | 1.3 | 25.3 | 23.5–24.4 |
+| read / No plugin | 40 | 25.6 | 25.7 | 1.1 | 27.3 | 25.3–26.0 |
+| read / aws-ssm · cached topology | 40 | 21.9 | 21.9 | 1.0 | 23.3 | 21.6–22.2 |
+| write / Native MongoDB | 40 | 24.9 | 24.6 | 1.5 | 26.9 | 24.5–25.4 |
+| write / No plugin | 40 | 29.9 | 30.6 | 2.9 | 34.6 | 29.0–30.8 |
+| write / aws-ssm · cached topology | 40 | 22.5 | 22.4 | 1.1 | 24.3 | 22.2–22.9 |
+| No plugin / lucky write, 1 connection | 12 | 26.1 | 26.1 | 0.8 | 27.2 | 25.7–26.5 |
+| No plugin / write, 2 connections | 28 | 31.5 | 31.3 | 1.6 | 35.0 | 31.0–32.1 |
 
-SSM is fetched during INIT. Handler latency starts after that fetch and ends at the operation result. INIT + handler is calculated per invocation before taking the median. The client is created lazily and retained for warm calls.
+### Average read phase times
 
-INIT includes runtime and module initialization. Provisioning, caller transport, and post-result reporting are outside the measured interval. Detailed probes add overhead. Write landing groups occur naturally and have unequal sample counts.
+| Phase | Native MongoDB (n=40) | No plugin (n=40) | aws-ssm · cached topology (n=40) |
+|---|---:|---:|---:|
+| Cluster DNS · SRV + TXT | 0.3 | 1.3 | 0.0 |
+| Monitor handshakes · overlapping time counted once | 7.9 | 0.0 | 0.0 |
+| Application host DNS | 0.9 | 0.3 | 0.3 |
+| TCP connection | 0.3 | 0.2 | 0.2 |
+| TLS handshake | 1.0 | 1.6 | 1.6 |
+| Initial hello | 0.7 | 2.1 | 2.1 |
+| Authentication | 3.4 | 3.4 | 3.3 |
+| Topology discovery | 0.0 | 0.7 | 0.0 |
+| Additional hello commands | 0.0 | 0.7 | 0.0 |
+| Prepare/send operation | 0.3 | 0.1 | 0.3 |
+| Operation request → reply | 0.4 | 0.4 | 0.5 |
+| Other handler work / scheduling | 8.7 | 14.9 | 13.6 |
+| **Total** | **23.9** | **25.6** | **21.9** |
 
-LocalStack omits INIT duration from its log tail. INIT here measures the Node performance clock from process startup until module initialization completes. It excludes container provisioning and is not AWS-reported INIT.
+### Average write phase times
 
-Deployment package: 4,995,900 bytes ZIP; identical for all patterns, including both drivers and diagnostic probes.
+| Phase | Native MongoDB (n=40) | No plugin (n=40) | No plugin · lucky (n=12) | No plugin · 2 connections (n=28) | aws-ssm · cached topology (n=40) |
+|---|---:|---:|---:|---:|---:|
+| Cluster DNS · SRV + TXT | 0.3 | 1.3 | 1.3 | 1.3 | 0.0 |
+| Monitor handshakes · overlapping time counted once | 8.4 | 0.0 | 0.0 | 0.0 | 0.0 |
+| Application host DNS | 0.4 | 0.5 | 0.3 | 0.5 | 0.3 |
+| TCP connection | 0.2 | 0.4 | 0.2 | 0.4 | 0.2 |
+| TLS handshake | 1.0 | 2.4 | 1.6 | 2.7 | 1.6 |
+| Initial hello | 0.7 | 2.6 | 2.2 | 2.8 | 2.2 |
+| Authentication | 3.4 | 3.9 | 3.3 | 4.1 | 3.3 |
+| Topology discovery | 0.0 | 0.7 | 0.7 | 0.7 | 0.0 |
+| Additional hello commands | 0.0 | 0.7 | 0.7 | 0.7 | 0.0 |
+| Prepare/send operation | 0.3 | 0.1 | 0.1 | 0.1 | 0.3 |
+| Operation request → reply | 1.4 | 1.3 | 1.4 | 1.3 | 1.5 |
+| Other handler work / scheduling | 8.8 | 16.1 | 14.3 | 16.8 | 13.2 |
+| **Total** | **24.9** | **29.9** | **26.1** | **31.5** | **22.5** |
 
-6 separate warm checks verified environment and client reuse, without further SSM requests, cluster DNS or discovery. Serverless calls reused their direct sockets. A native nearest read may open a pool connection to another member.
+All durations are milliseconds from handler measurement entry through the operation result. Lambda INIT, including the completed SSM fetch, is excluded. The client is created lazily and retained for warm calls. Raw INIT and SSM measurements remain in samples.json.
 
-| Warm check | Handler time | Serving role |
-|---|---:|---|
-| read / Native MongoDB | 4.8 ms | SECONDARY |
-| write / Native MongoDB | 4.8 ms | PRIMARY |
-| read / No plugin | 4.2 ms | SECONDARY |
-| write / No plugin | 4.6 ms | PRIMARY |
-| read / aws-ssm · cached topology | 4.3 ms | SECONDARY |
-| write / aws-ssm · cached topology | 5.3 ms | PRIMARY |
+Phase averages cover every invocation and add to the average handler total before rounding. Overlapping sockets are counted once. Without detailed probes, other handler work and scheduling is an elapsed remainder; its CPU, callback and internal code breakdown is not measured.
 
-One warm invocation per case validates reuse; these timings are not a warm latency distribution.
+Mean confidence intervals use 10,000 percentile bootstrap resamples with a fixed seed, assuming independent observations within this run. SD is the sample standard deviation. These intervals do not measure variation between deployments or days. Write landing cohorts occur naturally and have unequal counts.
+
+Package: 4,950,505 bytes ZIP; identical for every case. Detailed execution/source probes: disabled. DNS/socket/command timers remain enabled.
+
+6 separate warm checks verified environment and client reuse without another SSM request, cluster DNS or topology discovery. These checks are excluded from the cold distributions.
 
 ![Measured connection breakdown](latency.png)
 
-Each panel shows a real invocation nearest its cohort median of INIT + handler time. INIT and its SSM request are shown above the handler detail. Each socket has its own row; DNS and other work have separate rows. Parallel rows must not be added. The summary accounts for every measured millisecond once.
+Each panel shows a real invocation nearest the handler median. Connections occupy separate overlapping lanes; do not add their elapsed times. INIT, provisioning, caller transport and post-result reporting are outside the overview. LocalStack timings do not predict AWS performance.

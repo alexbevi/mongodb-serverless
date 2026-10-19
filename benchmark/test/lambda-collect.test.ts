@@ -10,7 +10,7 @@ it('keeps handler REPORT duration distinct from INIT duration', async () => {
 
   const result = await invokeCold(lambda, 'worker', '1', { variant: 'native', operation: 'read' });
 
-  expect(result.lambda).toEqual({ version: '1', initMs: 600.25, durationMs: 42.5 });
+  expect(result.lambda).toEqual({ version: '1', initMs: 600.25, initSource: 'lambda-report', durationMs: 42.5 });
 });
 
 it('requires warm calls to reuse the environment and socket without repeating setup', async () => {
@@ -41,4 +41,17 @@ it('allows a retained native client to choose another member for a nearest read'
   expect(() => assertWarmReuse(cold, warm)).not.toThrow();
   expect(() => assertWarmReuse(cold, { ...warm, clientConstructions: 2 })).toThrow();
   expect(() => assertWarmReuse(cold, { ...warm, monitorSockets: 3 })).toThrow();
+});
+
+it('uses a labelled process clock when LocalStack omits the INIT report', async () => {
+  const { invokeCold } = await import(new URL('../lambda-collect.mjs', import.meta.url).href);
+  const lambda = { send: async () => ({
+    Payload: Buffer.from(JSON.stringify({ verified: true, cold: true, initialization: { processReadyMs: 310 } })),
+    LogResult: Buffer.from('REPORT RequestId: example\tDuration: 42.50 ms').toString('base64')
+  }) };
+  const result = await invokeCold(lambda, 'worker', '1', { variant: 'native', operation: 'read' });
+
+  expect(result.lambda.initMs).toBe(310);
+  expect(result.lambda.initSource).toBe('node-process-clock');
+  expect(result.lambda.durationMs).toBe(42.5);
 });

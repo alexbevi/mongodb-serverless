@@ -56,6 +56,7 @@ def summarize(data):
         landings[name] = group
     summary = dict(measuredAt=data.get('createdAt'),
                    runtimes=sorted({sample['nodeVersion'] for sample in samples if 'nodeVersion' in sample}),
+                   initSources=sorted({sample.get('lambda', {}).get('initSource', 'not-recorded') for sample in samples}),
                    configuration={key: value for key, value in data['configuration'].items() if key != 'preparation'},
                    operations=operations, writeLandings=landings)
     return summary
@@ -76,6 +77,8 @@ def markdown(summary):
     configuration = summary['configuration']
     lines += ['', 'SSM is fetched during INIT. Handler latency starts after that fetch and ends at the operation result. INIT + handler is calculated per invocation before taking the median. The client is created lazily and retained for warm calls.',
               '', 'INIT includes runtime and module initialization. Provisioning, caller transport, and post-result reporting are outside the measured interval. Detailed probes add overhead. Write landing groups occur naturally and have unequal sample counts.']
+    if summary.get('initSources') == ['node-process-clock']:
+        lines += ['', 'LocalStack omits INIT duration from its log tail. INIT here measures the Node performance clock from process startup until module initialization completes. It excludes container provisioning and is not AWS-reported INIT.']
     if configuration.get('packageZipBytes'):
         lines += ['', f"Deployment package: {configuration['packageZipBytes']:,} bytes ZIP; identical for all patterns, including both drivers and diagnostic probes."]
     checks = configuration.get('warmVerification', [])
@@ -243,7 +246,8 @@ def render(data, summary, output):
     figure.suptitle(f"Cold Lambda connection breakdown · {configuration['environment']}", x=.08, ha='left', y=.985, fontsize=23, weight='bold')
     figure.text(.08,.95, f"Measured {data.get('createdAt', '')[:10]} · {configuration['count']} cold invocations per pattern/operation · {configuration['memoryMB']} MB · MongoDB driver 7.7.0\nOne real invocation nearest each cold cohort median. INIT includes SSM; timelines below show the handler. Detailed probes are enabled.", fontsize=12)
     package = configuration.get('packageZipBytes', 0)
-    figure.text(.08,.025, f'INIT includes runtime, modules and SSM. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. Hatching marks callbacks with ≥2 ms off CPU. Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
+    init_source = 'Local INIT uses the Node process clock; AWS INIT uses Lambda REPORT.'
+    figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. Hatching marks callbacks with ≥2 ms off CPU. Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
     figure.subplots_adjust(left=.08, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
     figure.savefig(output, dpi=150, facecolor='white')
     plt.close(figure)

@@ -63,7 +63,10 @@ INIT includes the SSM request. Publication, deployment and caller transport are
 outside these measurements. Socket/DNS/command probes, callback profiling, and source
 probes are enabled equally. The chart shows each connection and accounts for the full measured
 interval, including SSM, discovery, role checks, and callback dispatch.
-Instrumentation contributes to the recorded duration.
+Instrumentation contributes to the recorded duration. AWS INIT comes from the
+Lambda REPORT line. LocalStack omits that field, so its startup measurement uses
+the Node performance clock through completed module initialization. The JSON
+records the timing source; neither includes container provisioning.
 
 - Native and no-plugin execution environments each fetch the URI through `GetParameter` with
   decryption, then perform SRV and TXT resolution. Warm invocations reuse the existing client.

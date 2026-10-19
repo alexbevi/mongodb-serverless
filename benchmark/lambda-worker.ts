@@ -104,7 +104,7 @@ const getClient = await initializeLazyClient(fetchConnectionString, uri => {
   return client;
 });
 
-const initialization = { ssm: ssmCalls.splice(0) };
+const initialization = { ssm: ssmCalls.splice(0), processReadyMs: performance.now() };
 
 export async function handler(
   event: { variant: PatternVariant; operation: PatternOperation; prepare?: boolean },

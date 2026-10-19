@@ -20,7 +20,7 @@ async function invoke(lambda, name, version, event) {
   const init = /Init Duration: ([\d.]+) ms/.exec(log);
   const duration = /REPORT[^\n]*?\bDuration: ([\d.]+) ms/.exec(log);
 
-  return { ...result, lambda: { version, initMs: init ? Number(init[1]) : null, durationMs: duration ? Number(duration[1]) : null } };
+  return { ...result, lambda: { version, initMs: init ? Number(init[1]) : result.initialization?.processReadyMs ?? null, initSource: init ? 'lambda-report' : result.initialization ? 'node-process-clock' : null, durationMs: duration ? Number(duration[1]) : null } };
 }
 
 export async function invokeCold(lambda, name, version, event) {

@@ -2,12 +2,11 @@
 import argparse
 import json
 import math
-import subprocess
 from pathlib import Path
 from statistics import median
 
-VARIANTS = ['native', 'main', 'no-plugin', 'ssm']
-LABELS = {'native': 'Native MongoDB', 'main': 'Main (fresh SSM control)', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
+VARIANTS = ['native', 'no-plugin', 'ssm']
+LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'SSM topology plugin'}
 
 
 def percentile(values, fraction):
@@ -33,7 +32,7 @@ def improvement(value, baseline):
     return None if value is None else 100 * (1 - value / baseline)
 
 
-def summarize(data, historical=None):
+def summarize(data):
     if data['failures']:
         raise ValueError('Cannot summarize a run with failures')
     samples = data['samples']
@@ -44,53 +43,27 @@ def summarize(data, historical=None):
         groups = {variant: statistics([sample for sample in samples if sample['variant'] == variant and sample['operation'] == operation]) for variant in VARIANTS}
         if any(group['count'] != data['configuration']['count'] for group in groups.values()):
             raise ValueError('Sample count differs from the requested cohort')
-        for group in groups.values():
-            group['improvementVsMainPercent'] = improvement(group['medianMs'], groups['main']['medianMs'])
-            group['improvementVsNativePercent'] = improvement(group['medianMs'], groups['native']['medianMs'])
         operations[operation] = groups
     writes = [sample for sample in samples if sample['variant'] == 'no-plugin' and sample['operation'] == 'write']
     landings = {}
     for name, sockets in [('oneConnection', 1), ('twoConnections', 2)]:
         group = statistics([sample for sample in writes if sample['sockets'] == sockets])
         group['sharePercent'] = group['count'] / len(writes) * 100
-        group['improvementVsMainPercent'] = improvement(group['medianMs'], operations['write']['main']['medianMs'])
-        group['improvementVsNativePercent'] = improvement(group['medianMs'], operations['write']['native']['medianMs'])
         landings[name] = group
     summary = dict(configuration=data['configuration'], operations=operations, writeLandings=landings,
                    luckyWriteMedianReductionPercent=improvement(landings['oneConnection']['medianMs'], landings['twoConnections']['medianMs']) if all(group['count'] for group in landings.values()) else None)
-    if historical is not None:
-        summary['historicalBaseline'] = {}
-        for operation in ['read', 'write']:
-            baseline = {name: next(row for row in historical if row['operation'] == operation and row['driver'] == driver) for name, driver in [('main', 'serverless'), ('native', 'native-cluster')]}
-            summary['historicalBaseline'][operation] = {name: {key: row[key] for key in ['median', 'n']} for name, row in baseline.items()}
-            compared = list(operations[operation].values()) + (list(landings.values()) if operation == 'write' else [])
-            for group in compared:
-                group['improvementVsHistoricalMainPercent'] = improvement(group['medianMs'], baseline['main']['median'])
-                group['improvementVsHistoricalNativePercent'] = improvement(group['medianMs'], baseline['native']['median'])
     return summary
 
 
 def markdown(summary):
-    lines = ['| Operation / pattern | n | Median | p95 | vs fresh main | vs fresh native |', '|---|---:|---:|---:|---:|---:|']
+    lines = ['| Operation / pattern | n | Median | p95 | SSM median |', '|---|---:|---:|---:|---:|']
     for operation, groups in summary['operations'].items():
         for variant, group in groups.items():
-            lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['improvementVsMainPercent']:+.1f}% | {group['improvementVsNativePercent']:+.1f}% |")
+            lines.append(f"| {operation} / {LABELS[variant]} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms |")
     for name, group in summary['writeLandings'].items():
         if group['count']:
             label = 'lucky write, 1 connection' if name == 'oneConnection' else 'write, 2 connections'
-            lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['improvementVsMainPercent']:+.1f}% | {group['improvementVsNativePercent']:+.1f}% |")
-    if 'historicalBaseline' in summary:
-        history = ['', '| New pattern | vs previous main/serverless | vs previous native | Previous serverless median |', '|---|---:|---:|---:|']
-        for operation, groups in summary['operations'].items():
-            baseline = summary['historicalBaseline'][operation]['main']['median']
-            for variant in ['no-plugin', 'ssm']:
-                group = groups[variant]
-                history.append(f"| {operation} / {LABELS[variant]} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {group['improvementVsHistoricalNativePercent']:+.1f}% | {baseline:.1f} ms |")
-        for name, group in summary['writeLandings'].items():
-            if group['count']:
-                history.append(f"| write / {'1 connection' if name == 'oneConnection' else '2 connections'} | {group['improvementVsHistoricalMainPercent']:+.1f}% | {group['improvementVsHistoricalNativePercent']:+.1f}% | {summary['historicalBaseline']['write']['main']['median']:.1f} ms |")
-        history.extend(['', 'Historical comparisons are descriptive: the previous main run used detailed profiling, watcher-provided topology, no timed SSM read, and secondary-only reads. Local results also used a different runtime/network harness. These percentages do not isolate the code change.'])
-        lines = history + [''] + lines
+            lines.append(f"| No plugin / {label} | {group['count']} | {group['medianMs']:.1f} ms | {group['p95Ms']:.1f} ms | {group['medianSsmMs']:.1f} ms |")
     if all(group.get('medianInitMs') is not None for groups in summary['operations'].values() for group in groups.values()):
         lines.extend(['', '| Pattern | Median INIT | Median INIT + handler |', '|---|---:|---:|'])
         for operation, groups in summary['operations'].items():
@@ -100,7 +73,7 @@ def markdown(summary):
         lines.extend(['', 'INIT + handler excludes Lambda provisioning, invocation transport, and close. All variants load the same benchmark package.'])
     if summary['luckyWriteMedianReductionPercent'] is not None:
         lines.extend(['', f"Lucky-write median reduction versus two-connection writes: **{summary['luckyWriteMedianReductionPercent']:.1f}%**. These are observed landing groups, not paired trials."])
-    lines.extend(['', 'Positive percentages mean lower median latency. Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
+    lines.extend(['', 'Timings include SSM through the operation result; Lambda INIT and client close are separate. Write landing groups occur naturally and have unequal sample counts.'])
     title = summary['configuration'].get('environment', 'Cold Lambda')
     count = summary['configuration']['count']
     return f'# {title} results\n\n{count} cold invocations per driver/operation case.\n' + '\n'.join(lines) + '\n'
@@ -110,7 +83,7 @@ def render(data, summary, output):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    colors = ['#5D6B82', '#9845B5', '#008F86', '#D77518']
+    colors = ['#5D6B82', '#008F86', '#D77518']
     figure, axes = plt.subplots(1, 3, figsize=(16, 7), gridspec_kw={'width_ratios': [1.2, 1.2, 1]})
     figure.patch.set_facecolor('#F6F8FC')
     for axis in axes:
@@ -127,12 +100,8 @@ def render(data, summary, output):
             axis.plot([index, index], [group['medianMs'], group['p95Ms']], color=colors[index], linewidth=2)
             axis.plot(index, group['p95Ms'], '_', color=colors[index], markersize=12)
             axis.text(index, group['p95Ms'], f"{group['medianMs']:.1f}\nn={group['count']}", ha='center', va='bottom', fontsize=10)
-        axis.set_xticks(range(4), ['Native', 'Main\ncontrol', 'No\nplugin', 'SSM\ncached'])
-        historical_main = summary.get('historicalBaseline', {}).get(operation, {}).get('main', {}).get('median', 0)
-        if historical_main:
-            axis.axhline(historical_main, color='#9845B5', linestyle='--', linewidth=1, label=f'Previous main: {historical_main:.1f} ms')
-            axis.legend(loc='upper right', frameon=False, fontsize=9)
-        axis.set_ylim(0, max(historical_main, *(group['p95Ms'] for group in groups.values())) * 1.28)
+        axis.set_xticks(range(3), ['Native', 'No plugin', 'SSM cached'])
+        axis.set_ylim(0, max(group['p95Ms'] for group in groups.values()) * 1.28)
         axis.set_title('Reads · any healthy member' if operation == 'read' else 'Writes · primary only', loc='left', weight='bold', pad=18)
     axis = axes[2]
     for index, (name, group) in enumerate(summary['writeLandings'].items()):
@@ -147,9 +116,9 @@ def render(data, summary, output):
     environment = data['configuration']['environment']
     figure.suptitle(f'MongoDB cold Lambda connections · {environment}', x=.06, ha='left', fontsize=22, weight='bold', y=.96)
     figure.text(.06, .87, 'SSM SecureString read + connection + first operation. Every sample uses a fresh Lambda version.', fontsize=12, color='#42516B')
-    figure.text(.06, .07, f"Main baseline {data['configuration']['baseline'][:12]} · {data['configuration']['memoryMB']} MB · TLS verified · MongoDB driver 7.7.0", fontsize=11, color='#42516B')
-    figure.text(.06, .04, 'Bars: medians; ticks: p95. Excludes INIT/close. Dashed line: previous main, with profiling and without timed SSM.', fontsize=10, color='#42516B')
-    figure.text(.06, .012, 'Historical differences do not isolate code changes. LocalStack timings do not predict AWS latency.', fontsize=10, color='#42516B')
+    figure.text(.06, .07, f"{data['configuration']['memoryMB']} MB · TLS verified · MongoDB driver 7.7.0", fontsize=11, color='#42516B')
+    figure.text(.06, .04, 'Bars: medians; ticks: p95. Excludes INIT and close.', fontsize=10, color='#42516B')
+    figure.text(.06, .012, 'LocalStack timings do not predict AWS latency.', fontsize=10, color='#42516B')
     figure.subplots_adjust(left=.06, right=.98, bottom=.22, top=.77, wspace=.34)
     figure.savefig(output, dpi=160, facecolor=figure.get_facecolor())
     plt.close(figure)
@@ -160,11 +129,7 @@ if __name__ == '__main__':
     parser.add_argument('samples', type=Path)
     args = parser.parse_args()
     data = json.loads(args.samples.read_text())
-    environment = 'aws' if data['configuration']['environment'] == 'AWS Lambda' else 'local'
-    historical_path = f'benchmark/results/{environment}/summary.json'
-    historical = json.loads(subprocess.check_output(['git', 'show', f"{data['configuration']['baseline']}:{historical_path}"]))
-    summary = summarize(data, historical)
-    summary['historicalSource'] = dict(revision=data['configuration']['baseline'], path=historical_path)
+    summary = summarize(data)
     args.samples.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     args.samples.with_name('results.md').write_text(markdown(summary))
     render(data, summary, args.samples.with_name('latency.png'))

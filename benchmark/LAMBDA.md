@@ -1,9 +1,9 @@
 # Cold Lambda routing benchmark
 
-Measure one read or write from each fresh Lambda execution environment. Compare
-native MongoDB, the exact `origin/main` driver, this branch without a plugin, and
-this branch with the SSM plugin. The main baseline uses the same SSM plugin as a
-store adapter so both cached drivers pay for one decrypted parameter request.
+Measure one read or write from each fresh Lambda execution environment using
+native MongoDB, the serverless driver without a plugin, and the serverless driver
+with cached topology in SSM. Reports describe the measured version. Comparisons
+with earlier versions belong in PR notes, outside the checked-in results.
 
 ## Run
 
@@ -12,21 +12,20 @@ Requires Docker, Node 24, pnpm, Python and zip. LocalStack is pinned to 4.14.0.
 ```sh
 pnpm install --frozen-lockfile
 pnpm benchmark:build
-node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker origin/main
+node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
 node benchmark/lambda-local.mjs --samples 40
 python3 -m pip install -r benchmark/requirements-report.txt
 python3 benchmark/lambda-report.py benchmark/results/lambda-localstack/samples.json
 ```
 
 The local runner creates a TLS replica set, DNS SRV/TXT records, a SecureString,
-and eight Lambda functions. It discovers and stores topology before collecting
+and six Lambda functions. It discovers and stores topology before collecting
 cache hits. The preparation result is retained separately in the JSON. It removes
 its Docker deployment on completion, including failures.
 
 After local validation, deploy to AWS using a profile allowed to manage the
 benchmark resources. The existing source function must have `MONGODB_URI` and
-optionally `DATABASE` configured. Its URI must use SRV and explicit
-`authSource=admin`; main cannot retain authentication settings from DNS TXT.
+optionally `DATABASE` configured. Its URI must use SRV.
 The script copies the URI directly to SecureString without logging it.
 
 ```sh
@@ -40,16 +39,10 @@ permissions stack, plus `/mongodb-serverless-pattern/uri` and `/topology` in SSM
 Lambda environment variables contain parameter paths, not credentials. Functions
 use Node 24, arm64, 1769 MB, no VPC, a 30-second timeout, and scoped SSM/log access.
 The script leaves the deployment for repeat runs and deletes measured function
-versions after each round. To retire it, delete the eight functions, their log
+versions after each round. To retire it, delete the six functions, their log
 groups, both parameters, and the `mongodb-serverless-pattern-permissions` stack.
 
 ## Measurements
-
-The headline comparison uses the previously recorded main-branch summary at the
-baseline SHA. The report retains its source path and commit. Historical timings
-included detailed profiling and excluded SSM reads; local measurements also used
-a different harness. Treat those percentages as descriptive, not a controlled
-estimate of the code change. Fresh native/main controls are reported separately.
 
 Each round publishes a fresh version of every function. Each version receives
 one invocation. The worker rejects reuse and the collector checks unique execution
@@ -70,7 +63,7 @@ not an overhead-free estimate.
   They reuse the discovery connection. Writes reuse a primary landing or open one
   additional connection after a secondary landing. Both landing groups are reported
   with their observed sample counts; random selection is not forced.
-- Main and the SSM variant fetch URI and topology together with `GetParameters`.
+- The SSM variant fetches URI and topology together with `GetParameters`.
   Cache hits open one authenticated direct connection, without SRV/TXT or discovery.
 - Every sample checks the serving role, authenticated/monitor socket counts, DNS,
   discovery commands, SSM request count, and SDK attempts. A failure stops the run;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-export const variants = ['native', 'main', 'no-plugin', 'ssm'] as const;
+export const variants = ['native', 'no-plugin', 'ssm'] as const;
 
 export type PatternVariant = typeof variants[number];
 

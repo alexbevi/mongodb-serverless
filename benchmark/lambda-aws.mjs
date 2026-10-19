@@ -81,7 +81,6 @@ try {
   const source = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: values['source-function'] }));
   const uri = source.Environment?.Variables?.MONGODB_URI;
   assert.ok(uri?.startsWith('mongodb+srv://'), 'Source must provide an SRV connection string');
-  assert.equal(new URL(uri).searchParams.get('authSource'), 'admin', 'Main baseline requires explicit authSource=admin');
   await ssm.send(new PutParameterCommand({ Name: uriParameter, Type: 'SecureString', Tier: 'Standard', Value: uri, Overwrite: true }));
   const role = await deployPermissions();
   const directory = resolve(values.package);
@@ -119,8 +118,7 @@ try {
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   await lambda.send(new DeleteFunctionCommand({ FunctionName: `${prefix}-ssm-write`, Qualifier: preparationVersion.Version }));
-  const baseline = JSON.parse(readFileSync(`${directory}/baseline.json`, 'utf8'));
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), region: values.region, architecture: 'arm64', memoryMB: 1769, baseline: baseline.revision, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: false });
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: false });
 } finally {
   lambda.destroy();
   ssm.destroy();

@@ -15,9 +15,6 @@ const { MongoClient } = await import('mongodb');
 // SAFETY: The deployment builder copies these compiled packages beside benchmark/dist.
 const { MongoClient: ServerlessClient } = await import(new URL('../../driver/dist/driver/src/index.js', import.meta.url).href) as typeof import('../driver/dist/driver/src/index.js');
 
-// SAFETY: Main uses the same MongoClient facade methods exercised by this benchmark.
-const { MongoClient: MainClient } = await import(new URL('../../baseline/driver/dist/driver/src/index.js', import.meta.url).href) as typeof import('../driver/dist/driver/src/index.js');
-
 // SAFETY: This is the SSM package built by the same TypeScript project.
 const { SsmPlugin } = await import(new URL('../../plugins/ssm/dist/ssm/src/index.js', import.meta.url).href) as typeof import('../plugins/ssm/dist/ssm/src/index.js');
 
@@ -70,8 +67,6 @@ export async function handler(event: { variant: PatternVariant; operation: Patte
 
   if (event.variant === 'ssm') {
     client = new ServerlessClient(undefined, { ...options, plugin, on, disableMonitoring: true });
-  } else if (event.variant === 'main') {
-    client = new MainClient(await plugin.getConnectionString(), { ...options, plugin, on, disableMonitoring: true });
   } else {
     const parameter = await ssm.send(new GetParameterCommand({ Name: uriParameter, WithDecryption: true }));
     assert.equal(parameter.Parameter?.Type, 'SecureString');

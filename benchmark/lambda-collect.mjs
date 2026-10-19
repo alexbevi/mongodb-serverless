@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-const variants = ['native', 'main', 'no-plugin', 'ssm'];
+const variants = ['native', 'no-plugin', 'ssm'];
 
 export const workerNames = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => `${prefix}-${variant}-${operation}`));
 

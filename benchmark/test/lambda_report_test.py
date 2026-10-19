@@ -13,18 +13,14 @@ def sample(variant, operation, ms, sockets=1):
 
 
 class ReportTest(unittest.TestCase):
-    def test_compares_both_baselines_and_keeps_natural_write_cohorts(self):
+    def test_summarizes_current_patterns_and_keeps_natural_write_cohorts(self):
         samples = []
         for operation in ['read', 'write']:
-            for variant, values in [('native', [100, 120]), ('main', [40, 60]),
-                                    ('no-plugin', [50, 90]), ('ssm', [30, 50])]:
+            for variant, values in [('native', [100, 120]), ('no-plugin', [50, 90]), ('ssm', [30, 50])]:
                 samples.extend(sample(variant, operation, value, 2 if variant == 'no-plugin' and operation == 'write' and value == 90 else 1) for value in values)
         summary = report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
         read = summary['operations']['read']
         self.assertEqual(read['ssm']['medianMs'], 40)
-        self.assertAlmostEqual(read['ssm']['improvementVsMainPercent'], 20)
-        self.assertAlmostEqual(read['no-plugin']['improvementVsMainPercent'], -40)
-        self.assertAlmostEqual(read['ssm']['improvementVsNativePercent'], 100 * (1 - 40 / 110))
         self.assertEqual(summary['writeLandings']['oneConnection']['count'], 1)
         self.assertEqual(summary['writeLandings']['twoConnections']['medianMs'], 90)
         self.assertEqual(summary['writeLandings']['oneConnection']['sharePercent'], 50)
@@ -35,7 +31,7 @@ class ReportTest(unittest.TestCase):
             report.summarize(dict(configuration={'count': 2}, samples=samples, failures=[]))
 
     def test_missing_cohort_is_not_reported_as_zero_latency(self):
-        samples = [sample(variant, operation, 10) for variant in ['native', 'main', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
+        samples = [sample(variant, operation, 10) for variant in ['native', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
         summary = report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[]))
         self.assertIsNone(summary['writeLandings']['twoConnections']['medianMs'])
         with self.assertRaisesRegex(ValueError, 'count'):
@@ -43,20 +39,18 @@ class ReportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'failures'):
             report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[{'name': 'error'}]))
 
-    def test_reports_previous_main_snapshot_separately_from_fresh_controls(self):
-        samples = [sample(variant, operation, 50) for variant in ['native', 'main', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
-        historical = [dict(operation=operation, driver=driver, median=ms, n=120) for operation in ['read', 'write'] for driver, ms in [('serverless', 100), ('native-cluster', 200)]]
-        data = dict(configuration={'count': 1}, samples=samples, failures=[])
-        summary = report.summarize(data, historical)
-        self.assertEqual(summary['operations']['read']['ssm']['improvementVsHistoricalMainPercent'], 50)
-        self.assertEqual(summary['operations']['read']['ssm']['improvementVsMainPercent'], 0)
-        self.assertEqual(summary['operations']['write']['no-plugin']['improvementVsHistoricalNativePercent'], 75)
-        self.assertEqual(summary['historicalBaseline']['read']['main']['n'], 120)
-        self.assertEqual(summary['writeLandings']['oneConnection']['improvementVsHistoricalMainPercent'], 50)
+    def test_current_report_needs_no_prior_revision_or_control(self):
+        samples = [sample(variant, operation, 50) for variant in ['native', 'no-plugin', 'ssm'] for operation in ['read', 'write']]
+        summary = report.summarize(dict(configuration={'count': 1}, samples=samples, failures=[]))
+        self.assertEqual(set(summary['operations']['read']), {'native', 'no-plugin', 'ssm'})
+        import json
+        for text in [json.dumps(summary), report.markdown(summary)]:
+            for reference in ['main', 'historical', 'baseline', 'improvementVs']:
+                self.assertNotIn(reference, text)
 
     def test_keeps_lambda_init_separate_from_handler_latency(self):
         samples = []
-        for variant in ['native', 'main', 'no-plugin', 'ssm']:
+        for variant in ['native', 'no-plugin', 'ssm']:
             for operation in ['read', 'write']:
                 for ms, init in [(30, 200), (50, 400)]:
                     item = sample(variant, operation, ms)

@@ -157,12 +157,12 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build current and main Lambda packages
+      - name: Build Lambda package
         run: |
           pnpm benchmark:build
           pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/patterns.test.ts benchmark/test/workflow.test.ts
           python3 -m unittest discover -s benchmark/test -p lambda_report_test.py
-          node benchmark/build-lambda.mjs "$RUNNER_TEMP/lambda/worker" origin/main
+          node benchmark/build-lambda.mjs "$RUNNER_TEMP/lambda/worker"
       - name: Measure verified cold Lambda patterns
         run: node benchmark/lambda-local.mjs --samples 20 --package "$RUNNER_TEMP/lambda/worker" --output "$RUNNER_TEMP/lambda/results/samples.json"
       - name: Render and summarize measurements

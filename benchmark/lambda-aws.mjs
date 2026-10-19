@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { CloudFormationClient, CreateStackCommand, UpdateStackCommand, DescribeStacksCommand, waitUntilStackCreateComplete, waitUntilStackUpdateComplete } from '@aws-sdk/client-cloudformation';
 import { LambdaClient, GetFunctionConfigurationCommand, CreateFunctionCommand, UpdateFunctionCodeCommand, UpdateFunctionConfigurationCommand, PublishVersionCommand, DeleteFunctionCommand, waitUntilFunctionActiveV2, waitUntilFunctionUpdatedV2 } from '@aws-sdk/client-lambda';
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
-import { collect, invokeCold, workerPatterns } from './lambda-collect.mjs';
+import { collect, invokeCold, workerPatterns, verifyWarmInvocations } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: {
   samples: { type: 'string', default: '100' }, output: { type: 'string', default: 'benchmark/results/aws/samples.json' },
@@ -118,7 +118,8 @@ try {
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   await lambda.send(new DeleteFunctionCommand({ FunctionName: `${prefix}-ssm-write`, Qualifier: preparationVersion.Version }));
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: true });
+  const warmVerification = await verifyWarmInvocations(lambda, prefix);
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics: true });
 } finally {
   lambda.destroy();
   ssm.destroy();

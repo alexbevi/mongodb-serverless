@@ -10,17 +10,49 @@ export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'wr
 
 export const workerNames = prefix => workerPatterns(prefix).map(pattern => pattern.name);
 
-export async function invokeCold(lambda, name, version, event) {
+async function invoke(lambda, name, version, event) {
   const response = await lambda.send(new InvokeCommand({ FunctionName: name, Qualifier: version, LogType: 'Tail', Payload: Buffer.from(JSON.stringify(event)) }));
   const result = JSON.parse(Buffer.from(response.Payload).toString('utf8'));
 
   if (response.FunctionError) throw new Error(`Worker failed: ${result.errorType}: ${result.errorMessage}`);
-  assert.ok(result.verified && result.cold);
+  assert.ok(result.verified);
   const log = Buffer.from(response.LogResult ?? '', 'base64').toString('utf8');
   const init = /Init Duration: ([\d.]+) ms/.exec(log);
   const duration = /REPORT[^\n]*?\bDuration: ([\d.]+) ms/.exec(log);
 
   return { ...result, lambda: { version, initMs: init ? Number(init[1]) : null, durationMs: duration ? Number(duration[1]) : null } };
+}
+
+export async function invokeCold(lambda, name, version, event) {
+  const result = await invoke(lambda, name, version, event);
+  assert.ok(result.cold, 'A warm invocation cannot enter the cold cohort');
+
+  return result;
+}
+
+export function assertWarmReuse(cold, warm) {
+  assert.ok(cold.cold && !warm.cold && warm.verified);
+  assert.equal(warm.environmentId, cold.environmentId, 'The warm call must reuse its execution environment');
+  assert.equal(warm.trace.command.socket.start, cold.trace.command.socket.start, 'The warm call must reuse its MongoDB socket');
+  assert.ok(warm.trace.command.start >= warm.trace.start, 'The command must belong to this invocation');
+
+  for (const field of ['sockets', 'ssmReads', 'ssmWrites', 'discoveryCommands']) assert.equal(warm[field], 0, field);
+  assert.deepEqual(warm.dns, []);
+}
+
+export async function verifyWarmInvocations(lambda, prefix) {
+  const checks = [];
+
+  for (const { name, variant, operation } of workerPatterns(prefix)) {
+    const cold = await invokeCold(lambda, name, '$LATEST', { variant, operation });
+    const warm = await invoke(lambda, name, '$LATEST', { variant, operation });
+    assertWarmReuse(cold, warm);
+    checks.push({ variant, operation, verified: true, totalMs: warm.totalMs, servedRole: warm.servedRole,
+      sockets: warm.sockets, ssmReads: warm.ssmReads, ssmWrites: warm.ssmWrites,
+      discoveryCommands: warm.discoveryCommands, dns: warm.dns, sameEnvironment: true, sameSocket: true });
+  }
+
+  return checks;
 }
 
 export async function collect(lambda, prefix, count, file, metadata) {

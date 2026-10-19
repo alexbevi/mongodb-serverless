@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { LambdaClient, CreateFunctionCommand, waitUntilFunctionActiveV2, PublishVersionCommand } from '@aws-sdk/client-lambda';
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
-import { collect, invokeCold, workerPatterns } from './lambda-collect.mjs';
+import { collect, invokeCold, workerPatterns, verifyWarmInvocations } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: { samples: { type: 'string', default: '40' }, output: { type: 'string', default: 'benchmark/results/local/samples.json' }, package: { type: 'string', default: '/tmp/mongodb-pattern-runtime/worker' } } });
 
@@ -69,7 +69,8 @@ try {
 
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, diagnostics: true });
+  const warmVerification = await verifyWarmInvocations(lambda, prefix);
+  await collect(lambda, prefix, count, resolve(values.output), { environment: 'LocalStack 4.14.0', packageSha256: createHash('sha256').update(zip).digest('hex'), memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics: true });
 } finally {
   lambda.destroy();
   ssm.destroy();

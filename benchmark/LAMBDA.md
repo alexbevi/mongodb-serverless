@@ -21,7 +21,10 @@ python3 benchmark/lambda-report.py benchmark/results/local/samples.json
 
 The local runner creates a TLS replica set, DNS SRV/TXT records, a SecureString,
 and six Lambda functions. It discovers and stores topology before collecting
-cache hits. The preparation result is retained separately in the JSON. It removes
+cache hits. The preparation result is retained separately in the JSON. Before measuring cold
+cohorts, each function receives a cold and warm call on `$LATEST`. The runner
+checks environment and socket reuse, with no further SSM, DNS, discovery or
+connections. These six warm checks are recorded separately. It removes
 its Docker deployment on completion, including failures.
 
 After local validation, deploy to AWS using a profile allowed to manage the

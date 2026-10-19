@@ -6,7 +6,7 @@ services:
       SERVICES: ssm,lambda,iam,logs,sts
       AWS_DEFAULT_REGION: ap-southeast-2
       LAMBDA_DOCKER_NETWORK: mongodb-latency-benchmark_bench
-      LAMBDA_KEEPALIVE_MS: "0"
+      LAMBDA_KEEPALIVE_MS: "60000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

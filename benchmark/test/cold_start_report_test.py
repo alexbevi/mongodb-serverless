@@ -64,3 +64,25 @@ class ColdStartReportTest(unittest.TestCase):
         stats = report.lambda_report.statistics([sample])
         self.assertEqual(stats['medianExcludingSsmMs'], 50)
         self.assertEqual(stats['medianInitPlusHandlerMs'], 350)
+
+    def test_optional_init_view_can_render_protocol_only_samples(self):
+        import tempfile
+        spec = importlib.util.spec_from_file_location('cold_start_report', Path(__file__).parents[1] / 'cold-start-report.py')
+        report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(report)
+        socket = dict(host='member', start=110, role='PRIMARY', tcp=[110, 115], auth=[115, 120])
+        cases = []
+        for variant in ['native', 'no-plugin', 'ssm']:
+            item = dict(iteration=0, variant=variant, operation='read', totalMs=50, cold=True, verified=True,
+                        trace=dict(start=100, end=150, sockets=[socket], dns=[], ssm=[], exchanges=[],
+                                   command=dict(start=140, sent=141, end=149, socket=socket)),
+                        **{'lambda': dict(initMs=100)})
+            cases.append(report.read_case([item]))
+        self.assertEqual(cases[0]['accountingMs']['other'], 31)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            report.render_overview(cases, dict(zipBytes=1000, unpackedBytes=2000),
+                                   dict(region='test', memoryMB=1769), '2026-01-01', output/'overview.png')
+            report.render_connections(cases, output/'connections.png')
+            self.assertTrue((output/'overview.png').read_bytes().startswith(b'\x89PNG'))
+            self.assertTrue((output/'connections.png').read_bytes().startswith(b'\x89PNG'))

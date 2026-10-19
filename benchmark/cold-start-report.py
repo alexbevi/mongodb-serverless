@@ -16,7 +16,7 @@ plt = breakdown.plt
 
 NAMES = {'native': 'Standard MongoDB', 'no-plugin': 'Serverless · no plugin', 'ssm': 'Serverless · cached topology'}
 COLORS = {**breakdown.COLORS, 'init': '#172554', 'mongo': '#38bdf8', 'topology': '#b45309',
-          'read': '#10b981', 'code': '#94a3b8', 'callback': '#cbd5e1', 'dispatch': '#e2e8f0'}
+          'read': '#10b981', 'code': '#94a3b8', 'callback': '#cbd5e1', 'dispatch': '#e2e8f0', 'other': '#94a3b8'}
 
 
 def read_case(samples, encoding=None):
@@ -109,7 +109,7 @@ def render_overview(cases, package, configuration, date, path):
     axis.set_yticks([])
     axis.set_xlabel('Milliseconds · recorded INIT + measured handler time through read result', fontsize=11, labelpad=10)
     legend = [('init', 'Lambda INIT · includes SSM'), ('clusterDns', 'SRV / TXT'), ('mongo', 'MongoDB handshakes'),
-              ('topology', 'Role / topology checks'), ('read', 'Read exchange'), ('code', 'Driver / runtime code'), ('callback', 'Callbacks'), ('dispatch', 'Dispatch / wait')]
+              ('topology', 'Role / topology checks'), ('read', 'Read exchange'), ('code', 'Driver / runtime code'), ('callback', 'Callbacks'), ('dispatch', 'Dispatch / wait'), ('other', 'Other handler work / scheduling')]
     figure.legend(handles=[breakdown.Patch(facecolor=COLORS[key], label=label) for key, label in legend],
                   loc='upper center', bbox_to_anchor=(.5, .617), ncol=5, fontsize=10, frameon=False)
     figure.text(.055, .548, 'Full wall-time breakdown of the three illustrated invocations', fontsize=15, weight='bold')
@@ -120,7 +120,7 @@ def render_overview(cases, package, configuration, date, path):
             ('hello', 'Application connection · initial hello'), ('auth', 'Application connection · authentication'),
             ('roleCheck', 'Role validation · hello'), ('discovery', 'Topology discovery · replSetGetStatus'),
             ('send', 'Read · command start to socket write'), ('receive', 'Read · socket write to reply'),
-            ('code', 'Other measured driver / runtime code'), ('callback', 'Other callbacks / continuations'), ('dispatch', 'Other dispatch / wait')]
+            ('code', 'Other measured driver / runtime code'), ('callback', 'Other callbacks / continuations'), ('dispatch', 'Other dispatch / wait'), ('other', 'Other handler work / scheduling')]
     values = []
     for phase, label in rows:
         times = [sum(value for key, value in case['accountingMs'].items() if key.startswith('code:')) if phase == 'code' else case['accountingMs'].get(phase, 0) for case in cases]
@@ -178,7 +178,7 @@ def render_connections(cases, path):
     figure.text(.06, .939, 'SSM completes during INIT. Each MongoDB row shows only activity on that socket. Reads permit either healthy role.', fontsize=11)
     legend = [(key, breakdown.phase_label(key).removeprefix('Application ')) for key in
               ['ssm', 'clusterDns', 'lookup', 'tcp', 'tls', 'hello', 'auth', 'roleCheck', 'discovery', 'send', 'receive']]
-    legend += [('code', 'Other measured code'), ('callback', 'Other callbacks'), ('dispatch', 'Other dispatch / wait')]
+    legend += [('code', 'Other measured code'), ('callback', 'Other callbacks'), ('dispatch', 'Other dispatch / wait'), ('other', 'Other handler work / scheduling')]
     figure.legend(handles=[breakdown.Patch(facecolor=COLORS[key], label=label) for key, label in legend],
                   loc='lower center', bbox_to_anchor=(.51, .035), ncol=4, fontsize=9.5, frameon=False)
     figure.text(.06, .018, 'Blank socket intervals mean no measured exchange. Bars show activity, not socket lifetime. Overlapping rows must not be summed.', fontsize=10, color='#475569')

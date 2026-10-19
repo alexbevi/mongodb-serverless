@@ -28,33 +28,34 @@ report, and image together for the environment being measured.
 
 ## Read the timeline
 
-Each panel shows a measured trace nearest its cohort median of INIT plus handler. Headings give the
-cold cohort median, p95 and count, with handler mean, standard deviation (SD)
-and coefficient of variation (CV). Each panel lists the illustrated invocation's
-INIT duration, including SSM, and handler duration. No-plugin writes have separate panels for a primary landing
-(one connection) and a secondary landing (two connections).
+The default overview starts at handler measurement entry and ends at the operation
+result. Lambda INIT, including the eager SSM fetch, is excluded. Each panel shows
+an actual trace nearest its handler median. Tables report means, medians, sample
+standard deviations, p95 values and bootstrap confidence intervals. Phase tables
+average every invocation. No-plugin writes include separate natural one- and
+two-connection cohorts.
 
-SSM retrieval is awaited during module initialization. The handler lazily creates
-a client and retains it for warm invocations; it does not close the client after
-each operation. The handler timer ends at the operation result. Every
-measured interval is accounted for. Colours identify SSM, cluster and host DNS,
-TCP, TLS, hello, authentication, topology discovery, role validation, command
-preparation, socket write, reply, and measured code scopes. Callback and dispatch
-segments retain elapsed time without inferring its cause.
+The default package records DNS, TCP, TLS, hello, authentication, discovery,
+additional hello commands and operation exchanges. Stack capture, callback CPU
+profiling and injected source probes are disabled. Time outside protocol spans
+is reported as other handler work and scheduling, without inferring its cause.
+Use `node benchmark/build-lambda.mjs --diagnostics /path/to/worker` to build a
+package with detailed execution and source probes. The runners read and verify
+the package's mode.
 
 Each socket has its own lane. Concurrent lanes overlap and must not be added.
-The summary records a non-overlapping accounting of each illustrated trace:
+The summary accounts for every millisecond once, in this priority order:
 SSM and discovery/validation requests, the operation, application socket phases,
-cluster DNS, monitor activity, code scopes, and callback/dispatch intervals, in
-that priority order. A higher-priority interval owns overlapping elapsed time.
-This wall-clock accounting is not a CPU profile.
+cluster DNS, monitor activity, then remaining handler work. This elapsed-time
+accounting is not a CPU profile.
 
-Hatching marks callbacks whose elapsed time exceeds their measured thread CPU
-by at least 2 ms. It covers the callback interval, without locating individual
-scheduling pauses or establishing their cause. Repeated execution stacks are
-stored once in `executionSources`; each segment retains its source identifier
-and measured times. [Trace encoding](TRACE_FORMAT.md) describes the lossless
-column format and how to expand it for inspection.
+The handler creates its client lazily and retains it for warm invocations.
+SSM and INIT measurements remain in the raw JSON. Provisioning, invocation
+transport and reporting after the operation result are outside the timers.
+With detailed probes enabled, hatching identifies callbacks whose elapsed time
+exceeds their measured thread CPU by at least 2 ms; it does not locate individual
+scheduling pauses. [Trace encoding](TRACE_FORMAT.md) describes the diagnostic
+column format and how to expand it.
 
 For a read-only view that includes recorded Lambda INIT, use the deployment ZIP
 from the measurement run. The renderer verifies its SHA-256 against the samples
@@ -97,8 +98,8 @@ performance samples.
 
 ## Limitations
 
-Detailed probes add overhead. The handler detail excludes INIT, whose duration
-and SSM request are shown separately. Provisioning and invocation transport are
+Protocol timers add overhead; optional detailed probes add more. INIT and its
+SSM request are excluded from the default overview and retained in the JSON. Provisioning and invocation transport are
 outside both measurements. Clients stay open for warm calls.
 
 LocalStack tests API behavior and Lambda execution locally. Its CPU allocation,

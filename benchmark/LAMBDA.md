@@ -50,6 +50,11 @@ groups, both parameters, and the `mongodb-serverless-pattern-permissions` stack.
 
 ## Measurements
 
+The default overview and average phase tables cover the handler through the
+operation result. INIT, including the completed SSM fetch, stays in the raw JSON
+and is excluded from that overview. Mean confidence intervals describe sampling
+uncertainty within one run; they do not establish repeatability across deployments.
+
 Each round publishes a fresh version of every function. Each version receives
 one measured cold invocation. The collector rejects warm samples and checks unique execution
 environment identifiers. Variant order rotates and reverses across rounds; read/write order alternates.

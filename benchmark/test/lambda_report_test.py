@@ -114,3 +114,33 @@ class ReportTest(unittest.TestCase):
         lane = next(lane for lane in report.handler_lanes(item) if lane['kind'] == 'code')
         self.assertEqual(sum(span['end']-span['start'] for span in lane['spans']), 8)
         self.assertTrue(all(span['phase'] == 'other' for span in lane['spans']))
+
+    def test_handler_overview_averages_every_phase_and_selects_without_init(self):
+        samples = []
+        for variant in ['native', 'no-plugin', 'ssm']:
+            for operation in ['read', 'write']:
+                for iteration, (total, init) in enumerate([(30, 100), (40, 400), (80, 10)]):
+                    socket = dict(host='member', start=101, role='PRIMARY', tcp=[101, 103],
+                                  tls=[103, 108], hello=[108, 110], auth=[110, 112])
+                    item = sample(variant, operation, total)
+                    item.update(iteration=iteration, ssmMs=5, ssmPhase='init', initialization=dict(ssm=[dict(start=1, end=6)]))
+                    item['lambda'] = dict(initMs=init)
+                    item['trace'] = dict(start=100, end=100+total, sockets=[socket], dns=[], ssm=[], exchanges=[],
+                        command=dict(start=100+total-5, sent=100+total-4, end=100+total-1, socket=socket))
+                    samples.append(item)
+        data = dict(configuration=dict(count=3, overview='handler', diagnostics=False), samples=samples, failures=[])
+        summary = report.summarize(data)
+        group = summary['operations']['read']['ssm']
+        self.assertEqual(group['meanMs'], 50)
+        self.assertAlmostEqual(sum(group['phaseMeansMs'].values()), 50)
+        self.assertEqual(group['phaseMeansMs']['other'], 35)
+        self.assertEqual(group['phaseMeansMs']['ssm'], 0)
+        self.assertNotIn('init', group['phaseMeansMs'])
+        self.assertLess(group['meanConfidence95Ms'][0], 50)
+        self.assertGreater(group['meanConfidence95Ms'][1], 50)
+        self.assertTrue(all(case['sample']['iteration'] == 1 for case in report.illustrated_cases(data)))
+        text = report.markdown(summary)
+        self.assertIn('Mean', text)
+        self.assertIn('Other handler work / scheduling', text)
+        self.assertNotIn('INIT median', text)
+        self.assertNotIn('INIT + handler median', text)

@@ -45,10 +45,12 @@ it('allows a retained native client to choose another member for a nearest read'
 
 it('uses a labelled process clock when LocalStack omits the INIT report', async () => {
   const { invokeCold } = await import(new URL('../lambda-collect.mjs', import.meta.url).href);
+
   const lambda = { send: async () => ({
     Payload: Buffer.from(JSON.stringify({ verified: true, cold: true, initialization: { processReadyMs: 310 } })),
     LogResult: Buffer.from('REPORT RequestId: example\tDuration: 42.50 ms').toString('base64')
   }) };
+
   const result = await invokeCold(lambda, 'worker', '1', { variant: 'native', operation: 'read' });
 
   expect(result.lambda.initMs).toBe(310);

@@ -44,6 +44,7 @@ export function assertWarmReuse(cold, warm) {
     assert.equal(warm.sockets, 0);
     assert.equal(warm.trace.command.socket.start, cold.trace.command.socket.start, 'The warm call must reuse its MongoDB socket');
   }
+
   assert.ok(warm.trace.command.start >= warm.trace.start, 'The command must belong to this invocation');
 
   for (const field of ['ssmReads', 'ssmWrites', 'discoveryCommands']) assert.equal(warm[field], 0, field);

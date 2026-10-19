@@ -94,3 +94,23 @@ class ReportTest(unittest.TestCase):
         del item['trace']['execution']
         with self.assertRaisesRegex(ValueError, 'diagnostics'):
             report.timeline(item)
+
+    def test_protocol_only_traces_account_for_unmeasured_work_without_inventing_cpu_detail(self):
+        socket = dict(host='primary', start=110, role='PRIMARY', tcp=[110, 120], tls=[120, 130], hello=[130, 135], auth=[135, 140])
+        monitor = dict(host='primary', start=105, role='PRIMARY', tcp=[105, 115], tls=[115, 125], hello=[125, 130])
+        item = sample('native', 'read', 50, sockets=2)
+        item['trace'] = dict(start=100, end=150, sockets=[monitor, socket], ssm=[],
+            dns=[dict(kind='SRV', start=101, end=104)], exchanges=[],
+            command=dict(start=145, sent=146, end=149, socket=socket))
+        timeline = report.timeline(item)
+        totals = report.breakdown.accounting_totals(timeline)
+        self.assertEqual(sum(totals.values()), 50)
+        self.assertEqual(totals['monitor'], 5)
+        self.assertEqual(totals['tls'], 10)
+        self.assertEqual(totals['other'], 8)
+        self.assertEqual(totals['unattributed'], 0)
+        self.assertNotIn('execution', timeline)
+        self.assertNotIn('threadCpuMs', timeline)
+        lane = next(lane for lane in report.handler_lanes(item) if lane['kind'] == 'code')
+        self.assertEqual(sum(span['end']-span['start'] for span in lane['spans']), 8)
+        self.assertTrue(all(span['phase'] == 'other' for span in lane['spans']))

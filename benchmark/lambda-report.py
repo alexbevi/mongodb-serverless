@@ -104,8 +104,9 @@ codec_spec.loader.exec_module(codec)
 
 def timeline(sample):
     trace = sample['trace']
-    if not trace.get('execution') or not trace.get('activities'):
-        raise ValueError('Full diagnostics are required; collect a new measured run')
+    diagnostic = 'execution' in trace or 'activities' in trace
+    if diagnostic and (not trace.get('execution') or not trace.get('activities')):
+        raise ValueError('Incomplete diagnostics; collect a new measured run')
     start = trace['start']
     command = trace['command']
     connections = []
@@ -121,12 +122,16 @@ def timeline(sample):
         phase = 'discovery' if exchange['name'] == 'replSetGetStatus' else 'roleCheck' if exchange['name'] == 'hello' and exchange['start'] != exchange['socket'].get('hello', [None])[0] else None
         if phase:
             requests.append(dict(phase=phase, start=exchange['start'] - start, end=exchange['end'] - start))
-    return dict(total=sample['totalMs'], connections=connections, requests=requests,
+    measured = dict(total=sample['totalMs'], connections=connections, requests=requests,
         dns=[dict(kind=q['kind'], start=q['start'] - start, end=q['end'] - start) for q in trace['dns']],
-        command=dict(send=[command['start'] - start, command['sent'] - start], receive=[command['sent'] - start, command['end'] - start]),
-        execution=[{**span, 'start': span['start'] - start, 'end': span['end'] - start} for span in trace['execution']['segments']],
+        command=dict(send=[command['start'] - start, command['sent'] - start], receive=[command['sent'] - start, command['end'] - start]))
+    if not diagnostic:
+        measured['gaps'] = [dict(phase='other', start=0, end=sample['totalMs'])]
+        return measured
+    measured.update(execution=[{**span, 'start': span['start'] - start, 'end': span['end'] - start} for span in trace['execution']['segments']],
         activities=[{**span, 'start': span['start'] - start, 'end': span['end'] - start} for span in trace['activities']],
         threadCpuMs=trace['execution']['threadCpuMs'])
+    return measured
 
 
 def handler_lanes(sample):
@@ -157,7 +162,7 @@ def handler_lanes(sample):
         kind = 'Application' if 'auth' in socket else 'Monitor'
         lanes.append(dict(kind='connection', label=f'{kind} · {role} · {socket["host"]}', spans=events, selected=selected))
     code = [dict(span) for span in spans
-            if span['phase'].startswith('code:') or span['phase'] in ['callback', 'dispatch']]
+            if span['phase'].startswith('code:') or span['phase'] in ['callback', 'dispatch', 'other']]
     lanes.append(dict(kind='code', label='Other handler work / scheduling', spans=code))
     return lanes
 

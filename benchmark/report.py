@@ -33,6 +33,7 @@ MODES = ("native-cluster", "serverless")
 
 
 GAP_COLORS = {
+    "other": ("#94a3b8", "Other handler work / scheduling"),
     "poolGaps": ("#c026d3", "Pool / checkout remainder"),
     "beforeCommand": ("#0e7490", "Connection ready → command interval"),
     "afterReply": ("#fb7185", "Reply → handler return"),
@@ -265,6 +266,8 @@ def display_segments(segments):
 
 
 def phase_color(phase):
+    if phase == "other":
+        return GAP_COLORS[phase][0]
     if phase == "monitor":
         return "#ddd6fe"
     if phase == "callback":

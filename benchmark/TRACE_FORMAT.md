@@ -43,3 +43,9 @@ PY
 ```
 
 The expanded file retains `sourceId` references into `executionSources`.
+
+Protocol-only Lambda samples omit `trace.execution` and `trace.activities`.
+They retain DNS, socket and command intervals. The report assigns elapsed time
+outside those intervals to `other`: handler work and scheduling whose internal
+cause was not measured. It does not infer CPU or callback durations. Parallel
+socket intervals still use the same non-overlapping accounting priority.

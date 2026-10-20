@@ -133,6 +133,7 @@ export parity test pins the version it was checked against. On upgrade, re-run
 it and re-verify:
 
 - `directConnection` rejections (SRV, host count, `loadBalanced`)
+- native `parseOptions` validating seed options without constructing a client
 - SRV turning TLS on by default
 - which operations declare no `Aspect`, since the search index operations
   declare none and would misroute as reads

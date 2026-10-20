@@ -1,4 +1,4 @@
-import { MongoClient, type MongoClientOptions } from 'mongodb';
+import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { requireMongo, assertVersion } from './native.js';
 import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 
@@ -8,19 +8,27 @@ export interface Seedlist {
 }
 
 export async function resolveSeeds(uri: string, options: MongoClientOptions = {}): Promise<Seedlist> {
-  const parsed = new MongoClient(uri, options).options;
+  const connectionString: {
+    parseOptions: (uri: string, client: undefined, options: MongoClientOptions) => MongoClient['options'];
+    resolveSRVRecord: SrvResolver;
+  } = requireMongo('./connection_string.js');
+
+  if (typeof connectionString.parseOptions !== 'function') {
+    throw new UnsupportedOperationError('Unsupported mongodb connection-string parser');
+  }
+
+  const parsed = connectionString.parseOptions(uri, undefined, options);
   let hosts = parsed.hosts;
 
   if (parsed.srvHost) {
     const manifest: { version: string } = requireMongo('../package.json');
     assertVersion(manifest.version);
-    const resolver: { resolveSRVRecord: SrvResolver } = requireMongo('./connection_string.js');
 
-    if (!isResolver(resolver.resolveSRVRecord)) {
+    if (!isResolver(connectionString.resolveSRVRecord)) {
       throw new UnsupportedOperationError('Unsupported mongodb SRV resolver');
     }
 
-    hosts = await resolver.resolveSRVRecord(parsed);
+    hosts = await connectionString.resolveSRVRecord(parsed);
   }
 
   if (parsed.loadBalanced) {

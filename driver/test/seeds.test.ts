@@ -53,3 +53,18 @@ it.each([
   expect(() => new MongoClient(uri)).toThrow();
   await expect(resolveSeeds(uri)).rejects.toThrow();
 });
+
+it('resolves seeds without collecting handshake metadata for an unused client', async () => {
+  const platform = vi.fn(() => 'test-platform');
+
+  await resolveSeeds('mongodb://localhost:27017/app', {
+    runtimeAdapters: { os: {
+      platform,
+      arch: () => 'test-architecture',
+      release: () => 'test-release',
+      type: () => 'test-type'
+    } }
+  });
+
+  expect(platform).not.toHaveBeenCalled();
+});

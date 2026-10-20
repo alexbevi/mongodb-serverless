@@ -2,7 +2,7 @@
 
 Measure one read or write from each fresh Lambda execution environment using
 native MongoDB, the serverless driver without a plugin, and the serverless driver
-with cached topology in SSM. Reports describe the measured version. Comparisons
+with cached or uncached topology in SSM. Reports describe the measured version. Comparisons
 with earlier versions belong in PR notes, outside the checked-in results.
 
 ## Run
@@ -25,7 +25,7 @@ cache hits. The preparation result is retained separately in the JSON. Before me
 cohorts, each function receives a cold and warm call on `$LATEST`. The runner
 checks environment and client reuse, with no further SSM, cluster DNS or
 discovery. Serverless calls must reuse their direct sockets; native nearest reads
-may open a connection in another member's pool. These six warm checks are recorded separately. It removes
+may open a connection in another member's pool. These eight warm checks are recorded separately. It removes
 its Docker deployment on completion, including failures.
 
 After local validation, deploy to AWS using a profile allowed to manage the
@@ -34,7 +34,7 @@ optionally `DATABASE` configured. Its URI must use SRV.
 The script copies the URI directly to SecureString without logging it.
 
 ```sh
-AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 100 \
+AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 200 \
   --source-function mongodb-serverless-prod-worker-1 --region ap-southeast-2
 python3 benchmark/compact.py benchmark/results/aws/samples.json
 python3 benchmark/lambda-report.py benchmark/results/aws/samples.json
@@ -42,10 +42,11 @@ python3 benchmark/lambda-report.py benchmark/results/aws/samples.json
 
 This creates dedicated `mongodb-serverless-pattern-*` functions and an IAM
 permissions stack, plus `/mongodb-serverless-pattern/uri` and `/topology` in SSM.
+Cache-miss samples use temporary parameters under `/mongodb-serverless-pattern/topology-miss-*`.
 Lambda environment variables contain parameter paths, not credentials. Functions
 use Node 24, arm64, 1769 MB, no VPC, a 30-second timeout, and scoped SSM/log access.
 The script leaves the deployment for repeat runs and deletes measured function
-versions after each round. To retire it, delete the six functions, their log
+versions after each round. To retire it, delete the eight functions, their log
 groups, both parameters, and the `mongodb-serverless-pattern-permissions` stack.
 
 ## Measurements
@@ -108,8 +109,8 @@ Normal healthy cache hits are measured separately from discovery and refresh.
 Concurrent cache writes use last-write-wins. The cached URI lasts for a plugin
 instance; create a new instance after credential rotation.
 
-The uncached aws-ssm functions use separate topology parameters for reads and
-writes. The collector deletes only those two parameters before publishing each
-cold round, outside the measured interval. The cached functions keep their
-prepared topology. Every miss must record one discovery and one topology write;
-otherwise collection fails.
+Each uncached aws-ssm invocation gets a fresh topology parameter name. The
+collector deletes it afterward, outside the measured interval. Reusing a name
+immediately after deletion would violate [SSM's 30-second recreation delay](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DeleteParameters.html).
+The cached functions keep their prepared topology. Every miss must record one
+discovery and one topology write; otherwise collection fails.

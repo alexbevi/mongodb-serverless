@@ -29,7 +29,7 @@ const uriParameter = `/${prefix}/uri`;
 
 const topologyParameter = `/${prefix}/topology`;
 
-const topologyArns = [topologyParameter, ...['read', 'write'].map(operation => topologyParameterFor(prefix, 'ssm-uncached', operation))];
+const topologyParameters = [topologyParameter, `/${prefix}/topology-miss-*`];
 
 const options = { region: values.region, maxAttempts: 3 };
 
@@ -49,8 +49,8 @@ const template = {
   Resources: { WorkerRole: { Type: 'AWS::IAM::Role', Properties: {
     AssumeRolePolicyDocument: { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Principal: { Service: 'lambda.amazonaws.com' }, Action: 'sts:AssumeRole' }] },
     Policies: [{ PolicyName: 'BenchmarkParameters', PolicyDocument: { Version: '2012-10-17', Statement: [
-      { Effect: 'Allow', Action: ['ssm:GetParameter', 'ssm:GetParameters'], Resource: [parameterArn(uriParameter), ...topologyArns.map(parameterArn)] },
-      { Effect: 'Allow', Action: 'ssm:PutParameter', Resource: topologyArns.map(parameterArn) },
+      { Effect: 'Allow', Action: ['ssm:GetParameter', 'ssm:GetParameters'], Resource: [parameterArn(uriParameter), ...topologyParameters.map(parameterArn)] },
+      { Effect: 'Allow', Action: 'ssm:PutParameter', Resource: topologyParameters.map(parameterArn) },
       { Effect: 'Allow', Action: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'], Resource: { 'Fn::Sub': `arn:\${AWS::Partition}:logs:\${AWS::Region}:\${AWS::AccountId}:log-group:/aws/lambda/${prefix}-*` } }
     ] } }]
   } } },

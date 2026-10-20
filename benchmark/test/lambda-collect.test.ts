@@ -58,18 +58,21 @@ it('uses a labelled process clock when LocalStack omits the INIT report', async 
   expect(result.lambda.durationMs).toBe(42.5);
 });
 
-it('clears only the uncached topology parameters before each cold round', async () => {
+it('uses fresh cache-miss parameter names each round and cleans them after invocation', async () => {
   const { mkdtemp, readFile, rm } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const { collect, workerPatterns } = await import(new URL('../lambda-collect.mjs', import.meta.url).href);
   const directory = await mkdtemp(join(tmpdir(), 'lambda-cache-miss-'));
   const events: string[] = [];
+  const deleted: string[] = [];
   let version = 0;
   const prefix = 'test-pattern';
 
   const ssm = { send: async (command: { input: { Names: string[] } }) => {
-    expect(command.input.Names).toEqual([`/${prefix}/topology-miss-read`, `/${prefix}/topology-miss-write`]);
+    expect(command.input.Names).toHaveLength(2);
+    expect(command.input.Names.every(name => name.startsWith(`/${prefix}/topology-miss-`))).toBe(true);
+    deleted.push(...command.input.Names);
     events.push('clear');
 
     return {};
@@ -105,7 +108,8 @@ it('clears only the uncached topology parameters before each cold round', async 
     const data = JSON.parse(await readFile(join(directory, 'samples.json'), 'utf8'));
     expect(data.samples).toHaveLength(16);
     expect(data.configuration.variants).toEqual(['native', 'no-plugin', 'ssm', 'ssm-uncached']);
-    expect(events).toEqual(Array.from({ length: 2 }, () => ['clear', ...Array(8).fill('publish'), ...Array(8).fill('invoke')]).flat());
+    expect(new Set(deleted).size).toBe(4);
+    expect(events).toEqual(Array.from({ length: 2 }, () => [...Array(8).fill('publish'), ...Array(8).fill('invoke'), 'clear']).flat());
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

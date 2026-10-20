@@ -12,12 +12,7 @@ export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'wr
 export const workerNames = prefix => workerPatterns(prefix).map(pattern => pattern.name);
 
 export const topologyParameterFor = (prefix, variant, operation) =>
-  `/${prefix}/topology${variant === 'ssm-uncached' ? `-miss-${operation}` : ''}`;
-
-async function clearUncachedTopology(ssm, prefix) {
-  const Names = ['read', 'write'].map(operation => topologyParameterFor(prefix, 'ssm-uncached', operation));
-  await ssm.send(new DeleteParametersCommand({ Names }));
-}
+  `/${prefix}/topology${variant === 'ssm-uncached' ? `-miss-${operation}-${randomUUID()}` : ''}`;
 
 async function invoke(lambda, name, version, event) {
   const response = await lambda.send(new InvokeCommand({ FunctionName: name, Qualifier: version, LogType: 'Tail', Payload: Buffer.from(JSON.stringify(event)) }));
@@ -61,7 +56,6 @@ export function assertWarmReuse(cold, warm) {
 }
 
 export async function verifyWarmInvocations(lambda, prefix, ssm) {
-  await clearUncachedTopology(ssm, prefix);
   const checks = [];
 
   for (const { name, variant, operation } of workerPatterns(prefix)) {
@@ -71,6 +65,11 @@ export async function verifyWarmInvocations(lambda, prefix, ssm) {
     checks.push({ variant, operation, verified: true, totalMs: warm.totalMs, servedRole: warm.servedRole,
       sockets: warm.sockets, ssmReads: warm.ssmReads, ssmWrites: warm.ssmWrites,
       discoveryCommands: warm.discoveryCommands, dns: warm.dns, sameEnvironment: true, sameClient: true, sameSocket: warm.trace.command.socket.start === cold.trace.command.socket.start });
+
+    if (variant === 'ssm-uncached') {
+      const config = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: name }));
+      await ssm.send(new DeleteParametersCommand({ Names: [config.Environment.Variables.TOPOLOGY_PARAMETER] }));
+    }
   }
 
   return checks;
@@ -78,12 +77,11 @@ export async function verifyWarmInvocations(lambda, prefix, ssm) {
 
 export async function collect(lambda, ssm, prefix, count, file, metadata) {
   const start = Date.now();
-  const names = workerNames(prefix);
 
-  const settings = await Promise.all(names.map(async name => {
+  const settings = await Promise.all(workerPatterns(prefix).map(async ({ name, variant, operation }) => {
     const config = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: name }));
 
-    return { name, environment: config.Environment.Variables };
+    return { name, variant, operation, environment: config.Environment.Variables };
   }));
 
   const samples = [];
@@ -115,9 +113,12 @@ export async function collect(lambda, ssm, prefix, count, file, metadata) {
 
   try {
     for (let iteration = 0; iteration < count; iteration += 1) {
-      await clearUncachedTopology(ssm, prefix);
-      const versions = new Map(await Promise.all(settings.map(async setting => {
-        await lambda.send(new UpdateFunctionConfigurationCommand({ FunctionName: setting.name, Environment: { Variables: { ...setting.environment, COLD_NONCE: randomUUID() } } }));
+      const round = settings.map(setting => ({ ...setting,
+        environment: { ...setting.environment, TOPOLOGY_PARAMETER: topologyParameterFor(prefix, setting.variant, setting.operation), COLD_NONCE: randomUUID() }
+      }));
+
+      const versions = new Map(await Promise.all(round.map(async setting => {
+        await lambda.send(new UpdateFunctionConfigurationCommand({ FunctionName: setting.name, Environment: { Variables: setting.environment } }));
         await waitUntilFunctionUpdatedV2({ client: lambda, maxWaitTime: 120, minDelay: 1, maxDelay: 2 }, { FunctionName: setting.name });
         const published = await lambda.send(new PublishVersionCommand({ FunctionName: setting.name }));
         assert.ok(published.Version && published.Version !== '$LATEST');
@@ -155,7 +156,11 @@ export async function collect(lambda, ssm, prefix, count, file, metadata) {
           }
         }
       } finally {
-        await Promise.all([...versions].map(([name, version]) => lambda.send(new DeleteFunctionCommand({ FunctionName: name, Qualifier: version }))));
+        const Names = round.filter(setting => setting.variant === 'ssm-uncached').map(setting => setting.environment.TOPOLOGY_PARAMETER);
+        await Promise.all([
+          ssm.send(new DeleteParametersCommand({ Names })),
+          ...[...versions].map(([name, version]) => lambda.send(new DeleteFunctionCommand({ FunctionName: name, Qualifier: version })))
+        ]);
       }
     }
   } catch (error) {

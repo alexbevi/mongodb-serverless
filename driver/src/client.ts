@@ -30,7 +30,7 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
  */
 export class ServerlessMongoClient {
   readonly #uri: string | undefined;
-  readonly #defaultDb: string | undefined;
+  #defaultDb: string | undefined;
   readonly #plugin: () => Promise<TopologyPlugin>;
   readonly #pair: () => Promise<ClientPair>;
 
@@ -38,7 +38,6 @@ export class ServerlessMongoClient {
     const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
 
     this.#uri = uri;
-    this.#defaultDb = uri == null ? undefined : defaultDatabaseOf(uri);
     let resolvedPlugin: Promise<TopologyPlugin> | undefined;
     let pair: Promise<ClientPair> | undefined;
     this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin, uri == null ? undefined : uncachedTopology);
@@ -92,7 +91,7 @@ export class ServerlessMongoClient {
   }
 
   db(name?: string): Db {
-    const dbName = name ?? this.#defaultDb;
+    const dbName = name ?? (this.#defaultDb ??= this.#uri == null ? undefined : defaultDatabaseOf(this.#uri));
 
     if (dbName == null) {
       throw new TypeError(

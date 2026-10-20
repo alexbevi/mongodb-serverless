@@ -1,5 +1,6 @@
 import { handshake } from './harness/handshake.js';
 import { MongoClient } from 'mongodb';
+import { ConnectionString } from 'mongodb-connection-string-url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDbFacade } from '../src/facade.js';
 import { ServerlessMongoClient } from '../src/client.js';
@@ -168,6 +169,17 @@ describe('ServerlessMongoClient', () => {
     expect(users.dbName).toBe('app');
     expect(users.namespace).toBe('app.users');
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('parses the default database only when requested and reuses it', () => {
+    const parse = vi.spyOn(ConnectionString.prototype, 'isSRV', 'get');
+    const client = new ServerlessMongoClient('mongodb://localhost:27017/my%64b');
+
+    expect(client.db('explicit').databaseName).toBe('explicit');
+    expect(parse).not.toHaveBeenCalled();
+    expect(client.db().databaseName).toBe('mydb');
+    expect(client.db().databaseName).toBe('mydb');
+    expect(new Set(parse.mock.contexts).size).toBe(1);
   });
 
   it('uses the default database from the uri', async () => {

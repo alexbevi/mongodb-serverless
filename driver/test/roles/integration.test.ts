@@ -48,7 +48,7 @@ it('refreshes mismatched cached roles before sending a read and stores them for 
           expect(commands.filter(event => event.commandName === 'replSetGetStatus'))
             .toHaveLength(coldStart === 1 ? 1 : 0);
           expect(commands.filter(event => event.commandName === 'hello'))
-            .toHaveLength(coldStart === 1 ? 1 : 0);
+            .toHaveLength(0);
           expect(stored).toHaveBeenCalledTimes(1);
           expect(await plugin.read()).toMatchObject({
             members: expect.arrayContaining([

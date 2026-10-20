@@ -68,7 +68,8 @@ On a cache miss, the native driver's URI parser and SRV/TXT resolver produce the
 seed list and connection settings. The wrapper tries seeds in random order,
 connecting directly to one member at a time. It retains a successful connection
 for operations targeting that member. Cached routing and refresh through known
-members perform no SRV or TXT lookups.
+members perform no SRV or TXT lookups. Discovery uses the initial handshake for
+replica-set identity and member address checks; it sends no additional `hello`.
 
 SRV resolution uses an internal driver API, verified against `mongodb@7.7.0`.
 It requires a stable version in `>=7.7.0 <8.0.0`; recheck DNS and authentication

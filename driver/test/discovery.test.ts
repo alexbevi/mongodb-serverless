@@ -1,3 +1,4 @@
+import { reportRole } from './harness/handshake.js';
 import { MongoClient, type MongoClientOptions } from 'mongodb';
 import { afterEach, expect, it, vi } from 'vitest';
 import { discoverTopology } from '../src/discovery.js';
@@ -12,11 +13,16 @@ it('uses native SRV and TXT rules before connecting directly with certificate au
   const dns = stubSrvRecords(27017, 'authSource=admin&replicaSet=rs0');
   const native = new MongoClient(uri, options);
   const admin = native.db('admin');
-  const connect = vi.spyOn(native, 'connect').mockResolvedValue(native);
+
+  const connect = vi.spyOn(native, 'connect').mockImplementation(async () => {
+    reportRole(native, 'RSPrimary', { setName: 'rs0', me: status.members[0]!.name });
+
+    return native;
+  });
+
   const close = vi.spyOn(native, 'close').mockResolvedValue();
 
   const command = vi.spyOn(admin, 'command')
-    .mockResolvedValueOnce({ setName: 'rs0', me: status.members[0]!.name })
     .mockResolvedValueOnce(status);
 
   vi.spyOn(native, 'db').mockReturnValue(admin);
@@ -37,7 +43,7 @@ it('uses native SRV and TXT rules before connecting directly with certificate au
   expect(dns).toHaveBeenCalledWith('_custom._tcp.cluster.localhost', 'SRV');
   expect(createClient).toHaveBeenCalledTimes(1);
   expect(connect).toHaveBeenCalledTimes(1);
-  expect(command).toHaveBeenNthCalledWith(1, { hello: 1 });
-  expect(command).toHaveBeenNthCalledWith(2, { replSetGetStatus: 1 });
+  expect(command).toHaveBeenCalledTimes(1);
+  expect(command).toHaveBeenCalledWith({ replSetGetStatus: 1 });
   expect(close).toHaveBeenCalledTimes(1);
 });

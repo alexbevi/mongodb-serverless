@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { ServerlessMongoClient } from '../../src/client.js';
+import { openDiscovery } from '../../src/discovery.js';
 import { startCluster, describeCluster } from '../../../test/harness/cluster.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -344,6 +345,34 @@ it('reuses either discovered role for an unrestricted nearest read', async () =>
         await client.close();
       }
     }
+  } finally {
+    await observed.close();
+  }
+}, 120_000);
+
+
+it('uses handshake identity for discovery without another hello', async () => {
+  const observed = await observeCluster();
+  const { cluster, commands, createClient } = observed;
+
+  try {
+    for (const disableMonitoring of [false, true]) {
+      const discovered = await openDiscovery(
+        `mongodb://${cluster.primary}/bootstrap?replicaSet=${cluster.status.set}`,
+        createClient, { monitorCommands: true, maxPoolSize: 1 }, undefined, disableMonitoring
+      );
+
+      try {
+        expect(discovered.host).toBe(cluster.primary);
+        expect(discovered.type).toBe('RSPrimary');
+        expect(discovered.status.set).toBe(cluster.status.set);
+      } finally {
+        await discovered.client.close();
+      }
+    }
+
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(2);
+    expect(commands.filter(event => event.commandName === 'hello')).toHaveLength(0);
   } finally {
     await observed.close();
   }

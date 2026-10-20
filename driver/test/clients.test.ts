@@ -274,15 +274,14 @@ it('waits for in-flight discovery on close and does not persist afterward', asyn
   const ready = new Promise<void>(resolve => { started = resolve; });
   const closed = vi.fn(async () => {});
   const plugin = pluginFor(null);
+  const hello = handshake('RSPrimary');
 
   const pair = new ClientPair({
     uri: 'mongodb://a:27017/', plugin,
     // SAFETY: The fake blocks the status command to exercise close during discovery.
     createClient: () => ({
-      options: {}, on() {}, async connect() {}, close: closed,
-      db: () => ({ command: async (command: { hello?: number }) => {
-        if (command.hello) return { setName: 'rs0' };
-
+      options: {}, on: hello.on, async connect() { hello.connected(); }, close: closed,
+      db: () => ({ command: async () => {
         started();
 
         return discovery;

@@ -117,7 +117,9 @@ function mockConnections() {
     vi.spyOn(native, 'connect').mockImplementation(async () => {
       if (native.options.srvHost) await resolveSRVRecord(native.options);
 
-      reportRole(native, uri.includes('secondary.') ? 'RSSecondary' : 'RSPrimary');
+      reportRole(native, uri.includes('secondary.') ? 'RSSecondary' : 'RSPrimary', {
+        setName: status.set, me: status.members[0]!.name
+      });
 
       return native;
     });
@@ -125,8 +127,6 @@ function mockConnections() {
     vi.spyOn(native, 'db').mockReturnValue(admin);
     vi.spyOn(admin, 'command').mockImplementation(async command => {
       commands.push(Object.keys(command)[0]!);
-
-      if (command['hello']) return { setName: status.set, me: status.members[0]!.name };
 
       if (command['replSetGetStatus']) return status;
 

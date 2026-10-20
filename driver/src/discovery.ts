@@ -59,15 +59,14 @@ export async function openDiscovery(
       }
 
       await client.connect();
-      const hello = await client.db('admin').command({ hello: 1 });
 
-      if (!hello['setName'] || hello['msg'] === 'isdbgrid') {
+      if (!member.setName || member.type === 'Mongos') {
         throw new ServerlessDriverError('Discovery requires a replica set; standalone and sharded clusters are unsupported.');
       }
 
-      if (expectedSet != null && hello['setName'] !== expectedSet) {
+      if (expectedSet != null && member.setName !== expectedSet) {
         throw new ServerlessDriverError(
-          `Expected replica set "${expectedSet}", but "${new ConnectionString(candidate).hosts.join(', ')}" reported "${hello['setName']}".`
+          `Expected replica set "${expectedSet}", but "${new ConnectionString(candidate).hosts.join(', ')}" reported "${member.setName}".`
         );
       }
 
@@ -81,7 +80,7 @@ export async function openDiscovery(
         ? { ...status, authentication: { mechanism: credentials.mechanism, source: credentials.source } }
         : status;
 
-      const host = isString(hello['me']) ? hello['me'] : new ConnectionString(candidate).hosts[0];
+      const host = member.host ?? new ConnectionString(candidate).hosts[0];
 
       return Object.assign(member, { status: resolved, host });
     } catch (error) {
@@ -91,8 +90,4 @@ export async function openDiscovery(
   }
 
   throw failure ?? new ServerlessDriverError('No discovery seeds are available.');
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }

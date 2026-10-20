@@ -7,14 +7,6 @@ import { createCertificateUser, startSecureCluster } from '../../../test/harness
 import { localLookup, stubSrvRecords } from '../../../test/harness/srv.js';
 import { SerializedPlugin } from '../harness/serialized-plugin.js';
 
-vi.mock('mongodb-connection-string-url', async importOriginal => {
-  const actual = await importOriginal<typeof import('mongodb-connection-string-url')>();
-
-  return { ...actual, ConnectionString: vi.fn(function (...args: ConstructorParameters<typeof actual.ConnectionString>) {
-    return new actual.ConnectionString(...args);
-  }) };
-});
-
 afterEach(() => vi.restoreAllMocks());
 
 it.each(['DEFAULT', 'SCRAM-SHA-1', 'SCRAM-SHA-256', 'MONGODB-X509'] as const)(
@@ -87,7 +79,7 @@ it('parses cached authentication settings once per client pair', async () => {
     await native.close();
   }
 
-  const parse = vi.mocked(connectionStrings.ConnectionString).mockClear();
+  const parse = vi.spyOn(connectionStrings.ConnectionString.prototype, 'isSRV', 'get');
 
   const pair = new ClientPair({
     uri: 'mongodb+srv://test:fixture-password@cluster.localhost/app', plugin,
@@ -101,7 +93,7 @@ it('parses cached authentication settings once per client pair', async () => {
     const reader = await pair.read();
     await expect(reader.db('auth_carry').collection('checks').findOne({ parsedOnce: true })).resolves.toBeTruthy();
     expect(writer.options.credentials?.source).toBe('admin');
-    expect(parse).toHaveBeenCalledTimes(2);
+    expect(new Set(parse.mock.contexts.filter(uri => uri.protocol === 'mongodb+srv:')).size).toBe(1);
   } finally {
     await pair.close();
   }

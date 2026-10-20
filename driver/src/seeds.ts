@@ -9,11 +9,11 @@ export interface Seedlist {
 
 export async function resolveSeeds(uri: string, options: MongoClientOptions = {}): Promise<Seedlist> {
   const connectionString: {
-    parseOptions: (uri: string, client: undefined, options: MongoClientOptions) => MongoClient['options'];
+    parseOptions: OptionsParser;
     resolveSRVRecord: SrvResolver;
   } = requireMongo('./connection_string.js');
 
-  if (typeof connectionString.parseOptions !== 'function') {
+  if (!isParser(connectionString.parseOptions)) {
     throw new UnsupportedOperationError('Unsupported mongodb connection-string parser');
   }
 
@@ -57,5 +57,11 @@ export async function resolveSeeds(uri: string, options: MongoClientOptions = {}
 type SrvResolver = (options: MongoClient['options']) => Promise<MongoClient['options']['hosts']>;
 
 function isResolver(value: unknown): value is SrvResolver {
+  return typeof value === 'function';
+}
+
+type OptionsParser = (uri: string, client: undefined, options: MongoClientOptions) => MongoClient['options'];
+
+function isParser(value: unknown): value is OptionsParser {
   return typeof value === 'function';
 }

@@ -281,6 +281,7 @@ export class ClientPair {
     const options = { ...this.#options.driverOptions };
     delete options.srvServiceName;
     delete options.srvMaxHosts;
+
     if (topology?.authentication?.mechanism === this.#authenticationMechanism() &&
         options.authSource == null && !this.#uri.searchParams.has('authSource')) {
       options.authSource = topology.authentication.source;

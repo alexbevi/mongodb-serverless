@@ -470,3 +470,24 @@ it('preserves a completed write and retries failed discovery only on the next ca
     await observed.close();
   }
 }, 120_000);
+
+
+it('does not open another socket for discovery with the default pool size', async () => {
+  const observed = await observeCluster();
+  const { cluster, relays, commands, createClient } = observed;
+
+  const client = new ServerlessMongoClient(`mongodb://${cluster.primary}/bootstrap`, {
+    disableMonitoring: true, monitorCommands: true, createClient
+  });
+
+  try {
+    await client.db().collection('defaultPool').insertOne({});
+    const work = commands.filter(event => ['insert', 'replSetGetStatus'].includes(event.commandName));
+    expect(work.map(event => event.commandName)).toEqual(['insert', 'replSetGetStatus']);
+    expect(relays.get(cluster.primary)?.counts.accepted).toBe(1);
+    expect(work[0]?.connectionId).toBe(work[1]?.connectionId);
+  } finally {
+    await client.close();
+    await observed.close();
+  }
+}, 120_000);

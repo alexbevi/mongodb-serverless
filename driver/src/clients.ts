@@ -113,7 +113,6 @@ export class ClientPair {
       }
 
       if (member.host) this.#clients.set(member.host, Promise.resolve(member));
-      member.client.once('connectionCheckedOut', () => { void this.#resolveTopology().catch(() => {}); });
 
       return member;
     }).catch(error => {

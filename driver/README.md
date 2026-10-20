@@ -110,9 +110,8 @@ role but does not implement latency, tag, or staleness filtering; use it only wh
 any healthy member is acceptable. Other preferences retain the limitations below.
 
 Without a plugin, a suitable first operation starts from the handshake role
-before `replSetGetStatus`. Discovery starts after that operation checks out its
-socket. With `maxPoolSize: 1`, discovery waits for the socket; larger pools may
-open another connection and run both commands concurrently. The call waits for
+before `replSetGetStatus`. Discovery follows the completed operation and reuses
+its socket, even when the pool permits more connections. The call waits for
 discovery to settle before returning, including for cursors and bulk execution.
 A discovery failure cannot turn a successful write into an error. Later calls
 retry discovery; an operation needing another member must await valid topology.

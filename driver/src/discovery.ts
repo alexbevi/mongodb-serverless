@@ -72,7 +72,6 @@ async function trySeeds<T>(
 ): Promise<T> {
   const resolved = seeds ? { hosts: seeds, options } : await resolveSeeds(uri, options);
   const expectedSet = resolved.options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
-  const candidates = resolved.hosts.map(seed => directUri(uri, seed, resolved.options));
 
   const settings = {
     serverSelectionTimeoutMS: 5000, ...resolved.options, retryWrites: false, directConnection: true
@@ -80,7 +79,8 @@ async function trySeeds<T>(
 
   let failure: unknown;
 
-  for (const candidate of candidates) {
+  for (const seed of resolved.hosts) {
+    const candidate = directUri(uri, seed, resolved.options);
     const client = createClient(candidate, settings);
 
     try {

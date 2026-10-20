@@ -17,8 +17,7 @@ const INCOMPATIBLE = ['replicaSet', 'srvMaxHosts', 'srvServiceName'];
  * @param hostPort The member to target, as `host:port`.
  */
 export function directUri(uri: string, hostPort: string, options: MongoClientOptions = {}): string {
-  const original = new ConnectionString(uri);
-  const rewritten = original.clone();
+  const rewritten = new ConnectionString(uri);
 
   // The driver rejects loadBalanced with directConnection, so routing a
   // load-balanced cluster this way cannot work.
@@ -29,10 +28,10 @@ export function directUri(uri: string, hostPort: string, options: MongoClientOpt
     );
   }
 
-  const srvImpliedTls = original.isSRV && !hasAnyOf(original, ['tls', 'ssl']) &&
+  const srvImpliedTls = rewritten.isSRV && !hasAnyOf(rewritten, ['tls', 'ssl']) &&
     options.tls == null && options.ssl == null;
 
-  if (original.isSRV) {
+  if (rewritten.isSRV) {
     rewritten.protocol = 'mongodb:';
   }
 

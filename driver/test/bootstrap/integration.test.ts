@@ -6,6 +6,7 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { ServerlessMongoClient } from '../../src/client.js';
 import { openDiscovery } from '../../src/discovery.js';
+import * as uriTools from '../../src/uri.js';
 import { startCluster, describeCluster, stepDownPrimary, waitForPreferredPrimary } from '../../../test/harness/cluster.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -185,6 +186,7 @@ it('shares one bootstrap and socket across concurrent first writes', async () =>
 
 it('chooses different initial members from the seed list without contacting every member', async () => {
   const observed = await observeCluster();
+  const rewrite = vi.spyOn(uriTools, 'directUri');
   const { cluster, relays, clients, createClient } = observed;
   const secondary = cluster.secondaries[1]!;
 
@@ -207,6 +209,7 @@ it('chooses different initial members from the seed list without contacting ever
       }
     }
 
+    expect(rewrite).toHaveBeenCalledTimes(clients.length);
     expect(clients).toHaveLength(3);
     expect([...relays.values()].reduce((sum, relay) => sum + relay.counts.accepted, 0)).toBe(3);
   } finally {

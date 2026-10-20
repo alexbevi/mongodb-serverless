@@ -29,6 +29,7 @@ export interface ClientPairOptions {
  */
 export class ClientPair {
   readonly #options: ClientPairOptions;
+  #parsedUri: ConnectionString | undefined;
   readonly #clients = new Map<string, Promise<MemberConnection>>();
   #topology: Promise<Topology> | undefined;
   #bootstrap: Promise<MemberConnection> | undefined;
@@ -268,20 +269,20 @@ export class ClientPair {
     return pending;
   }
 
-  #authenticationMechanism(): string {
-    const uri = new ConnectionString(this.#options.uri);
+  get #uri(): ConnectionString {
+    return this.#parsedUri ??= new ConnectionString(this.#options.uri);
+  }
 
-    return (this.#options.driverOptions?.authMechanism ?? uri.searchParams.get('authMechanism') ?? 'DEFAULT').toUpperCase();
+  #authenticationMechanism(): string {
+    return (this.#options.driverOptions?.authMechanism ?? this.#uri.searchParams.get('authMechanism') ?? 'DEFAULT').toUpperCase();
   }
 
   #connectionOptions(topology: Topology | undefined): MongoClientOptions {
     const options = { ...this.#options.driverOptions };
     delete options.srvServiceName;
     delete options.srvMaxHosts;
-    const uri = new ConnectionString(this.#options.uri);
-
     if (topology?.authentication?.mechanism === this.#authenticationMechanism() &&
-        options.authSource == null && !uri.searchParams.has('authSource')) {
+        options.authSource == null && !this.#uri.searchParams.has('authSource')) {
       options.authSource = topology.authentication.source;
     }
 

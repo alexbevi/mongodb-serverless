@@ -32,6 +32,7 @@ export class ClientPair {
   readonly #clients = new Map<string, Promise<MemberConnection>>();
   #topology: Promise<Topology> | undefined;
   #bootstrap: Promise<MemberConnection> | undefined;
+  #topologyFailed = false;
   #closed = false;
   #refresh: Promise<void> | undefined;
   #generation = 0;
@@ -51,6 +52,11 @@ export class ClientPair {
   }
 
   async #selectMember(route: 'read' | 'write' | 'any', refreshed = false): Promise<MongoClient> {
+    if (this.#topologyFailed) {
+      this.#topology = undefined;
+      this.#topologyFailed = false;
+    }
+
     if (this.#options.plugin === uncachedTopology && !this.#topology) {
       const member = await this.#connectBootstrap();
       this.#assertOpen();
@@ -130,7 +136,7 @@ export class ClientPair {
     this.#refresh ??= (async () => {
       await delay(100 + Math.floor(Math.random() * 150));
       this.#assertOpen();
-      const known = await this.#topology;
+      const known = this.#topologyFailed ? undefined : await this.#topology;
 
       const seeds = known ? [known.primary, ...known.secondaries] : undefined;
 
@@ -141,6 +147,7 @@ export class ClientPair {
       this.#assertOpen();
       await this.#options.plugin.write(status);
       this.#topology = Promise.resolve(parseTopology(status));
+      this.#topologyFailed = false;
       this.#generation += 1;
     })().finally(() => { this.#refresh = undefined; });
 
@@ -213,7 +220,7 @@ export class ClientPair {
       }
     })().catch(
       error => {
-        this.#topology = undefined;
+        this.#topologyFailed = true;
         throw error;
       }
     );

@@ -429,3 +429,44 @@ it('sends suitable first operations before discovery on the same socket', async 
     await observed.close();
   }
 }, 120_000);
+
+
+it('preserves a completed write and retries failed discovery only on the next call', async () => {
+  const observed = await observeCluster();
+  const { cluster, commands } = observed;
+  let attempts = 0;
+
+  const client = new ServerlessMongoClient(`mongodb://${cluster.primary}/bootstrap`, {
+    disableMonitoring: true, maxPoolSize: 1, monitorCommands: true,
+    createClient(uri, options) {
+      const native = observed.createClient(uri, options);
+      const db = native.db.bind(native);
+      const admin = db('admin');
+      const command = admin.command.bind(admin);
+      vi.spyOn(native, 'db').mockImplementation((name, settings) => name === 'admin' ? admin : db(name, settings));
+      vi.spyOn(admin, 'command').mockImplementation(async request => {
+        attempts += 1;
+
+        if (attempts === 1) throw new Error('discovery denied');
+
+        return command(request);
+      });
+
+      return native;
+    }
+  });
+
+  try {
+    const collection = client.db().collection('discoveryFailure');
+    await expect(collection.insertOne({ value: 1 })).resolves.toMatchObject({ acknowledged: true });
+    expect(attempts).toBe(1);
+    expect(commands.filter(event => event.commandName === 'insert')).toHaveLength(1);
+    await collection.findOne({ value: 1 });
+    expect(attempts).toBe(2);
+    expect(commands.find(event => event.commandName === 'find')?.address)
+      .not.toBe(commands.find(event => event.commandName === 'insert')?.address);
+  } finally {
+    await client.close();
+    await observed.close();
+  }
+}, 120_000);

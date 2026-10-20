@@ -19,6 +19,7 @@ from matplotlib.path import Path as PlotPath
 COLORS = {
     "clusterDns": "#4338ca",
     "ssm": "#475569",
+    "topologyStore": "#0f766e",
     "discovery": "#b45309",
     "roleCheck": "#be185d",
     "lookup": "#854d0e",
@@ -147,6 +148,7 @@ def event_gap_segments(sample):
 PHASE_LABELS = {
     "clusterDns": "Cluster DNS (SRV + TXT union)",
     "ssm": "SSM decrypted parameter request",
+    "topologyStore": "SSM topology write (PutParameter)",
     "discovery": "Topology discovery command",
     "roleCheck": "Role validation hello",
     "lookup": "Application host DNS",

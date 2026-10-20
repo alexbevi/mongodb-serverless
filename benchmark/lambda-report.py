@@ -9,7 +9,7 @@ from pathlib import Path
 from statistics import mean, median, stdev
 
 VARIANTS = ['native', 'no-plugin', 'ssm']
-LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'aws-ssm · cached topology'}
+LABELS = {'native': 'Native MongoDB', 'no-plugin': 'No plugin', 'ssm': 'aws-ssm · cached topology', 'ssm-uncached': 'aws-ssm · no cached topology'}
 
 
 def percentile(values, fraction):
@@ -59,7 +59,7 @@ def summarize(data):
         raise ValueError('Every sample must be verified and cold')
     operations = {}
     for operation in ['read', 'write']:
-        groups = {variant: statistics([sample for sample in samples if sample['variant'] == variant and sample['operation'] == operation]) for variant in VARIANTS}
+        groups = {variant: statistics([sample for sample in samples if sample['variant'] == variant and sample['operation'] == operation]) for variant in data['configuration'].get('variants', VARIANTS)}
         if any(group['count'] != data['configuration']['count'] for group in groups.values()):
             raise ValueError('Sample count differs from the requested cohort')
         operations[operation] = groups
@@ -124,11 +124,11 @@ def handler_markdown(summary):
     phases = [('clusterDns', 'Cluster DNS · SRV + TXT'), ('monitor', 'Monitor handshakes · overlapping time counted once'),
               ('lookup', 'Application host DNS'), ('tcp', 'TCP connection'), ('tls', 'TLS handshake'),
               ('hello', 'Initial hello'), ('auth', 'Authentication'), ('discovery', 'Topology discovery'),
-              ('roleCheck', 'Additional hello commands'), ('send', 'Prepare/send operation'), ('receive', 'Operation request → reply'),
+              ('topologyStore', 'Topology storage · SSM PutParameter'), ('roleCheck', 'Additional hello commands'), ('send', 'Prepare/send operation'), ('receive', 'Operation request → reply'),
               ('code', 'Other measured driver/runtime code'), ('callback', 'Other callbacks'), ('dispatch', 'Other scheduling/wait'),
               ('other', 'Other handler work / scheduling')]
     for operation in ['read', 'write']:
-        cohorts = [(LABELS[v], summary['operations'][operation][v]) for v in VARIANTS]
+        cohorts = [(LABELS[v], summary['operations'][operation][v]) for v in summary['operations'][operation]]
         if operation == 'write':
             cohorts[2:2] = [(('No plugin · lucky' if name == 'oneConnection' else 'No plugin · 2 connections'), group)
                             for name, group in summary['writeLandings'].items() if group['count']]
@@ -183,7 +183,7 @@ def timeline(sample):
             kind='application' if 'auth' in socket else 'monitor',
             selected=socket['start'] == command['socket']['start'],
             start=socket['start'] - start, end=max(interval[1] for interval in phases.values()), phases=phases))
-    requests = [dict(phase='ssm', start=call['start'] - start, end=call['end'] - start) for call in trace['ssm']]
+    requests = [dict(phase='topologyStore' if call.get('command') == 'PutParameterCommand' else 'ssm', start=call['start'] - start, end=call['end'] - start) for call in trace['ssm']]
     for exchange in trace.get('exchanges', []):
         phase = 'discovery' if exchange['name'] == 'replSetGetStatus' else 'roleCheck' if exchange['name'] == 'hello' and exchange['start'] != exchange['socket'].get('hello', [None])[0] else None
         if phase:
@@ -206,7 +206,7 @@ def handler_lanes(sample):
     measured = timeline(sample)
     spans = breakdown.accounting_segments(measured)
     lanes = [dict(kind='ssm', label='SSM · decrypted parameters', spans=[
-        dict(phase='ssm', start=call['start']-start, end=call['end']-start) for call in trace['ssm']])]
+        dict(phase='topologyStore' if call.get('command') == 'PutParameterCommand' else 'ssm', start=call['start']-start, end=call['end']-start) for call in trace['ssm']])]
     if not trace['ssm']:
         lanes = []
     if trace['dns']:
@@ -247,7 +247,7 @@ def cold_accounting(sample):
 def illustrated_cases(data):
     cases = []
     for operation in ['read', 'write']:
-        for variant in VARIANTS:
+        for variant in data['configuration'].get('variants', VARIANTS):
             cohort = [sample for sample in data['samples'] if sample['operation'] == operation and sample['variant'] == variant]
             groups = [(LABELS[variant], cohort)]
             if operation == 'write' and variant == 'no-plugin':
@@ -273,7 +273,8 @@ def render(data, summary, output):
     # Validate every sample, not only the illustrated traces.
     for sample in data['samples']:
         breakdown.accounting_segments(timeline(sample))
-    figure, axes = plt.subplots(4, 2, figsize=(25, 23))
+    rows = max(sum(case['operation'] == operation for case in cases) for operation in ['read', 'write'])
+    figure, axes = plt.subplots(rows, 2, figsize=(25, 5 * rows + 3), squeeze=False)
     maximum = max(case['timeline']['total'] for case in cases) * 1.14
     summary['illustratedTraces'] = []
     visible = set()
@@ -303,7 +304,7 @@ def render(data, summary, output):
             if handler_only:
                 title = f"{operation.title()} · {case['label']}\nMean {stats['meanMs']:.1f} ms · median {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}\n{variation} · shown handler {measured['total']:.1f} ms"
             axis.set_title(title, loc='left', fontsize=10, weight='bold', pad=14)
-            axis.set_xlabel('Milliseconds since handler measurement started · SSM completed during INIT', fontsize=9)
+            axis.set_xlabel('Milliseconds since handler measurement started · SSM read excluded with INIT', fontsize=9)
             axis.grid(axis='x', alpha=.15)
             axis.set_axisbelow(True)
             axis.spines[['top', 'right', 'left']].set_visible(False)
@@ -314,7 +315,7 @@ def render(data, summary, output):
                 accountingMs=breakdown.accounting_totals(measured) if handler_only else cold_accounting(case['sample']), segments=segments))
         for axis in axes[len(current):, column]:
             axis.set_visible(False)
-    groups = {'Setup': ['ssm', 'clusterDns'], 'Connection': ['lookup', 'tcp', 'tls', 'hello', 'auth', 'monitor', 'discovery', 'roleCheck'], 'Code & scheduling': ['callback', 'dispatch', 'other'], 'Operation': ['send', 'receive']}
+    groups = {'Setup & storage': ['ssm', 'clusterDns', 'topologyStore'], 'Connection': ['lookup', 'tcp', 'tls', 'hello', 'auth', 'monitor', 'discovery', 'roleCheck'], 'Code & scheduling': ['callback', 'dispatch', 'other'], 'Operation': ['send', 'receive']}
     groups['Code & scheduling'] += sorted(phase for phase in visible if phase.startswith('code:'))
     for (title, phases), x in zip(groups.items(), [.06, .27, .49, .79]):
         handles = [breakdown.Patch(facecolor=breakdown.COLORS.get(phase) or breakdown.phase_color(phase),

@@ -144,3 +144,45 @@ class ReportTest(unittest.TestCase):
         self.assertIn('Other handler work / scheduling', text)
         self.assertNotIn('INIT median', text)
         self.assertNotIn('INIT + handler median', text)
+
+    def test_uncached_ssm_column_counts_discovery_and_storage_but_excludes_init_read(self):
+        import tempfile
+        variants = ['native', 'no-plugin', 'ssm', 'ssm-uncached']
+        samples = []
+        for variant in variants:
+            for operation in ['read', 'write']:
+                for iteration in range(2):
+                    target = dict(host='primary', start=105, role='PRIMARY', tcp=[105, 107],
+                                  tls=[107, 112], hello=[112, 114], auth=[114, 116])
+                    sockets = [target]
+                    if variant == 'no-plugin' and operation == 'write' and iteration == 1:
+                        sockets.insert(0, dict(host='secondary', start=101, role='SECONDARY',
+                                              tcp=[101, 102], auth=[102, 104]))
+                    item = sample(variant, operation, 50, len(sockets))
+                    item.update(iteration=iteration, ssmMs=5, ssmPhase='init',
+                                initialization=dict(ssm=[dict(start=1, end=6, command='GetParametersCommand')]))
+                    item['lambda'] = dict(initMs=20)
+                    miss = variant == 'ssm-uncached'
+                    item['trace'] = dict(start=100, end=150, sockets=sockets, dns=[],
+                        ssm=[dict(start=125, end=133, command='PutParameterCommand')] if miss else [],
+                        exchanges=[dict(name='replSetGetStatus', start=120, end=123, socket=target)] if miss else [],
+                        command=dict(start=140, sent=141, end=145, socket=target))
+                    samples.append(item)
+        data = dict(configuration=dict(count=2, variants=variants, overview='handler', diagnostics=False,
+                                       environment='Synthetic', memoryMB=1769), samples=samples, failures=[])
+        summary = report.summarize(data)
+        self.assertEqual(set(summary['operations']['read']), set(variants))
+        for operation in ['read', 'write']:
+            phases = summary['operations'][operation]['ssm-uncached']['phaseMeansMs']
+            self.assertEqual(phases['topologyStore'], 8)
+            self.assertEqual(phases['discovery'], 3)
+            self.assertEqual(phases['ssm'], 0)
+            self.assertAlmostEqual(sum(phases.values()), 50)
+        text = report.markdown(summary)
+        self.assertIn('aws-ssm · no cached topology', text)
+        self.assertIn('Topology storage · SSM PutParameter', text)
+        self.assertNotIn('INIT median', text)
+        with tempfile.TemporaryDirectory() as directory:
+            report.render(data, summary, Path(directory) / 'latency.png')
+        self.assertEqual(len(summary['illustratedTraces']), 9)
+        self.assertEqual(sum(trace['pattern'] == 'aws-ssm · no cached topology' for trace in summary['illustratedTraces']), 2)

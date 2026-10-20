@@ -52,6 +52,8 @@ export class ClientPair {
   }
 
   async #selectMember(route: 'read' | 'write' | 'any', refreshed = false): Promise<MongoClient> {
+    this.#assertOpen();
+
     if (this.#topologyFailed) {
       this.#topology = undefined;
       this.#topologyFailed = false;

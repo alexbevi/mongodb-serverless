@@ -3,7 +3,7 @@ import type { MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
 import { NoPrimaryError } from '../src/errors.js';
-import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
+import { uncachedTopology, type ReplSetGetStatus, type TopologyPlugin } from '../src/plugin.js';
 
 const threeNode: ReplSetGetStatus = {
   set: 'rs0',
@@ -316,4 +316,14 @@ it('closes a routed client when connection fails', async () => {
   await expect(pair.write()).rejects.toThrow('connect failed');
   expect(closed).toHaveBeenCalledTimes(1);
   await expect(pair.close()).resolves.toBeUndefined();
+});
+
+
+it('does not bootstrap a no-plugin client after it has closed', async () => {
+  const createClient = vi.fn(() => { throw new Error('unexpected connection'); });
+  const pair = new ClientPair({ uri: 'mongodb://a:27017/', plugin: uncachedTopology, createClient });
+  await pair.close();
+
+  await expect(pair.write()).rejects.toThrow(/closed/i);
+  expect(createClient).not.toHaveBeenCalled();
 });

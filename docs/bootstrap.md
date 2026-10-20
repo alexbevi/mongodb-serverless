@@ -151,6 +151,7 @@ that count actual sockets. Only DNS records are stubbed for SRV tests.
 | Secondary landing, first read | Find returns without discovery, even when another secondary would be listed first |
 | Wrong role, first read or write | Two sockets; correct member serves the operation |
 | Later reads and writes | Reuse the retained primary and secondary |
+| Warm write after a real election | No discovery before stepdown; discover once and write to the new primary afterward |
 | Concurrent first writes | No discovery and one socket with a pool limit of one |
 | SRV, TXT, SCRAM and TLS | One authenticated socket; resolved source survives into operations |
 | Explicit TLS opt-out | Bootstrap and a new wrapper using cached topology both preserve it |

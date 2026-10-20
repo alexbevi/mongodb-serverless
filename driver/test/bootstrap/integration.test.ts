@@ -6,7 +6,7 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { ServerlessMongoClient } from '../../src/client.js';
 import { openDiscovery } from '../../src/discovery.js';
-import { startCluster, describeCluster } from '../../../test/harness/cluster.js';
+import { startCluster, describeCluster, stepDownPrimary, waitForPreferredPrimary } from '../../../test/harness/cluster.js';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -491,5 +491,33 @@ it('reuses the socket without discovery with the default pool size', async () =>
   } finally {
     await client.close();
     await observed.close();
+  }
+}, 120_000);
+
+it('discovers after an election when a warm no-plugin write needs the new primary', async () => {
+  await startCluster();
+  const before = await describeCluster();
+  const commands: CommandStartedEvent[] = [];
+
+  const client = new ServerlessMongoClient(`mongodb://${before.primary}/bootstrap`, {
+    disableMonitoring: true, maxPoolSize: 1, monitorCommands: true,
+    on: { commandStarted: event => commands.push(event) }
+  });
+
+  try {
+    const collection = client.db().collection('warmElection');
+    await expect(collection.insertOne({ before: true })).resolves.toMatchObject({ acknowledged: true });
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
+    await stepDownPrimary();
+    const after = await describeCluster();
+    expect(after.primary).not.toBe(before.primary);
+    await expect(collection.insertOne({ after: true })).resolves.toMatchObject({ acknowledged: true });
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(1);
+    expect(commands.filter(event => event.commandName === 'hello')).toHaveLength(0);
+    expect(commands.findLast(event => event.commandName === 'insert')?.address.split(':').at(-1))
+      .toBe(after.primary.split(':').at(-1));
+  } finally {
+    await client.close();
+    await waitForPreferredPrimary();
   }
 }, 120_000);

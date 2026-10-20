@@ -5,11 +5,11 @@ it('accepts both random write landings and rejects cached DNS or extra parameter
   const noPlugin: PatternEvidence = {
     variant: 'no-plugin', operation: 'write', servedRole: 'PRIMARY', seedRole: 'PRIMARY',
     sockets: 1, authenticatedSockets: 1, monitorSockets: 0, dns: ['TXT', 'SRV'],
-    discoveryCommands: 1, ssmReads: 1, ssmWrites: 0, cold: true
+    discoveryCommands: 0, ssmReads: 1, ssmWrites: 0, cold: true
   };
 
   expect(() => verifyPattern(noPlugin)).not.toThrow();
-  expect(() => verifyPattern({ ...noPlugin, seedRole: 'SECONDARY', sockets: 2, authenticatedSockets: 2 })).not.toThrow();
+  expect(() => verifyPattern({ ...noPlugin, seedRole: 'SECONDARY', sockets: 2, authenticatedSockets: 2, discoveryCommands: 1 })).not.toThrow();
   expect(() => verifyPattern({ ...noPlugin, servedRole: 'SECONDARY' })).toThrow(/primary/i);
   expect(() => verifyPattern({ ...noPlugin, operation: 'read', servedRole: 'SECONDARY', seedRole: 'SECONDARY' })).not.toThrow();
   expect(() => verifyPattern({ ...noPlugin, operation: 'read', sockets: 2, authenticatedSockets: 2 })).toThrow(/socket/i);

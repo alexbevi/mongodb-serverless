@@ -40,5 +40,5 @@ export function verifyPattern(sample: PatternEvidence): void {
   const expected = sample.variant === 'no-plugin' && sample.operation === 'write' && sample.seedRole === 'SECONDARY' ? 2 : 1;
   assert.equal(sample.sockets, expected, 'Unexpected MongoDB socket count');
   assert.equal(sample.authenticatedSockets, expected, 'Each MongoDB socket must authenticate');
-  assert.equal(sample.discoveryCommands, sample.variant === 'no-plugin' ? 1 : 0, 'Unexpected topology discovery');
+  assert.equal(sample.discoveryCommands, expected === 2 ? 1 : 0, 'Unexpected topology discovery');
 }

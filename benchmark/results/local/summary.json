@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-10-20T01:43:51.955Z",
+  "measuredAt": "2026-10-20T03:35:10.990Z",
   "runtimes": [
     "v24.21.0"
   ],
@@ -19,16 +19,16 @@
     "writes": "primary / majority",
     "timing": "SSM fetched during INIT; handler through result; client retained for warm invocations",
     "environment": "LocalStack 4.14.0",
-    "packageSha256": "72010543049fbfc92e72b877fb3b9bd576acb01dc71569573ac5bbc1c1b728ae",
-    "packageZipBytes": 4951304,
+    "packageSha256": "21b149141c866c192f0aafe463290e2b3f3f532a4247d914e1e2e71228c372d9",
+    "packageZipBytes": 4951360,
     "memoryMB": 1769,
-    "current": "a301317ac6fed1a5bf4f4c41d2ee065fff7df487",
+    "current": "f0bd34c2068e14747c278b479833ce481fbca5c5",
     "warmVerification": [
       {
         "variant": "native",
         "operation": "read",
         "verified": true,
-        "totalMs": 6.309917000000013,
+        "totalMs": 8.655750000000012,
         "servedRole": "SECONDARY",
         "sockets": 1,
         "ssmReads": 0,
@@ -43,7 +43,7 @@
         "variant": "native",
         "operation": "write",
         "verified": true,
-        "totalMs": 2.71875,
+        "totalMs": 2.380332999999979,
         "servedRole": "PRIMARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -58,8 +58,8 @@
         "variant": "no-plugin",
         "operation": "read",
         "verified": true,
-        "totalMs": 1.5485840000000053,
-        "servedRole": "SECONDARY",
+        "totalMs": 1.4597090000000037,
+        "servedRole": "PRIMARY",
         "sockets": 0,
         "ssmReads": 0,
         "ssmWrites": 0,
@@ -73,7 +73,7 @@
         "variant": "no-plugin",
         "operation": "write",
         "verified": true,
-        "totalMs": 2.225583999999998,
+        "totalMs": 2.7365420000000142,
         "servedRole": "PRIMARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -88,7 +88,7 @@
         "variant": "ssm",
         "operation": "read",
         "verified": true,
-        "totalMs": 1.4505420000000129,
+        "totalMs": 1.4639999999999986,
         "servedRole": "SECONDARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -103,7 +103,7 @@
         "variant": "ssm",
         "operation": "write",
         "verified": true,
-        "totalMs": 2.252999999999986,
+        "totalMs": 2.2802499999999952,
         "servedRole": "PRIMARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -118,7 +118,7 @@
         "variant": "ssm-uncached",
         "operation": "read",
         "verified": true,
-        "totalMs": 1.4952919999999779,
+        "totalMs": 1.473165999999992,
         "servedRole": "SECONDARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -133,7 +133,7 @@
         "variant": "ssm-uncached",
         "operation": "write",
         "verified": true,
-        "totalMs": 2.4639589999999885,
+        "totalMs": 2.6819169999999986,
         "servedRole": "PRIMARY",
         "sockets": 0,
         "ssmReads": 0,
@@ -152,47 +152,47 @@
     "read": {
       "native": {
         "count": 200,
-        "medianMs": 36.166770499999984,
-        "p95Ms": 39.04320029999998,
-        "meanMs": 36.402002095,
-        "standardDeviationMs": 1.6135535291485195,
-        "coefficientOfVariationPercent": 4.432595561468168,
-        "medianAbsoluteDeviationMs": 0.8553754999999938,
-        "medianSsmMs": 20.016353999999993,
-        "medianExcludingSsmMs": 36.166770499999984,
+        "medianMs": 37.93127100000001,
+        "p95Ms": 40.51888750000001,
+        "meanMs": 38.12293633,
+        "standardDeviationMs": 1.4231719733917934,
+        "coefficientOfVariationPercent": 3.7331121639543268,
+        "medianAbsoluteDeviationMs": 0.8867079999999987,
+        "medianSsmMs": 20.014957999999993,
+        "medianExcludingSsmMs": 37.93127100000001,
         "sockets": {
           "4": 200
         },
-        "medianInitMs": 169.82568750000002,
-        "p95InitPlusHandlerMs": 218.54560385,
-        "medianInitPlusHandlerMs": 205.8210835,
+        "medianInitMs": 168.982083,
+        "p95InitPlusHandlerMs": 215.97143045,
+        "medianInitPlusHandlerMs": 207.09731299999999,
         "meanConfidence95Ms": [
-          36.18998606899999,
-          36.6318526845
+          37.92543697662501,
+          38.323447037375004
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.199834585000001,
+          "auth": 5.484165185000001,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 0.3883862800000003,
+          "clusterDns": 0.40496190999999926,
           "connectionGaps": 0.0,
           "discovery": 0.0,
-          "hello": 1.039200815,
-          "lookup": 1.3330845899999988,
-          "monitor": 12.11243228,
-          "other": 13.496239539999996,
+          "hello": 1.2233070499999998,
+          "lookup": 1.446118345000001,
+          "monitor": 12.64327146,
+          "other": 13.6917897,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 0.617699600000003,
+          "receive": 0.7487337350000012,
           "roleCheck": 0.0,
-          "send": 0.40537167499999865,
+          "send": 0.42925560999999957,
           "ssm": 0.0,
-          "tcp": 0.3257031049999999,
-          "tls": 1.4840496250000006,
+          "tcp": 0.49157936499999894,
+          "tls": 1.559753970000001,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -200,47 +200,47 @@
       },
       "no-plugin": {
         "count": 200,
-        "medianMs": 34.9803335,
-        "p95Ms": 37.33350799999998,
-        "meanMs": 35.22563696,
-        "standardDeviationMs": 1.4821543530153298,
-        "coefficientOfVariationPercent": 4.207601283969315,
-        "medianAbsoluteDeviationMs": 0.7258755000000008,
-        "medianSsmMs": 19.89464600000001,
-        "medianExcludingSsmMs": 34.9803335,
+        "medianMs": 34.39275000000002,
+        "p95Ms": 37.00793960000002,
+        "meanMs": 34.650831260000004,
+        "standardDeviationMs": 1.546386325202646,
+        "coefficientOfVariationPercent": 4.46276833476071,
+        "medianAbsoluteDeviationMs": 0.8402710000000297,
+        "medianSsmMs": 19.969937499999986,
+        "medianExcludingSsmMs": 34.39275000000002,
         "sockets": {
           "1": 200
         },
-        "medianInitMs": 169.073792,
-        "p95InitPlusHandlerMs": 215.58339794999998,
-        "medianInitPlusHandlerMs": 203.79952100000003,
+        "medianInitMs": 168.850667,
+        "p95InitPlusHandlerMs": 211.21320799999998,
+        "medianInitPlusHandlerMs": 203.51875,
         "meanConfidence95Ms": [
-          35.031869642,
-          35.43320805512499
+          34.44544967000001,
+          34.8776096605
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.006638764999999,
+          "auth": 5.31968087,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 1.9614660550000007,
+          "clusterDns": 0.4081029149999992,
           "connectionGaps": 0.0,
           "discovery": 0.0,
-          "hello": 3.1812764300000005,
-          "lookup": 0.3746048349999995,
+          "hello": 3.4211145649999986,
+          "lookup": 0.38720314000000045,
           "monitor": 0.0,
-          "other": 20.82274085,
+          "other": 20.988571655000005,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 0.7294918750000005,
+          "receive": 0.8488314699999995,
           "roleCheck": 0.0,
-          "send": 0.4135346200000005,
+          "send": 0.44376415000000063,
           "ssm": 0.0,
-          "tcp": 0.32704999000000085,
-          "tls": 2.408833539999999,
+          "tcp": 0.34069520999999964,
+          "tls": 2.492867284999999,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -248,27 +248,27 @@
       },
       "ssm": {
         "count": 200,
-        "medianMs": 32.9973545,
-        "p95Ms": 35.47962915,
-        "meanMs": 33.282848515,
-        "standardDeviationMs": 1.4425836645517587,
-        "coefficientOfVariationPercent": 4.33431550758527,
-        "medianAbsoluteDeviationMs": 0.678874499999992,
-        "medianSsmMs": 20.244854000000004,
-        "medianExcludingSsmMs": 32.9973545,
+        "medianMs": 33.276375000000016,
+        "p95Ms": 35.56350420000001,
+        "meanMs": 33.509226695,
+        "standardDeviationMs": 1.2012992752892069,
+        "coefficientOfVariationPercent": 3.5849805972050555,
+        "medianAbsoluteDeviationMs": 0.7004589999999808,
+        "medianSsmMs": 20.263645999999994,
+        "medianExcludingSsmMs": 33.276375000000016,
         "sockets": {
           "1": 200
         },
-        "medianInitMs": 170.456333,
-        "p95InitPlusHandlerMs": 212.8699595,
-        "medianInitPlusHandlerMs": 203.8126245,
+        "medianInitMs": 169.688584,
+        "p95InitPlusHandlerMs": 212.24251845,
+        "medianInitPlusHandlerMs": 203.092791,
         "meanConfidence95Ms": [
-          33.093398970749995,
-          33.49399411725
+          33.347692318374996,
+          33.680031311375004
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 4.99107958,
+          "auth": 5.31132189,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
@@ -276,19 +276,19 @@
           "clusterDns": 0.0,
           "connectionGaps": 0.0,
           "discovery": 0.0,
-          "hello": 3.2764850450000016,
-          "lookup": 0.3693556300000003,
+          "hello": 3.4038381200000005,
+          "lookup": 0.44488541500000095,
           "monitor": 0.0,
-          "other": 20.771071429999996,
+          "other": 20.207665425,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 0.7012689749999989,
+          "receive": 0.8602869149999997,
           "roleCheck": 0.0,
-          "send": 0.4120428800000006,
+          "send": 0.44918082000000026,
           "ssm": 0.0,
-          "tcp": 0.3356468350000003,
-          "tls": 2.4258981400000006,
+          "tcp": 0.34693038499999873,
+          "tls": 2.485117725000001,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -296,49 +296,49 @@
       },
       "ssm-uncached": {
         "count": 200,
-        "medianMs": 41.4085415,
-        "p95Ms": 44.29935354999999,
-        "meanMs": 41.669844755,
-        "standardDeviationMs": 1.6446024406695579,
-        "coefficientOfVariationPercent": 3.9467448231186912,
-        "medianAbsoluteDeviationMs": 0.8712914999999981,
-        "medianSsmMs": 19.960145499999996,
-        "medianExcludingSsmMs": 41.4085415,
+        "medianMs": 41.097561999999996,
+        "p95Ms": 43.895924999999984,
+        "meanMs": 41.357508575000004,
+        "standardDeviationMs": 1.502921306643508,
+        "coefficientOfVariationPercent": 3.6339744787044586,
+        "medianAbsoluteDeviationMs": 0.7571670000000097,
+        "medianSsmMs": 20.0625,
+        "medianExcludingSsmMs": 41.097561999999996,
         "sockets": {
           "1": 200
         },
-        "medianInitMs": 170.005854,
-        "p95InitPlusHandlerMs": 219.6469208,
-        "medianInitPlusHandlerMs": 211.6037295,
+        "medianInitMs": 169.01154150000002,
+        "p95InitPlusHandlerMs": 219.3463604,
+        "medianInitPlusHandlerMs": 210.004646,
         "meanConfidence95Ms": [
-          41.45105974487501,
-          41.898297881625
+          41.162056202875,
+          41.571229443499995
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.0448602199999995,
+          "auth": 5.254955020000001,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 1.9528364749999993,
+          "clusterDns": 0.4029341949999997,
           "connectionGaps": 0.0,
-          "discovery": 1.426277920000001,
-          "hello": 3.1866543550000004,
-          "lookup": 0.3837531250000001,
+          "discovery": 1.5519939049999998,
+          "hello": 3.3951204149999996,
+          "lookup": 0.381878589999999,
           "monitor": 0.0,
-          "other": 22.5577781,
+          "other": 22.749835150000003,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 0.6015422500000005,
+          "receive": 0.6529273099999992,
           "roleCheck": 0.0,
-          "send": 0.2171854550000006,
+          "send": 0.24382814000000025,
           "ssm": 0.0,
-          "tcp": 0.3234054300000001,
-          "tls": 2.4139120749999994,
+          "tcp": 0.34204478500000135,
+          "tls": 2.4935131449999997,
           "topologyStartup": 0.0,
-          "topologyStore": 3.5616393499999988,
+          "topologyStore": 3.8884779199999997,
           "unattributed": 0.0
         }
       }
@@ -346,47 +346,47 @@
     "write": {
       "native": {
         "count": 200,
-        "medianMs": 36.894228999999996,
-        "p95Ms": 39.303233650000024,
-        "meanMs": 37.115754635,
-        "standardDeviationMs": 1.551744499165298,
-        "coefficientOfVariationPercent": 4.180824327634738,
-        "medianAbsoluteDeviationMs": 0.8852914999999939,
-        "medianSsmMs": 20.015375000000006,
-        "medianExcludingSsmMs": 36.894228999999996,
+        "medianMs": 38.63158299999999,
+        "p95Ms": 40.83226874999999,
+        "meanMs": 38.825236505,
+        "standardDeviationMs": 1.2755803977647535,
+        "coefficientOfVariationPercent": 3.2854414102551095,
+        "medianAbsoluteDeviationMs": 0.8133750000000077,
+        "medianSsmMs": 19.962208500000003,
+        "medianExcludingSsmMs": 38.63158299999999,
         "sockets": {
           "4": 200
         },
-        "medianInitMs": 169.8965215,
-        "p95InitPlusHandlerMs": 218.6654343,
-        "medianInitPlusHandlerMs": 206.7076045,
+        "medianInitMs": 169.39879150000002,
+        "p95InitPlusHandlerMs": 217.27903715,
+        "medianInitPlusHandlerMs": 208.094708,
         "meanConfidence95Ms": [
-          36.91365660375,
-          37.3422228855
+          38.651646847375,
+          39.003843446625005
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.169627055,
+          "auth": 5.48618264,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 0.38235730499999787,
+          "clusterDns": 0.4021927350000014,
           "connectionGaps": 0.0,
           "discovery": 0.0,
-          "hello": 1.0458836,
-          "lookup": 0.9892525149999983,
-          "monitor": 12.609247475,
-          "other": 12.776066435,
+          "hello": 1.1880587599999979,
+          "lookup": 0.9664695599999991,
+          "monitor": 13.306596675000002,
+          "other": 13.072874655,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 1.9190218900000016,
+          "receive": 2.0876445650000006,
           "roleCheck": 0.0,
-          "send": 0.4080577049999982,
+          "send": 0.4409041649999996,
           "ssm": 0.0,
-          "tcp": 0.3428760350000003,
-          "tls": 1.4733646200000008,
+          "tcp": 0.3183552250000004,
+          "tls": 1.5559575249999993,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -394,48 +394,48 @@
       },
       "no-plugin": {
         "count": 200,
-        "medianMs": 45.5207085,
-        "p95Ms": 49.18528365,
-        "meanMs": 43.20568125,
-        "standardDeviationMs": 5.239053807724908,
-        "coefficientOfVariationPercent": 12.125844694845329,
-        "medianAbsoluteDeviationMs": 2.0046660000000003,
-        "medianSsmMs": 19.845478999999997,
-        "medianExcludingSsmMs": 45.5207085,
+        "medianMs": 45.471603999999985,
+        "p95Ms": 49.182885699999986,
+        "meanMs": 43.104786499999996,
+        "standardDeviationMs": 5.572719186196376,
+        "coefficientOfVariationPercent": 12.92830712940981,
+        "medianAbsoluteDeviationMs": 1.8938335000000137,
+        "medianSsmMs": 19.990875000000003,
+        "medianExcludingSsmMs": 45.471603999999985,
         "sockets": {
-          "1": 66,
-          "2": 134
+          "1": 63,
+          "2": 137
         },
-        "medianInitMs": 169.091938,
-        "p95InitPlusHandlerMs": 223.7916976,
-        "medianInitPlusHandlerMs": 213.2896885,
+        "medianInitMs": 168.746646,
+        "p95InitPlusHandlerMs": 223.16346349999998,
+        "medianInitPlusHandlerMs": 213.59175,
         "meanConfidence95Ms": [
-          42.48408652862501,
-          43.915647497625
+          42.336838545125,
+          43.905098223874994
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.918344560000002,
+          "auth": 6.294421854999999,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 1.9699583300000008,
+          "clusterDns": 0.40852109499999983,
           "connectionGaps": 0.0,
-          "discovery": 0.9742939750000005,
-          "hello": 3.8242260099999994,
-          "lookup": 0.5743120549999997,
+          "discovery": 1.075380840000001,
+          "hello": 4.178374805000001,
+          "lookup": 0.6366460549999999,
           "monitor": 0.0,
-          "other": 23.772339815,
+          "other": 23.985609729999997,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 1.9458266399999995,
+          "receive": 2.040282934999999,
           "roleCheck": 0.0,
-          "send": 0.276699595000001,
+          "send": 0.30277293000000116,
           "ssm": 0.0,
-          "tcp": 0.4949164750000003,
-          "tls": 3.4547637949999994,
+          "tcp": 0.5338406150000006,
+          "tls": 3.6489356400000004,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -443,27 +443,27 @@
       },
       "ssm": {
         "count": 200,
-        "medianMs": 33.933875000000015,
-        "p95Ms": 36.45570065,
-        "meanMs": 34.153481265,
-        "standardDeviationMs": 1.3435303101110854,
-        "coefficientOfVariationPercent": 3.933801944482643,
-        "medianAbsoluteDeviationMs": 0.7696249999999907,
-        "medianSsmMs": 20.183521499999998,
-        "medianExcludingSsmMs": 33.933875000000015,
+        "medianMs": 34.120146000000005,
+        "p95Ms": 35.69615829999999,
+        "meanMs": 34.089984795,
+        "standardDeviationMs": 0.9849755349331452,
+        "coefficientOfVariationPercent": 2.8893399068855325,
+        "medianAbsoluteDeviationMs": 0.6594584999999995,
+        "medianSsmMs": 20.364437499999994,
+        "medianExcludingSsmMs": 34.120146000000005,
         "sockets": {
           "1": 200
         },
-        "medianInitMs": 170.21608300000003,
-        "p95InitPlusHandlerMs": 215.8078146,
-        "medianInitPlusHandlerMs": 204.323562,
+        "medianInitMs": 170.0519375,
+        "p95InitPlusHandlerMs": 211.72403304999997,
+        "medianInitPlusHandlerMs": 204.00735500000002,
         "meanConfidence95Ms": [
-          33.974499502375004,
-          34.344246685375005
+          33.95353232725,
+          34.227064189000004
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.032567040000001,
+          "auth": 5.213699630000002,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
@@ -471,19 +471,19 @@
           "clusterDns": 0.0,
           "connectionGaps": 0.0,
           "discovery": 0.0,
-          "hello": 3.2599402400000006,
-          "lookup": 0.3683307700000015,
+          "hello": 3.422972915,
+          "lookup": 0.46047748000000027,
           "monitor": 0.0,
-          "other": 20.21522504,
+          "other": 19.543050979999997,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 2.1109120599999995,
+          "receive": 2.176140639999999,
           "roleCheck": 0.0,
-          "send": 0.42396792000000005,
+          "send": 0.4526466650000006,
           "ssm": 0.0,
-          "tcp": 0.3361729650000002,
-          "tls": 2.4063652299999996,
+          "tcp": 0.34597208000000024,
+          "tls": 2.475024405,
           "topologyStartup": 0.0,
           "topologyStore": 0.0,
           "unattributed": 0.0
@@ -491,50 +491,50 @@
       },
       "ssm-uncached": {
         "count": 200,
-        "medianMs": 49.217395499999995,
-        "p95Ms": 53.644591350000006,
-        "meanMs": 47.632957965,
-        "standardDeviationMs": 4.309856229284137,
-        "coefficientOfVariationPercent": 9.048054988419901,
-        "medianAbsoluteDeviationMs": 2.3420004999999975,
-        "medianSsmMs": 19.972437500000012,
-        "medianExcludingSsmMs": 49.217395499999995,
+        "medianMs": 49.220520500000006,
+        "p95Ms": 53.21827535000002,
+        "meanMs": 47.330190605,
+        "standardDeviationMs": 4.544035434210256,
+        "coefficientOfVariationPercent": 9.600712306724201,
+        "medianAbsoluteDeviationMs": 3.3870629999999835,
+        "medianSsmMs": 20.14302099999999,
+        "medianExcludingSsmMs": 49.220520500000006,
         "sockets": {
-          "2": 128,
-          "1": 72
+          "2": 121,
+          "1": 79
         },
-        "medianInitMs": 168.6926665,
-        "p95InitPlusHandlerMs": 228.59201245,
-        "medianInitPlusHandlerMs": 217.70054149999999,
+        "medianInitMs": 168.71829200000002,
+        "p95InitPlusHandlerMs": 226.6766271,
+        "medianInitPlusHandlerMs": 216.449625,
         "meanConfidence95Ms": [
-          47.058694507999995,
-          48.214759814625
+          46.70927792650001,
+          47.95656710625
         ],
         "phaseMeansMs": {
           "afterReply": 0.0,
-          "auth": 5.892444775,
+          "auth": 6.169685854999998,
           "beforeCommand": 0.0,
           "beforeSocket": 0.0,
           "beforeTopology": 0.0,
           "checkout": 0.0,
-          "clusterDns": 1.9640212050000008,
+          "clusterDns": 0.4054739349999991,
           "connectionGaps": 0.0,
-          "discovery": 1.4335143900000011,
-          "hello": 3.7772273000000003,
-          "lookup": 0.5765439550000007,
+          "discovery": 1.559530000000001,
+          "hello": 4.066791914999999,
+          "lookup": 0.5818279349999996,
           "monitor": 0.0,
-          "other": 24.440867589999996,
+          "other": 24.541344355,
           "poolDispatch": 0.0,
           "poolGaps": 0.0,
           "poolStartup": 0.0,
-          "receive": 1.8706631100000009,
+          "receive": 1.9154783250000005,
           "roleCheck": 0.0,
-          "send": 0.21244105500000005,
+          "send": 0.23720746500000145,
           "ssm": 0.0,
-          "tcp": 0.48895978999999984,
-          "tls": 3.4242958299999997,
+          "tcp": 0.500859780000001,
+          "tls": 3.519099779999999,
           "topologyStartup": 0.0,
-          "topologyStore": 3.5519789650000013,
+          "topologyStore": 3.8328912600000007,
           "unattributed": 0.0
         }
       }
@@ -542,132 +542,132 @@
   },
   "writeLandings": {
     "oneConnection": {
-      "count": 66,
-      "medianMs": 35.82225,
-      "p95Ms": 38.51466699999999,
-      "meanMs": 36.19258904545455,
-      "standardDeviationMs": 1.764537620122839,
-      "coefficientOfVariationPercent": 4.875411421677358,
-      "medianAbsoluteDeviationMs": 0.9772914999999927,
-      "medianSsmMs": 19.95075,
-      "medianExcludingSsmMs": 35.82225,
+      "count": 63,
+      "medianMs": 35.285875000000004,
+      "p95Ms": 37.240783300000004,
+      "meanMs": 35.419994095238096,
+      "standardDeviationMs": 1.3457678989633721,
+      "coefficientOfVariationPercent": 3.7994582815142213,
+      "medianAbsoluteDeviationMs": 0.7305000000000064,
+      "medianSsmMs": 19.817375,
+      "medianExcludingSsmMs": 35.285875000000004,
       "sockets": {
-        "1": 66
+        "1": 63
       },
-      "medianInitMs": 170.01433350000002,
-      "p95InitPlusHandlerMs": 215.13716649999998,
-      "medianInitPlusHandlerMs": 206.40643799999998,
+      "medianInitMs": 168.352917,
+      "p95InitPlusHandlerMs": 213.3762129,
+      "medianInitPlusHandlerMs": 203.77000099999998,
       "meanConfidence95Ms": [
-        35.79723614734849,
-        36.642397900000006
+        35.10142653928571,
+        35.76146069801587
       ],
       "phaseMeansMs": {
         "afterReply": 0.0,
-        "auth": 5.09291534848485,
+        "auth": 5.269996079365079,
         "beforeCommand": 0.0,
         "beforeSocket": 0.0,
         "beforeTopology": 0.0,
         "checkout": 0.0,
-        "clusterDns": 1.9659779242424236,
+        "clusterDns": 0.40299549206349095,
         "connectionGaps": 0.0,
         "discovery": 0.0,
-        "hello": 3.1744457727272724,
-        "lookup": 0.36652518181818317,
+        "hello": 3.3957375396825387,
+        "lookup": 0.4030681111111112,
         "monitor": 0.0,
-        "other": 20.446956484848485,
+        "other": 20.404239238095236,
         "poolDispatch": 0.0,
         "poolGaps": 0.0,
         "poolStartup": 0.0,
-        "receive": 2.020168499999997,
+        "receive": 2.26610714285714,
         "roleCheck": 0.0,
-        "send": 0.42424050000000313,
+        "send": 0.4607757936507959,
         "ssm": 0.0,
-        "tcp": 0.32528722727272796,
-        "tls": 2.3760721060606045,
+        "tcp": 0.34638685714285716,
+        "tls": 2.470687841269842,
         "topologyStartup": 0.0,
         "topologyStore": 0.0,
         "unattributed": 0.0
       },
-      "sharePercent": 33.0
+      "sharePercent": 31.5
     },
     "twoConnections": {
-      "count": 134,
-      "medianMs": 46.379290999999995,
-      "p95Ms": 50.159960300000016,
-      "meanMs": 46.659890843283584,
-      "standardDeviationMs": 1.7659427504336564,
-      "coefficientOfVariationPercent": 3.7847125625838314,
-      "medianAbsoluteDeviationMs": 1.0463744999999989,
-      "medianSsmMs": 19.820375000000013,
-      "medianExcludingSsmMs": 46.379290999999995,
+      "count": 137,
+      "medianMs": 46.33266699999999,
+      "p95Ms": 49.6700166,
+      "meanMs": 46.63866913868613,
+      "standardDeviationMs": 2.162967184394593,
+      "coefficientOfVariationPercent": 4.637712062414837,
+      "medianAbsoluteDeviationMs": 1.0219580000000121,
+      "medianSsmMs": 20.064333000000005,
+      "medianExcludingSsmMs": 46.33266699999999,
       "sockets": {
-        "2": 134
+        "2": 137
       },
-      "medianInitMs": 168.801,
-      "p95InitPlusHandlerMs": 226.00793520000002,
-      "medianInitPlusHandlerMs": 215.06427100000002,
+      "medianInitMs": 168.996417,
+      "p95InitPlusHandlerMs": 225.28134179999998,
+      "medianInitPlusHandlerMs": 215.447251,
       "meanConfidence95Ms": [
-        46.367448029850756,
-        46.95832194421642
+        46.29882633029197,
+        47.030837724635035
       ],
       "phaseMeansMs": {
         "afterReply": 0.0,
-        "auth": 6.324899246268659,
+        "auth": 6.7655081605839404,
         "beforeCommand": 0.0,
         "beforeSocket": 0.0,
         "beforeTopology": 0.0,
         "checkout": 0.0,
-        "clusterDns": 1.9719188283582103,
+        "clusterDns": 0.4110620656934309,
         "connectionGaps": 0.0,
-        "discovery": 1.4541701119402992,
-        "hello": 4.1442670223880596,
-        "lookup": 0.676654843283581,
+        "discovery": 1.5698990364963519,
+        "hello": 4.538273693430658,
+        "lookup": 0.744057810218978,
         "monitor": 0.0,
-        "other": 25.41021518656716,
+        "other": 25.63251732846715,
         "poolDispatch": 0.0,
         "poolGaps": 0.0,
         "poolStartup": 0.0,
-        "receive": 1.9092105000000008,
+        "receive": 1.936436766423358,
         "roleCheck": 0.0,
-        "send": 0.20403019402985076,
+        "send": 0.23011467883211742,
         "ssm": 0.0,
-        "tcp": 0.5784652089552239,
-        "tls": 3.986059701492537,
+        "tcp": 0.6200419781021906,
+        "tls": 4.190757620437956,
         "topologyStartup": 0.0,
         "topologyStore": 0.0,
         "unattributed": 0.0
       },
-      "sharePercent": 67.0
+      "sharePercent": 68.5
     }
   },
   "illustratedTraces": [
     {
       "operation": "read",
       "pattern": "Native MongoDB",
-      "iteration": 136,
-      "totalMs": 36.171249999999986,
-      "initMs": 168.880292,
-      "handlerMs": 36.171249999999986,
+      "iteration": 89,
+      "totalMs": 37.92883400000002,
+      "initMs": 169.485584,
+      "handlerMs": 37.92883400000002,
       "accountingMs": {
-        "clusterDns": 0.3714159999999822,
+        "clusterDns": 0.5328329999999823,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 0.8623329999999783,
-        "tcp": 1.4639170000000092,
-        "tls": 1.3677920000000086,
-        "hello": 1.0170830000000137,
-        "auth": 5.051375000000007,
-        "send": 0.35395800000000577,
-        "receive": 0.5431250000000034,
-        "monitor": 12.044125000000008,
+        "lookup": 1.836999999999989,
+        "tcp": 0.6561670000000106,
+        "tls": 1.3920420000000036,
+        "hello": 1.1442499999999995,
+        "auth": 5.071249999999992,
+        "send": 0.567167000000012,
+        "receive": 0.9469159999999874,
+        "monitor": 12.018291000000005,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 13.09612599999997,
+        "other": 13.762918000000042,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -679,107 +679,107 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 7.546416999999991
+          "end": 7.726834000000025
         },
         {
           "phase": "clusterDns",
-          "start": 7.546416999999991,
-          "end": 7.917832999999973
+          "start": 7.726834000000025,
+          "end": 8.259667000000007
         },
         {
           "phase": "other",
-          "start": 7.917832999999973,
-          "end": 11.26724999999999
+          "start": 8.259667000000007,
+          "end": 11.901459000000017
         },
         {
           "phase": "monitor",
-          "start": 11.26724999999999,
-          "end": 23.311374999999998
+          "start": 11.901459000000017,
+          "end": 23.919750000000022
         },
         {
           "phase": "lookup",
-          "start": 23.311374999999998,
-          "end": 24.173707999999976
+          "start": 23.919750000000022,
+          "end": 25.75675000000001
         },
         {
           "phase": "tcp",
-          "start": 24.173707999999976,
-          "end": 25.637624999999986
+          "start": 25.75675000000001,
+          "end": 26.41291700000002
         },
         {
           "phase": "tls",
-          "start": 25.637624999999986,
-          "end": 27.005416999999994
+          "start": 26.41291700000002,
+          "end": 27.804959000000025
         },
         {
           "phase": "other",
-          "start": 27.005416999999994,
-          "end": 28.165374999999983
+          "start": 27.804959000000025,
+          "end": 29.025834000000003
         },
         {
           "phase": "hello",
-          "start": 28.165374999999983,
-          "end": 29.182457999999997
+          "start": 29.025834000000003,
+          "end": 30.170084000000003
         },
         {
           "phase": "other",
-          "start": 29.182457999999997,
-          "end": 29.310291999999976
+          "start": 30.170084000000003,
+          "end": 30.269875000000013
         },
         {
           "phase": "auth",
-          "start": 29.310291999999976,
-          "end": 34.36166699999998
+          "start": 30.269875000000013,
+          "end": 35.341125000000005
         },
         {
           "phase": "other",
-          "start": 34.36166699999998,
-          "end": 34.68104199999999
+          "start": 35.341125000000005,
+          "end": 35.74141700000001
         },
         {
           "phase": "send",
-          "start": 34.68104199999999,
-          "end": 35.035
+          "start": 35.74141700000001,
+          "end": 36.308584000000025
         },
         {
           "phase": "receive",
-          "start": 35.035,
-          "end": 35.578125
+          "start": 36.308584000000025,
+          "end": 37.25550000000001
         },
         {
           "phase": "other",
-          "start": 35.578125,
-          "end": 36.171249999999986
+          "start": 37.25550000000001,
+          "end": 37.92883400000002
         }
       ]
     },
     {
       "operation": "read",
       "pattern": "No plugin",
-      "iteration": 102,
-      "totalMs": 34.978582999999986,
-      "initMs": 178.3585,
-      "handlerMs": 34.978582999999986,
+      "iteration": 131,
+      "totalMs": 34.391291000000024,
+      "initMs": 168.2065,
+      "handlerMs": 34.391291000000024,
       "accountingMs": {
-        "clusterDns": 1.9391660000000002,
+        "clusterDns": 0.39204099999997766,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 0.4063330000000178,
-        "tcp": 0.3742499999999893,
-        "tls": 2.3614169999999888,
-        "hello": 3.1173750000000098,
-        "auth": 5.221458999999982,
-        "send": 0.42662500000000136,
-        "receive": 0.6490420000000086,
+        "lookup": 0.421875,
+        "tcp": 0.3317089999999894,
+        "tls": 2.3457500000000095,
+        "hello": 3.4053749999999923,
+        "auth": 5.330874999999992,
+        "send": 0.5004169999999988,
+        "receive": 0.8592919999999822,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 20.48291599999999,
+        "other": 20.803957000000082,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -791,102 +791,102 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 5.458666999999991
+          "end": 4.779125000000022
         },
         {
           "phase": "clusterDns",
-          "start": 5.458666999999991,
-          "end": 7.397832999999991
+          "start": 4.779125000000022,
+          "end": 5.1711659999999995
         },
         {
           "phase": "other",
-          "start": 7.397832999999991,
-          "end": 17.08291699999998
+          "start": 5.1711659999999995,
+          "end": 15.553541000000024
         },
         {
           "phase": "lookup",
-          "start": 17.08291699999998,
-          "end": 17.48925
+          "start": 15.553541000000024,
+          "end": 15.975416000000024
         },
         {
           "phase": "tcp",
-          "start": 17.48925,
-          "end": 17.863499999999988
+          "start": 15.975416000000024,
+          "end": 16.307125000000013
         },
         {
           "phase": "tls",
-          "start": 17.863499999999988,
-          "end": 20.224916999999976
+          "start": 16.307125000000013,
+          "end": 18.652875000000023
         },
         {
           "phase": "other",
-          "start": 20.224916999999976,
-          "end": 21.96883299999999
+          "start": 18.652875000000023,
+          "end": 20.400458000000015
         },
         {
           "phase": "hello",
-          "start": 21.96883299999999,
-          "end": 25.086208
+          "start": 20.400458000000015,
+          "end": 23.805833000000007
         },
         {
           "phase": "other",
-          "start": 25.086208,
-          "end": 25.247208
+          "start": 23.805833000000007,
+          "end": 23.98920800000002
         },
         {
           "phase": "auth",
-          "start": 25.247208,
-          "end": 30.468666999999982
+          "start": 23.98920800000002,
+          "end": 29.32008300000001
         },
         {
           "phase": "other",
-          "start": 30.468666999999982,
-          "end": 33.36770799999999
+          "start": 29.32008300000001,
+          "end": 32.47666600000002
         },
         {
           "phase": "send",
-          "start": 33.36770799999999,
-          "end": 33.794332999999995
+          "start": 32.47666600000002,
+          "end": 32.97708300000002
         },
         {
           "phase": "receive",
-          "start": 33.794332999999995,
-          "end": 34.443375
+          "start": 32.97708300000002,
+          "end": 33.836375000000004
         },
         {
           "phase": "other",
-          "start": 34.443375,
-          "end": 34.978582999999986
+          "start": 33.836375000000004,
+          "end": 34.391291000000024
         }
       ]
     },
     {
       "operation": "read",
       "pattern": "aws-ssm \u00b7 cached topology",
-      "iteration": 66,
-      "totalMs": 32.993584,
-      "initMs": 169.108083,
-      "handlerMs": 32.993584,
+      "iteration": 10,
+      "totalMs": 33.26083400000002,
+      "initMs": 174.554084,
+      "handlerMs": 33.26083400000002,
       "accountingMs": {
         "clusterDns": 0.0,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 0.3383750000000134,
-        "tcp": 0.30454199999999787,
-        "tls": 2.2729579999999885,
-        "hello": 2.988334000000009,
-        "auth": 4.943125000000009,
-        "send": 0.4586669999999913,
-        "receive": 1.4065410000000043,
+        "lookup": 0.37779199999999946,
+        "tcp": 0.31512499999999477,
+        "tls": 2.656166000000013,
+        "hello": 3.609916999999996,
+        "auth": 5.44158299999998,
+        "send": 0.41962499999999636,
+        "receive": 0.6824590000000228,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 20.281041999999985,
+        "other": 19.758167000000014,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -898,92 +898,92 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 14.981249999999989
+          "end": 14.116917
         },
         {
           "phase": "lookup",
-          "start": 14.981249999999989,
-          "end": 15.319625000000002
+          "start": 14.116917,
+          "end": 14.494709
         },
         {
           "phase": "tcp",
-          "start": 15.319625000000002,
-          "end": 15.624167
+          "start": 14.494709,
+          "end": 14.809833999999995
         },
         {
           "phase": "tls",
-          "start": 15.624167,
-          "end": 17.89712499999999
+          "start": 14.809833999999995,
+          "end": 17.466000000000008
         },
         {
           "phase": "other",
-          "start": 17.89712499999999,
-          "end": 19.518624999999986
+          "start": 17.466000000000008,
+          "end": 19.426375000000007
         },
         {
           "phase": "hello",
-          "start": 19.518624999999986,
-          "end": 22.506958999999995
+          "start": 19.426375000000007,
+          "end": 23.036292000000003
         },
         {
           "phase": "other",
-          "start": 22.506958999999995,
-          "end": 22.661834
+          "start": 23.036292000000003,
+          "end": 23.229584000000017
         },
         {
           "phase": "auth",
-          "start": 22.661834,
-          "end": 27.604959000000008
+          "start": 23.229584000000017,
+          "end": 28.671166999999997
         },
         {
           "phase": "other",
-          "start": 27.604959000000008,
-          "end": 30.515792000000005
+          "start": 28.671166999999997,
+          "end": 31.574624999999997
         },
         {
           "phase": "send",
-          "start": 30.515792000000005,
-          "end": 30.974458999999996
+          "start": 31.574624999999997,
+          "end": 31.994249999999994
         },
         {
           "phase": "receive",
-          "start": 30.974458999999996,
-          "end": 32.381
+          "start": 31.994249999999994,
+          "end": 32.67670900000002
         },
         {
           "phase": "other",
-          "start": 32.381,
-          "end": 32.993584
+          "start": 32.67670900000002,
+          "end": 33.26083400000002
         }
       ]
     },
     {
       "operation": "read",
       "pattern": "aws-ssm \u00b7 no cached topology",
-      "iteration": 83,
-      "totalMs": 41.39658299999999,
-      "initMs": 168.508209,
-      "handlerMs": 41.39658299999999,
+      "iteration": 45,
+      "totalMs": 41.09829099999999,
+      "initMs": 168.760875,
+      "handlerMs": 41.09829099999999,
       "accountingMs": {
-        "clusterDns": 1.9722089999999923,
+        "clusterDns": 0.4918749999999932,
         "ssm": 0.0,
-        "topologyStore": 3.567040999999989,
-        "discovery": 1.3305409999999824,
+        "topologyStore": 3.654875000000004,
+        "discovery": 1.4865419999999858,
         "roleCheck": 0.0,
-        "lookup": 0.41004099999997834,
-        "tcp": 0.33329200000000014,
-        "tls": 2.3451670000000036,
-        "hello": 3.1935000000000002,
-        "auth": 5.070042000000001,
-        "send": 0.22083399999999642,
-        "receive": 0.5805829999999901,
+        "lookup": 0.3354590000000144,
+        "tcp": 0.306083000000001,
+        "tls": 2.606625000000008,
+        "hello": 3.43112499999998,
+        "auth": 5.23154199999999,
+        "send": 0.2202079999999853,
+        "receive": 0.5616250000000207,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 22.37333300000006,
+        "other": 22.772332000000006,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -995,122 +995,122 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 5.543207999999993
+          "end": 4.827832999999998
         },
         {
           "phase": "clusterDns",
-          "start": 5.543207999999993,
-          "end": 7.515416999999985
+          "start": 4.827832999999998,
+          "end": 5.319707999999991
         },
         {
           "phase": "other",
-          "start": 7.515416999999985,
-          "end": 16.965666999999996
+          "start": 5.319707999999991,
+          "end": 16.159415999999993
         },
         {
           "phase": "lookup",
-          "start": 16.965666999999996,
-          "end": 17.375707999999975
+          "start": 16.159415999999993,
+          "end": 16.494875000000008
         },
         {
           "phase": "tcp",
-          "start": 17.375707999999975,
-          "end": 17.708999999999975
+          "start": 16.494875000000008,
+          "end": 16.80095800000001
         },
         {
           "phase": "tls",
-          "start": 17.708999999999975,
-          "end": 20.05416699999998
+          "start": 16.80095800000001,
+          "end": 19.407583000000017
         },
         {
           "phase": "other",
-          "start": 20.05416699999998,
-          "end": 21.798416999999972
+          "start": 19.407583000000017,
+          "end": 21.12812500000001
         },
         {
           "phase": "hello",
-          "start": 21.798416999999972,
-          "end": 24.991916999999972
+          "start": 21.12812500000001,
+          "end": 24.55924999999999
         },
         {
           "phase": "other",
-          "start": 24.991916999999972,
-          "end": 25.172207999999983
+          "start": 24.55924999999999,
+          "end": 24.747208
         },
         {
           "phase": "auth",
-          "start": 25.172207999999983,
-          "end": 30.242249999999984
+          "start": 24.747208,
+          "end": 29.97874999999999
         },
         {
           "phase": "other",
-          "start": 30.242249999999984,
-          "end": 32.577541999999994
+          "start": 29.97874999999999,
+          "end": 32.161291000000006
         },
         {
           "phase": "discovery",
-          "start": 32.577541999999994,
-          "end": 33.908082999999976
+          "start": 32.161291000000006,
+          "end": 33.64783299999999
         },
         {
           "phase": "other",
-          "start": 33.908082999999976,
-          "end": 35.305041999999986
+          "start": 33.64783299999999,
+          "end": 35.06562500000001
         },
         {
           "phase": "topologyStore",
-          "start": 35.305041999999986,
-          "end": 38.872082999999975
+          "start": 35.06562500000001,
+          "end": 38.720500000000015
         },
         {
           "phase": "other",
-          "start": 38.872082999999975,
-          "end": 40.160957999999994
+          "start": 38.720500000000015,
+          "end": 39.92025000000001
         },
         {
           "phase": "send",
-          "start": 40.160957999999994,
-          "end": 40.38179199999999
+          "start": 39.92025000000001,
+          "end": 40.140457999999995
         },
         {
           "phase": "receive",
-          "start": 40.38179199999999,
-          "end": 40.96237499999998
+          "start": 40.140457999999995,
+          "end": 40.702083000000016
         },
         {
           "phase": "other",
-          "start": 40.96237499999998,
-          "end": 41.39658299999999
+          "start": 40.702083000000016,
+          "end": 41.09829099999999
         }
       ]
     },
     {
       "operation": "write",
       "pattern": "Native MongoDB",
-      "iteration": 30,
-      "totalMs": 36.86862500000001,
-      "initMs": 173.57525,
-      "handlerMs": 36.86862500000001,
+      "iteration": 44,
+      "totalMs": 38.62375,
+      "initMs": 168.707375,
+      "handlerMs": 38.62375,
       "accountingMs": {
-        "clusterDns": 0.41575000000000273,
+        "clusterDns": 0.3601669999999899,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 1.1012920000000008,
-        "tcp": 0.1615419999999972,
-        "tls": 1.3185000000000002,
-        "hello": 0.9694169999999929,
-        "auth": 5.22720799999999,
-        "send": 0.41341699999998127,
-        "receive": 1.897416000000021,
-        "monitor": 12.631166000000007,
+        "lookup": 0.30479199999999196,
+        "tcp": 0.17645799999999667,
+        "tls": 1.521125000000012,
+        "hello": 1.1264580000000137,
+        "auth": 5.080083999999999,
+        "send": 0.3750829999999894,
+        "receive": 1.9289589999999919,
+        "monitor": 13.982665999999995,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 12.732917000000015,
+        "other": 13.767958000000021,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -1122,107 +1122,112 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 7.269625000000019
+          "end": 7.036207999999988
         },
         {
           "phase": "clusterDns",
-          "start": 7.269625000000019,
-          "end": 7.685375000000022
+          "start": 7.036207999999988,
+          "end": 7.396374999999978
         },
         {
           "phase": "other",
-          "start": 7.685375000000022,
-          "end": 11.062167000000017
+          "start": 7.396374999999978,
+          "end": 10.755167
         },
         {
           "phase": "monitor",
-          "start": 11.062167000000017,
-          "end": 23.693333000000024
+          "start": 10.755167,
+          "end": 24.737832999999995
+        },
+        {
+          "phase": "other",
+          "start": 24.737832999999995,
+          "end": 25.87375
         },
         {
           "phase": "lookup",
-          "start": 23.693333000000024,
-          "end": 24.794625000000025
+          "start": 25.87375,
+          "end": 26.178541999999993
         },
         {
           "phase": "tcp",
-          "start": 24.794625000000025,
-          "end": 24.956167000000022
+          "start": 26.178541999999993,
+          "end": 26.35499999999999
         },
         {
           "phase": "tls",
-          "start": 24.956167000000022,
-          "end": 26.274667000000022
+          "start": 26.35499999999999,
+          "end": 27.876125000000002
         },
         {
           "phase": "other",
-          "start": 26.274667000000022,
-          "end": 27.46712500000001
+          "start": 27.876125000000002,
+          "end": 29.243791999999985
         },
         {
           "phase": "hello",
-          "start": 27.46712500000001,
-          "end": 28.436542000000003
+          "start": 29.243791999999985,
+          "end": 30.37025
         },
         {
           "phase": "other",
-          "start": 28.436542000000003,
-          "end": 28.546250000000015
+          "start": 30.37025,
+          "end": 30.471332999999987
         },
         {
           "phase": "auth",
-          "start": 28.546250000000015,
-          "end": 33.773458000000005
+          "start": 30.471332999999987,
+          "end": 35.55141699999999
         },
         {
           "phase": "other",
-          "start": 33.773458000000005,
-          "end": 34.062625000000025
+          "start": 35.55141699999999,
+          "end": 35.8425
         },
         {
           "phase": "send",
-          "start": 34.062625000000025,
-          "end": 34.47604200000001
+          "start": 35.8425,
+          "end": 36.21758299999999
         },
         {
           "phase": "receive",
-          "start": 34.47604200000001,
-          "end": 36.37345800000003
+          "start": 36.21758299999999,
+          "end": 38.14654199999998
         },
         {
           "phase": "other",
-          "start": 36.37345800000003,
-          "end": 36.86862500000001
+          "start": 38.14654199999998,
+          "end": 38.62375
         }
       ]
     },
     {
       "operation": "write",
       "pattern": "No plugin \u00b7 1 connection",
-      "iteration": 72,
-      "totalMs": 35.78733299999999,
-      "initMs": 170.130083,
-      "handlerMs": 35.78733299999999,
+      "iteration": 157,
+      "totalMs": 35.285875000000004,
+      "initMs": 168.277,
+      "handlerMs": 35.285875000000004,
       "accountingMs": {
-        "clusterDns": 1.8985839999999996,
+        "clusterDns": 0.38075000000000614,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 0.365791999999999,
-        "tcp": 0.31733299999999076,
-        "tls": 2.286709000000002,
-        "hello": 3.0763749999999845,
-        "auth": 5.040333000000004,
-        "send": 0.430499999999995,
-        "receive": 1.9752909999999986,
+        "lookup": 0.4228750000000048,
+        "tcp": 0.34466699999998696,
+        "tls": 2.56579099999999,
+        "hello": 3.2141670000000033,
+        "auth": 5.065124999999995,
+        "send": 0.47262499999999363,
+        "receive": 1.9199160000000006,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 20.396416000000016,
+        "other": 20.899959000000024,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -1234,102 +1239,102 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 5.280416000000002
+          "end": 4.658041999999995
         },
         {
           "phase": "clusterDns",
-          "start": 5.280416000000002,
-          "end": 7.179000000000002
+          "start": 4.658041999999995,
+          "end": 5.038792000000001
         },
         {
           "phase": "other",
-          "start": 7.179000000000002,
-          "end": 17.59379100000001
+          "start": 5.038792000000001,
+          "end": 16.163375000000002
         },
         {
           "phase": "lookup",
-          "start": 17.59379100000001,
-          "end": 17.95958300000001
+          "start": 16.163375000000002,
+          "end": 16.586250000000007
         },
         {
           "phase": "tcp",
-          "start": 17.95958300000001,
-          "end": 18.276916
+          "start": 16.586250000000007,
+          "end": 16.930916999999994
         },
         {
           "phase": "tls",
-          "start": 18.276916,
-          "end": 20.563625000000002
+          "start": 16.930916999999994,
+          "end": 19.496707999999984
         },
         {
           "phase": "other",
-          "start": 20.563625000000002,
-          "end": 22.22283300000001
+          "start": 19.496707999999984,
+          "end": 21.35708299999999
         },
         {
           "phase": "hello",
-          "start": 22.22283300000001,
-          "end": 25.299207999999993
+          "start": 21.35708299999999,
+          "end": 24.571249999999992
         },
         {
           "phase": "other",
-          "start": 25.299207999999993,
-          "end": 25.456083000000007
+          "start": 24.571249999999992,
+          "end": 24.762042000000008
         },
         {
           "phase": "auth",
-          "start": 25.456083000000007,
-          "end": 30.49641600000001
+          "start": 24.762042000000008,
+          "end": 29.827167000000003
         },
         {
           "phase": "other",
-          "start": 30.49641600000001,
-          "end": 33.04487499999999
+          "start": 29.827167000000003,
+          "end": 32.48866699999999
         },
         {
           "phase": "send",
-          "start": 33.04487499999999,
-          "end": 33.475374999999985
+          "start": 32.48866699999999,
+          "end": 32.961291999999986
         },
         {
           "phase": "receive",
-          "start": 33.475374999999985,
-          "end": 35.450665999999984
+          "start": 32.961291999999986,
+          "end": 34.88120799999999
         },
         {
           "phase": "other",
-          "start": 35.450665999999984,
-          "end": 35.78733299999999
+          "start": 34.88120799999999,
+          "end": 35.285875000000004
         }
       ]
     },
     {
       "operation": "write",
       "pattern": "No plugin \u00b7 2 connections",
-      "iteration": 77,
-      "totalMs": 46.386915999999985,
-      "initMs": 167.3505,
-      "handlerMs": 46.386915999999985,
+      "iteration": 76,
+      "totalMs": 46.33266699999999,
+      "initMs": 165.564667,
+      "handlerMs": 46.33266699999999,
       "accountingMs": {
-        "clusterDns": 2.0750830000000065,
+        "clusterDns": 0.39791700000000674,
         "ssm": 0.0,
         "topologyStore": 0.0,
-        "discovery": 1.6080409999999858,
+        "discovery": 1.6883750000000077,
         "roleCheck": 0.0,
-        "lookup": 0.7055009999999982,
-        "tcp": 0.6023330000000158,
-        "tls": 3.9763749999999902,
-        "hello": 3.9498760000000175,
-        "auth": 6.208958999999993,
-        "send": 0.20241599999999949,
-        "receive": 1.7317919999999845,
+        "lookup": 0.7047509999999875,
+        "tcp": 0.5694580000000258,
+        "tls": 4.722290999999984,
+        "hello": 4.374376000000012,
+        "auth": 6.513833000000034,
+        "send": 0.25841700000000856,
+        "receive": 2.4804579999999987,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 25.326539999999994,
+        "other": 24.62279099999992,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -1341,152 +1346,152 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 5.440374999999989
+          "end": 4.594957999999991
         },
         {
           "phase": "clusterDns",
-          "start": 5.440374999999989,
-          "end": 7.515457999999995
+          "start": 4.594957999999991,
+          "end": 4.992874999999998
         },
         {
           "phase": "other",
-          "start": 7.515457999999995,
-          "end": 17.477040999999986
+          "start": 4.992874999999998,
+          "end": 14.800832999999983
         },
         {
           "phase": "lookup",
-          "start": 17.477040999999986,
-          "end": 17.860499999999973
+          "start": 14.800832999999983,
+          "end": 15.172791999999987
         },
         {
           "phase": "tcp",
-          "start": 17.860499999999973,
-          "end": 18.224957999999987
+          "start": 15.172791999999987,
+          "end": 15.474874999999997
         },
         {
           "phase": "tls",
-          "start": 18.224957999999987,
-          "end": 20.651582999999988
+          "start": 15.474874999999997,
+          "end": 18.552333000000004
         },
         {
           "phase": "other",
-          "start": 20.651582999999988,
-          "end": 22.380040999999977
+          "start": 18.552333000000004,
+          "end": 20.373957999999988
         },
         {
           "phase": "hello",
-          "start": 22.380040999999977,
-          "end": 25.430999999999983
+          "start": 20.373957999999988,
+          "end": 23.572791999999993
         },
         {
           "phase": "other",
-          "start": 25.430999999999983,
-          "end": 25.589915999999988
+          "start": 23.572791999999993,
+          "end": 23.732624999999985
         },
         {
           "phase": "auth",
-          "start": 25.589915999999988,
-          "end": 30.41358299999999
+          "start": 23.732624999999985,
+          "end": 28.821583000000004
         },
         {
           "phase": "other",
-          "start": 30.41358299999999,
-          "end": 32.64824999999999
+          "start": 28.821583000000004,
+          "end": 31.181457999999992
         },
         {
           "phase": "discovery",
-          "start": 32.64824999999999,
-          "end": 34.256290999999976
+          "start": 31.181457999999992,
+          "end": 32.869833
         },
         {
           "phase": "other",
-          "start": 34.256290999999976,
-          "end": 38.70345799999998
+          "start": 32.869833,
+          "end": 36.99808300000001
         },
         {
           "phase": "lookup",
-          "start": 38.70345799999998,
-          "end": 39.025499999999994
+          "start": 36.99808300000001,
+          "end": 37.33087499999999
         },
         {
           "phase": "tcp",
-          "start": 39.025499999999994,
-          "end": 39.263374999999996
+          "start": 37.33087499999999,
+          "end": 37.59825000000001
         },
         {
           "phase": "tls",
-          "start": 39.263374999999996,
-          "end": 40.813124999999985
+          "start": 37.59825000000001,
+          "end": 39.243082999999984
         },
         {
           "phase": "other",
-          "start": 40.813124999999985,
-          "end": 41.040790999999984
+          "start": 39.243082999999984,
+          "end": 39.53079199999999
         },
         {
           "phase": "hello",
-          "start": 41.040790999999984,
-          "end": 41.939707999999996
+          "start": 39.53079199999999,
+          "end": 40.706334
         },
         {
           "phase": "other",
-          "start": 41.939707999999996,
-          "end": 41.99354099999999
+          "start": 40.706334,
+          "end": 40.76349999999999
         },
         {
           "phase": "auth",
-          "start": 41.99354099999999,
-          "end": 43.378832999999986
+          "start": 40.76349999999999,
+          "end": 42.18837500000001
         },
         {
           "phase": "other",
-          "start": 43.378832999999986,
-          "end": 44.25149999999999
+          "start": 42.18837500000001,
+          "end": 43.40899999999999
         },
         {
           "phase": "send",
-          "start": 44.25149999999999,
-          "end": 44.45391599999999
+          "start": 43.40899999999999,
+          "end": 43.667417
         },
         {
           "phase": "receive",
-          "start": 44.45391599999999,
-          "end": 46.18570799999998
+          "start": 43.667417,
+          "end": 46.147875
         },
         {
           "phase": "other",
-          "start": 46.18570799999998,
-          "end": 46.386915999999985
+          "start": 46.147875,
+          "end": 46.33266699999999
         }
       ]
     },
     {
       "operation": "write",
       "pattern": "aws-ssm \u00b7 cached topology",
-      "iteration": 135,
-      "totalMs": 33.931375,
-      "initMs": 175.0395,
-      "handlerMs": 33.931375,
+      "iteration": 49,
+      "totalMs": 34.12495899999999,
+      "initMs": 165.560042,
+      "handlerMs": 34.12495899999999,
       "accountingMs": {
         "clusterDns": 0.0,
         "ssm": 0.0,
         "topologyStore": 0.0,
         "discovery": 0.0,
         "roleCheck": 0.0,
-        "lookup": 0.39145899999999756,
-        "tcp": 0.3586659999999995,
-        "tls": 2.45474999999999,
-        "hello": 3.3552919999999915,
-        "auth": 4.975082999999984,
-        "send": 0.3897919999999999,
-        "receive": 2.02962500000001,
+        "lookup": 0.31066700000002356,
+        "tcp": 0.28512499999999363,
+        "tls": 2.4196249999999964,
+        "hello": 3.5506670000000042,
+        "auth": 5.96437499999999,
+        "send": 0.4662079999999946,
+        "receive": 2.0519589999999823,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 19.97670800000003,
+        "other": 19.076333000000005,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -1498,92 +1503,92 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 15.236875000000026
+          "end": 14.271124999999984
         },
         {
           "phase": "lookup",
-          "start": 15.236875000000026,
-          "end": 15.628334000000024
+          "start": 14.271124999999984,
+          "end": 14.581792000000007
         },
         {
           "phase": "tcp",
-          "start": 15.628334000000024,
-          "end": 15.987000000000023
+          "start": 14.581792000000007,
+          "end": 14.866917
         },
         {
           "phase": "tls",
-          "start": 15.987000000000023,
-          "end": 18.441750000000013
+          "start": 14.866917,
+          "end": 17.286541999999997
         },
         {
           "phase": "other",
-          "start": 18.441750000000013,
-          "end": 20.14291700000001
+          "start": 17.286541999999997,
+          "end": 19.036292000000003
         },
         {
           "phase": "hello",
-          "start": 20.14291700000001,
-          "end": 23.498209000000003
+          "start": 19.036292000000003,
+          "end": 22.586959000000007
         },
         {
           "phase": "other",
-          "start": 23.498209000000003,
-          "end": 23.71258400000002
+          "start": 22.586959000000007,
+          "end": 22.768
         },
         {
           "phase": "auth",
-          "start": 23.71258400000002,
-          "end": 28.687667000000005
+          "start": 22.768,
+          "end": 28.73237499999999
         },
         {
           "phase": "other",
-          "start": 28.687667000000005,
-          "end": 31.130167
+          "start": 28.73237499999999,
+          "end": 31.272917000000007
         },
         {
           "phase": "send",
-          "start": 31.130167,
-          "end": 31.519959
+          "start": 31.272917000000007,
+          "end": 31.739125
         },
         {
           "phase": "receive",
-          "start": 31.519959,
-          "end": 33.54958400000001
+          "start": 31.739125,
+          "end": 33.791083999999984
         },
         {
           "phase": "other",
-          "start": 33.54958400000001,
-          "end": 33.931375
+          "start": 33.791083999999984,
+          "end": 34.12495899999999
         }
       ]
     },
     {
       "operation": "write",
       "pattern": "aws-ssm \u00b7 no cached topology",
-      "iteration": 8,
-      "totalMs": 49.202583000000004,
-      "initMs": 168.18325,
-      "handlerMs": 49.202583000000004,
+      "iteration": 27,
+      "totalMs": 49.23441600000001,
+      "initMs": 172.03225,
+      "handlerMs": 49.23441600000001,
       "accountingMs": {
-        "clusterDns": 2.0087500000000205,
+        "clusterDns": 0.37966700000001197,
         "ssm": 0.0,
-        "topologyStore": 3.368333999999976,
-        "discovery": 1.3700420000000122,
+        "topologyStore": 3.8632499999999936,
+        "discovery": 1.4888329999999996,
         "roleCheck": 0.0,
-        "lookup": 0.6447499999999877,
-        "tcp": 0.5658750000000055,
-        "tls": 3.9788750000000164,
-        "hello": 3.9764169999999694,
-        "auth": 5.866749999999996,
-        "send": 0.17287499999997635,
-        "receive": 1.7912500000000193,
+        "lookup": 0.6366250000000093,
+        "tcp": 0.5280420000000277,
+        "tls": 3.81574999999998,
+        "hello": 4.376834000000002,
+        "auth": 6.84645900000001,
+        "send": 0.26804200000000833,
+        "receive": 1.9439999999999884,
         "monitor": 0.0,
         "poolGaps": 0.0,
         "beforeCommand": 0.0,
         "afterReply": 0.0,
         "beforeSocket": 0.0,
         "unattributed": 0.0,
-        "other": 25.458665000000025,
+        "other": 25.08691399999998,
         "beforeTopology": 0.0,
         "topologyStartup": 0.0,
         "connectionGaps": 0.0,
@@ -1595,132 +1600,132 @@
         {
           "phase": "other",
           "start": 0,
-          "end": 5.704499999999996
+          "end": 4.723208
         },
         {
           "phase": "clusterDns",
-          "start": 5.704499999999996,
-          "end": 7.713250000000016
+          "start": 4.723208,
+          "end": 5.102875000000012
         },
         {
           "phase": "other",
-          "start": 7.713250000000016,
-          "end": 17.672916000000015
+          "start": 5.102875000000012,
+          "end": 15.098165999999992
         },
         {
           "phase": "lookup",
-          "start": 17.672916000000015,
-          "end": 18.007416000000006
+          "start": 15.098165999999992,
+          "end": 15.411207999999988
         },
         {
           "phase": "tcp",
-          "start": 18.007416000000006,
-          "end": 18.317166000000014
+          "start": 15.411207999999988,
+          "end": 15.69116600000001
         },
         {
           "phase": "tls",
-          "start": 18.317166000000014,
-          "end": 20.684208000000012
+          "start": 15.69116600000001,
+          "end": 17.95275000000001
         },
         {
           "phase": "other",
-          "start": 20.684208000000012,
-          "end": 22.28045800000001
+          "start": 17.95275000000001,
+          "end": 19.57733300000001
         },
         {
           "phase": "hello",
-          "start": 22.28045800000001,
-          "end": 25.262541
+          "start": 19.57733300000001,
+          "end": 22.792708000000005
         },
         {
           "phase": "other",
-          "start": 25.262541,
-          "end": 25.427958000000018
+          "start": 22.792708000000005,
+          "end": 22.96241599999999
         },
         {
           "phase": "auth",
-          "start": 25.427958000000018,
-          "end": 30.07258300000001
+          "start": 22.96241599999999,
+          "end": 28.21129099999999
         },
         {
           "phase": "other",
-          "start": 30.07258300000001,
-          "end": 32.098916
+          "start": 28.21129099999999,
+          "end": 30.3425
         },
         {
           "phase": "discovery",
-          "start": 32.098916,
-          "end": 33.468958000000015
+          "start": 30.3425,
+          "end": 31.831333
         },
         {
           "phase": "other",
-          "start": 33.468958000000015,
-          "end": 34.86154100000002
+          "start": 31.831333,
+          "end": 33.277625
         },
         {
           "phase": "topologyStore",
-          "start": 34.86154100000002,
-          "end": 38.22987499999999
+          "start": 33.277625,
+          "end": 37.140874999999994
         },
         {
           "phase": "other",
-          "start": 38.22987499999999,
-          "end": 41.50725
+          "start": 37.140874999999994,
+          "end": 40.47720799999999
         },
         {
           "phase": "lookup",
-          "start": 41.50725,
-          "end": 41.817499999999995
+          "start": 40.47720799999999,
+          "end": 40.800791000000004
         },
         {
           "phase": "tcp",
-          "start": 41.817499999999995,
-          "end": 42.07362499999999
+          "start": 40.800791000000004,
+          "end": 41.04887500000001
         },
         {
           "phase": "tls",
-          "start": 42.07362499999999,
-          "end": 43.68545800000001
+          "start": 41.04887500000001,
+          "end": 42.60304099999999
         },
         {
           "phase": "other",
-          "start": 43.68545800000001,
-          "end": 43.92641600000002
+          "start": 42.60304099999999,
+          "end": 42.82904099999999
         },
         {
           "phase": "hello",
-          "start": 43.92641600000002,
-          "end": 44.92075
+          "start": 42.82904099999999,
+          "end": 43.9905
         },
         {
           "phase": "other",
-          "start": 44.92075,
-          "end": 44.986333
+          "start": 43.9905,
+          "end": 44.059291
         },
         {
           "phase": "auth",
-          "start": 44.986333,
-          "end": 46.20845800000001
+          "start": 44.059291,
+          "end": 45.656875000000014
         },
         {
           "phase": "other",
-          "start": 46.20845800000001,
-          "end": 47.03525000000002
+          "start": 45.656875000000014,
+          "end": 46.85808299999999
         },
         {
           "phase": "send",
-          "start": 47.03525000000002,
-          "end": 47.208124999999995
+          "start": 46.85808299999999,
+          "end": 47.126125
         },
         {
           "phase": "receive",
-          "start": 47.208124999999995,
-          "end": 48.999375000000015
+          "start": 47.126125,
+          "end": 49.07012499999999
         },
         {
           "phase": "other",
-          "start": 48.999375000000015,
-          "end": 49.202583000000004
+          "start": 49.07012499999999,
+          "end": 49.23441600000001
         }
       ]
     }

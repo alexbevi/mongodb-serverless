@@ -22,6 +22,36 @@ reusing a connection does not request a new role check over the network. An
 election can occur between validation and execution. This change does not
 implement the remaining read-preference features.
 
+The Lambda benchmark fetches the SecureString connection URI and stored topology
+in one `GetParameters` request during INIT. The handler creates the client lazily
+and retains it for warm calls. INIT is excluded from the handler timings.
+
+![A cached topology selects a direct member after one INIT parameter fetch](assets/bootstrap-stored-topology.png)
+
+<details>
+<summary>Editable Mermaid</summary>
+
+```mermaid
+sequenceDiagram
+    participant Lambda
+    participant SSM as AWS Parameter Store
+    participant Member as Cached member
+    Note over Lambda,SSM: INIT, outside the handler measurement
+    Lambda->>SSM: GetParameters, decrypt URI and read topology
+    SSM-->>Lambda: Connection URI and cached topology
+    Note over Lambda: First handler operation, timing starts<br/>Create client lazily, select cached member
+    Lambda->>Member: Direct TCP, TLS, initial hello, authentication
+    Member-->>Lambda: Handshake role and identity
+    Note over Lambda: Role matches the cached topology
+    Lambda->>Member: Read from an eligible member or write to primary
+    Member-->>Lambda: Operation result
+    Note over Lambda: Return result, timing ends<br/>Retain client and connection for warm calls
+    Note over Lambda,Member: Healthy cache hit: 1 application connection<br/>No SRV/TXT, discovery, topology write or extra hello
+    Note over Lambda,SSM: On mismatch: rediscover using known members, store, retry selection once<br/>A storage failure or second mismatch fails the operation
+```
+
+</details>
+
 ## Without a plugin
 
 These diagrams show `disableMonitoring: true`, `maxPoolSize: 1`, and
@@ -50,12 +80,12 @@ sequenceDiagram
     participant Driver as ServerlessMongoClient
     participant Seed as Chosen member
     Note over Driver: Resolve seeds and native connection settings<br/>SRV and TXT only for an SRV URI
-    Driver->>Seed: Open connection 1; handshake and authenticate
+    Driver->>Seed: Open connection 1, handshake and authenticate
     Note over Driver: Handshake role can serve the operation
     Driver->>Seed: Run operation on connection 1
     Seed-->>Driver: Operation result
-    Note over Driver: Return result immediately; timing ends
-    Note over Driver,Seed: Retain connection and reported role in memory<br/>1 TCP connection; no monitor sockets
+    Note over Driver: Return result immediately, timing ends
+    Note over Driver,Seed: Retain connection and reported role in memory<br/>1 TCP connection, no monitor sockets
     Note over Driver: Discover only when a later operation needs another role<br/>or recovery detects a topology change
 ```
 
@@ -80,15 +110,15 @@ sequenceDiagram
     participant Seed as Chosen member
     participant Target as Required member
     Note over Driver: Resolve seeds and native connection settings<br/>SRV and TXT only for an SRV URI
-    Driver->>Seed: Open connection 1; handshake and authenticate
+    Driver->>Seed: Open connection 1, handshake and authenticate
     Note over Driver: Handshake role cannot serve the operation
     Driver->>Seed: replSetGetStatus
-    Seed-->>Driver: Topology; locate the required member
+    Seed-->>Driver: Topology, locate the required member
     Driver->>Target: Open connection 2 with resolved authentication settings
     Driver->>Target: Run operation on connection 2
     Target-->>Driver: Result
     Note over Driver,Seed: Retain the first connection and topology
-    Note over Driver,Target: 2 TCP connections; no monitor sockets
+    Note over Driver,Target: 2 TCP connections, no monitor sockets
 ```
 
 </details>
@@ -135,7 +165,8 @@ mechanism and resolved source alongside replica-set status.
 A matching cached topology skips seed resolution and status discovery. Direct
 connections open only for members needed by operations; a role mismatch refreshes
 topology before the application operation. Without a plugin, each new
-client discovers for itself. Write-error recovery continues to use known members;
+client resolves its seeds and discovers topology only when routing or recovery
+needs it. Write-error recovery continues to use known members;
 see [recovery and plugin behavior](architecture.md#write-failure-and-refresh).
 
 ## Verification

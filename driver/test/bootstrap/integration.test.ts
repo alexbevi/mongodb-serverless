@@ -12,6 +12,7 @@ afterEach(() => vi.restoreAllMocks());
 
 it('discovers and routes without a plugin', async () => {
   await startCluster();
+  await waitForPreferredPrimary();
   const cluster = await describeCluster();
   const commands: CommandStartedEvent[] = [];
 
@@ -37,6 +38,7 @@ it('discovers and routes without a plugin', async () => {
 
 async function observeCluster() {
   await startCluster();
+  await waitForPreferredPrimary();
   const cluster = await describeCluster();
   const relays = new Map<string, Awaited<ReturnType<typeof startRelay>>>();
   const clients: MongoClient[] = [];

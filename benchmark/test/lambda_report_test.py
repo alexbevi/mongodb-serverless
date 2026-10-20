@@ -181,6 +181,7 @@ class ReportTest(unittest.TestCase):
         text = report.markdown(summary)
         self.assertIn('aws-ssm · no cached topology', text)
         self.assertIn('Topology storage · SSM PutParameter', text)
+        self.assertEqual(next(lane['label'] for lane in report.handler_lanes(samples[-1]) if lane['kind'] == 'ssm'), 'SSM · topology write')
         self.assertNotIn('INIT median', text)
         with tempfile.TemporaryDirectory() as directory:
             report.render(data, summary, Path(directory) / 'latency.png')

@@ -205,7 +205,8 @@ def handler_lanes(sample):
     start = trace['start']
     measured = timeline(sample)
     spans = breakdown.accounting_segments(measured)
-    lanes = [dict(kind='ssm', label='SSM · decrypted parameters', spans=[
+    ssm_label = 'SSM · topology write' if all(call.get('command') == 'PutParameterCommand' for call in trace['ssm']) else 'SSM · parameter requests'
+    lanes = [dict(kind='ssm', label=ssm_label, spans=[
         dict(phase='topologyStore' if call.get('command') == 'PutParameterCommand' else 'ssm', start=call['start']-start, end=call['end']-start) for call in trace['ssm']])]
     if not trace['ssm']:
         lanes = []
@@ -330,7 +331,7 @@ def render(data, summary, output):
     package = configuration.get('packageZipBytes', 0)
     init_source = 'Local INIT uses the Node process clock; AWS INIT uses Lambda REPORT.'
     detail = 'Hatching marks callbacks with ≥2 ms off CPU.' if diagnostics else 'Other handler work / scheduling is a measured remainder; its internal causes are not probed.'
-    figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. {detail} Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
+    figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM retrieval. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. {detail} Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
     figure.subplots_adjust(left=.12, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
     figure.savefig(output, dpi=150, facecolor='white')
     plt.close(figure)

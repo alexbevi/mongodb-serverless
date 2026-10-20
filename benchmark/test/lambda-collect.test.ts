@@ -57,3 +57,56 @@ it('uses a labelled process clock when LocalStack omits the INIT report', async 
   expect(result.lambda.initSource).toBe('node-process-clock');
   expect(result.lambda.durationMs).toBe(42.5);
 });
+
+it('clears only the uncached topology parameters before each cold round', async () => {
+  const { mkdtemp, readFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { collect, workerPatterns } = await import(new URL('../lambda-collect.mjs', import.meta.url).href);
+  const directory = await mkdtemp(join(tmpdir(), 'lambda-cache-miss-'));
+  const events: string[] = [];
+  let version = 0;
+  const prefix = 'test-pattern';
+
+  const ssm = { send: async (command: { input: { Names: string[] } }) => {
+    expect(command.input.Names).toEqual([`/${prefix}/topology-miss-read`, `/${prefix}/topology-miss-write`]);
+    events.push('clear');
+
+    return {};
+  } };
+
+  const lambda = { send: async (command: { constructor: { name: string }; input: { Payload?: Uint8Array; FunctionName: string; Qualifier?: string } }) => {
+    const name = command.constructor.name;
+
+    if (name === 'GetFunctionConfigurationCommand') return { Environment: { Variables: {} } };
+
+    if (name === 'GetFunctionCommand') return { Configuration: { LastUpdateStatus: 'Successful', State: 'Active' } };
+
+    if (name === 'PublishVersionCommand') {
+      events.push('publish');
+
+      return { Version: String(++version) };
+    }
+
+    if (name === 'InvokeCommand') {
+      const event = JSON.parse(Buffer.from(command.input.Payload!).toString());
+      events.push('invoke');
+
+      return { Payload: Buffer.from(JSON.stringify({ ...event, verified: true, cold: true, totalMs: 1,
+        environmentId: `${command.input.FunctionName}:${command.input.Qualifier}`, trace: {} })) };
+    }
+
+    return {};
+  } };
+
+  try {
+    expect(workerPatterns(prefix)).toHaveLength(8);
+    await collect(lambda, ssm, prefix, 2, join(directory, 'samples.json'), { diagnostics: false });
+    const data = JSON.parse(await readFile(join(directory, 'samples.json'), 'utf8'));
+    expect(data.samples).toHaveLength(16);
+    expect(data.configuration.variants).toEqual(['native', 'no-plugin', 'ssm', 'ssm-uncached']);
+    expect(events).toEqual(Array.from({ length: 2 }, () => ['clear', ...Array(8).fill('publish'), ...Array(8).fill('invoke')]).flat());
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

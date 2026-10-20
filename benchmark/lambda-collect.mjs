@@ -1,14 +1,23 @@
 import assert from 'node:assert/strict';
+import { DeleteParametersCommand } from '@aws-sdk/client-ssm';
 import { UpdateFunctionConfigurationCommand, GetFunctionConfigurationCommand, PublishVersionCommand, InvokeCommand, DeleteFunctionCommand, waitUntilFunctionUpdatedV2 } from '@aws-sdk/client-lambda';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-const variants = ['native', 'no-plugin', 'ssm'];
+const variants = ['native', 'no-plugin', 'ssm', 'ssm-uncached'];
 
 export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => ({ name: `${prefix}-${variant}-${operation}`, variant, operation })));
 
 export const workerNames = prefix => workerPatterns(prefix).map(pattern => pattern.name);
+
+export const topologyParameterFor = (prefix, variant, operation) =>
+  `/${prefix}/topology${variant === 'ssm-uncached' ? `-miss-${operation}` : ''}`;
+
+async function clearUncachedTopology(ssm, prefix) {
+  const Names = ['read', 'write'].map(operation => topologyParameterFor(prefix, 'ssm-uncached', operation));
+  await ssm.send(new DeleteParametersCommand({ Names }));
+}
 
 async function invoke(lambda, name, version, event) {
   const response = await lambda.send(new InvokeCommand({ FunctionName: name, Qualifier: version, LogType: 'Tail', Payload: Buffer.from(JSON.stringify(event)) }));
@@ -51,7 +60,8 @@ export function assertWarmReuse(cold, warm) {
   assert.deepEqual(warm.dns, []);
 }
 
-export async function verifyWarmInvocations(lambda, prefix) {
+export async function verifyWarmInvocations(lambda, prefix, ssm) {
+  await clearUncachedTopology(ssm, prefix);
   const checks = [];
 
   for (const { name, variant, operation } of workerPatterns(prefix)) {
@@ -66,7 +76,7 @@ export async function verifyWarmInvocations(lambda, prefix) {
   return checks;
 }
 
-export async function collect(lambda, prefix, count, file, metadata) {
+export async function collect(lambda, ssm, prefix, count, file, metadata) {
   const start = Date.now();
   const names = workerNames(prefix);
 
@@ -78,7 +88,7 @@ export async function collect(lambda, prefix, count, file, metadata) {
 
   const samples = [];
   const seen = new Set();
-  const data = { createdAt: new Date(start).toISOString(), configuration: { count, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during INIT; handler through result; client retained for warm invocations', ...metadata }, samples, executionSources: [], failures: [] };
+  const data = { createdAt: new Date(start).toISOString(), configuration: { count, variants, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during INIT; handler through result; client retained for warm invocations', ...metadata }, samples, executionSources: [], failures: [] };
   mkdirSync(dirname(file), { recursive: true });
   const members = new Map();
   const sourceIds = new Map();
@@ -105,6 +115,7 @@ export async function collect(lambda, prefix, count, file, metadata) {
 
   try {
     for (let iteration = 0; iteration < count; iteration += 1) {
+      await clearUncachedTopology(ssm, prefix);
       const versions = new Map(await Promise.all(settings.map(async setting => {
         await lambda.send(new UpdateFunctionConfigurationCommand({ FunctionName: setting.name, Environment: { Variables: { ...setting.environment, COLD_NONCE: randomUUID() } } }));
         await waitUntilFunctionUpdatedV2({ client: lambda, maxWaitTime: 120, minDelay: 1, maxDelay: 2 }, { FunctionName: setting.name });

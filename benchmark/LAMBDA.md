@@ -20,7 +20,7 @@ python3 benchmark/lambda-report.py benchmark/results/local/samples.json
 ```
 
 The local runner creates a TLS replica set, DNS SRV/TXT records, a SecureString,
-and six Lambda functions. It discovers and stores topology before collecting
+and eight Lambda functions. It discovers and stores topology before collecting
 cache hits. The preparation result is retained separately in the JSON. Before measuring cold
 cohorts, each function receives a cold and warm call on `$LATEST`. The runner
 checks environment and client reuse, with no further SSM, cluster DNS or
@@ -107,3 +107,9 @@ fallback, or concurrent elections. Those remain [future work](../docs/operation-
 Normal healthy cache hits are measured separately from discovery and refresh.
 Concurrent cache writes use last-write-wins. The cached URI lasts for a plugin
 instance; create a new instance after credential rotation.
+
+The uncached aws-ssm functions use separate topology parameters for reads and
+writes. The collector deletes only those two parameters before publishing each
+cold round, outside the measured interval. The cached functions keep their
+prepared topology. Every miss must record one discovery and one topology write;
+otherwise collection fails.

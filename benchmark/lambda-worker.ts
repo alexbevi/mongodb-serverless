@@ -55,7 +55,7 @@ const topologyParameter = process.env['TOPOLOGY_PARAMETER'];
 
 assert.ok(uriParameter && topologyParameter);
 
-const plugin = variant === 'ssm'
+const plugin = variant === 'ssm' || variant === 'ssm-uncached'
   ? new SsmPlugin({ client: ssm, connectionStringParameter: uriParameter, topologyParameter })
   : undefined;
 
@@ -165,7 +165,7 @@ export async function handler(
 
   return {
     ...evidence, verified: true, totalMs: end - start,
-    ssmMs: calls.reduce((sum, call) => sum + call.end - call.start, 0), ssmPhase: 'init',
+    ssmMs: (cold ? initialization.ssm : []).reduce((sum, call) => sum + call.end - call.start, 0), ssmPhase: 'init',
     initialization: cold ? initialization : undefined,
     environmentId, clientConstructions, nodeVersion: process.version, driverVersion: telemetry.version,
     trace: { ...timing,

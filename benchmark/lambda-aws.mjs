@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { CloudFormationClient, CreateStackCommand, UpdateStackCommand, DescribeStacksCommand, waitUntilStackCreateComplete, waitUntilStackUpdateComplete } from '@aws-sdk/client-cloudformation';
 import { LambdaClient, GetFunctionConfigurationCommand, CreateFunctionCommand, UpdateFunctionCodeCommand, UpdateFunctionConfigurationCommand, PublishVersionCommand, DeleteFunctionCommand, waitUntilFunctionActiveV2, waitUntilFunctionUpdatedV2 } from '@aws-sdk/client-lambda';
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
-import { collect, invokeCold, workerPatterns, verifyWarmInvocations } from './lambda-collect.mjs';
+import { collect, invokeCold, workerPatterns, topologyParameterFor, verifyWarmInvocations } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: {
   samples: { type: 'string', default: '100' }, output: { type: 'string', default: 'benchmark/results/aws/samples.json' },
@@ -29,6 +29,8 @@ const uriParameter = `/${prefix}/uri`;
 
 const topologyParameter = `/${prefix}/topology`;
 
+const topologyArns = [topologyParameter, ...['read', 'write'].map(operation => topologyParameterFor(prefix, 'ssm-uncached', operation))];
+
 const options = { region: values.region, maxAttempts: 3 };
 
 const lambda = new LambdaClient(options);
@@ -47,8 +49,8 @@ const template = {
   Resources: { WorkerRole: { Type: 'AWS::IAM::Role', Properties: {
     AssumeRolePolicyDocument: { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Principal: { Service: 'lambda.amazonaws.com' }, Action: 'sts:AssumeRole' }] },
     Policies: [{ PolicyName: 'BenchmarkParameters', PolicyDocument: { Version: '2012-10-17', Statement: [
-      { Effect: 'Allow', Action: ['ssm:GetParameter', 'ssm:GetParameters'], Resource: [parameterArn(uriParameter), parameterArn(topologyParameter)] },
-      { Effect: 'Allow', Action: 'ssm:PutParameter', Resource: parameterArn(topologyParameter) },
+      { Effect: 'Allow', Action: ['ssm:GetParameter', 'ssm:GetParameters'], Resource: [parameterArn(uriParameter), ...topologyArns.map(parameterArn)] },
+      { Effect: 'Allow', Action: 'ssm:PutParameter', Resource: topologyArns.map(parameterArn) },
       { Effect: 'Allow', Action: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'], Resource: { 'Fn::Sub': `arn:\${AWS::Partition}:logs:\${AWS::Region}:\${AWS::AccountId}:log-group:/aws/lambda/${prefix}-*` } }
     ] } }]
   } } },
@@ -91,13 +93,13 @@ try {
   const zip = readFileSync(resolve(directory, '../lambda-worker.zip'));
   const variables = { BENCHMARK_DIAGNOSTICS: String(diagnostics), URI_PARAMETER: uriParameter, TOPOLOGY_PARAMETER: topologyParameter, DATABASE: source.Environment.Variables.DATABASE ?? 'bench' };
 
-  for (const { name, variant } of workerPatterns(prefix)) {
+  for (const { name, variant, operation } of workerPatterns(prefix)) {
     let exists = false;
 
     try { await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: name })); exists = true; }
     catch (error) { if (error.name !== 'ResourceNotFoundException') throw error; }
 
-    const configuration = { FunctionName: name, Role: role, Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', MemorySize: 1769, Timeout: 30, Environment: { Variables: { ...variables, BENCHMARK_VARIANT: variant } }, Description: 'Cold MongoDB routing benchmark; credentials fetched from SSM' };
+    const configuration = { FunctionName: name, Role: role, Runtime: 'nodejs24.x', Handler: 'benchmark/dist/lambda-worker.handler', MemorySize: 1769, Timeout: 30, Environment: { Variables: { ...variables, TOPOLOGY_PARAMETER: topologyParameterFor(prefix, variant, operation), BENCHMARK_VARIANT: variant } }, Description: 'Cold MongoDB routing benchmark; credentials fetched from SSM' };
 
     if (exists) {
       await lambda.send(new UpdateFunctionCodeCommand({ FunctionName: name, ZipFile: zip, Architectures: ['arm64'] }));
@@ -122,8 +124,8 @@ try {
   const preparationVersion = await lambda.send(new PublishVersionCommand({ FunctionName: `${prefix}-ssm-write` }));
   const preparation = await invokeCold(lambda, `${prefix}-ssm-write`, preparationVersion.Version, { variant: 'ssm', operation: 'write', prepare: true });
   await lambda.send(new DeleteFunctionCommand({ FunctionName: `${prefix}-ssm-write`, Qualifier: preparationVersion.Version }));
-  const warmVerification = await verifyWarmInvocations(lambda, prefix);
-  await collect(lambda, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics, overview: 'handler' });
+  const warmVerification = await verifyWarmInvocations(lambda, prefix, ssm);
+  await collect(lambda, ssm, prefix, count, resolve(values.output), { environment: 'AWS Lambda', packageSha256: createHash('sha256').update(zip).digest('hex'), packageZipBytes: zip.length, region: values.region, architecture: 'arm64', memoryMB: 1769, current: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), preparation, warmVerification, diagnostics, overview: 'handler' });
 } finally {
   lambda.destroy();
   ssm.destroy();

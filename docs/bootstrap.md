@@ -29,12 +29,15 @@ These diagrams show `disableMonitoring: true`, `maxPoolSize: 1`, and
 bootstrap and sequential operations. Concurrent work, failed seeds, idle socket
 replacement, and elections can require more connections.
 
-### Lucky landing: reuse the first connection
+### Lucky landing: operation first
 
 A write reuses a primary landing. An explicit operation-level `nearest` read
 reuses either healthy member role. Other reads keep the secondary-first policy
-and can use the primary when no healthy secondary exists. Discovery and the
-operation use the same authenticated connection.
+and can use the primary when no healthy secondary exists. The initial handshake
+supplies the role and identity. A suitable operation runs first; discovery then
+uses the same socket. The call waits for discovery to settle before returning,
+so a Lambda does not freeze unfinished work. There is no additional `hello`.
+Discovery does not open another connection even when the pool permits more.
 
 ![Discovery and the operation share one TCP connection](assets/bootstrap-reuse.png)
 
@@ -47,10 +50,12 @@ sequenceDiagram
     participant Seed as Chosen member
     Note over Driver: Resolve seeds and native connection settings<br/>SRV and TXT only for an SRV URI
     Driver->>Seed: Open connection 1; handshake and authenticate
-    Driver->>Seed: hello and replSetGetStatus
-    Seed-->>Driver: Topology; member can serve the operation
+    Note over Driver: Handshake role can serve the operation
     Driver->>Seed: Run operation on connection 1
-    Seed-->>Driver: Result
+    Seed-->>Driver: Operation result
+    Driver->>Seed: replSetGetStatus on connection 1
+    Seed-->>Driver: Topology
+    Note over Driver: Return operation result after discovery settles
     Note over Driver,Seed: Retain topology and connection in memory<br/>1 TCP connection; no monitor sockets
 ```
 
@@ -58,7 +63,8 @@ sequenceDiagram
 
 ### Other member needed: add one connection
 
-The selected member reports topology but has the wrong role for the operation.
+The initial handshake reports a role that cannot serve the operation. Discovery
+must finish before choosing another member.
 The client opens one connection to the required member and retains the first
 connection for operations that can use it. Unrestricted `nearest` reads reuse
 an eligible connected member; other reads prefer a connected healthy secondary.
@@ -75,8 +81,9 @@ sequenceDiagram
     participant Target as Required member
     Note over Driver: Resolve seeds and native connection settings<br/>SRV and TXT only for an SRV URI
     Driver->>Seed: Open connection 1; handshake and authenticate
-    Driver->>Seed: hello and replSetGetStatus
-    Seed-->>Driver: Topology; another member is needed
+    Note over Driver: Handshake role cannot serve the operation
+    Driver->>Seed: replSetGetStatus
+    Seed-->>Driver: Topology; locate the required member
     Driver->>Target: Open connection 2 with resolved authentication settings
     Driver->>Target: Run operation on connection 2
     Target-->>Driver: Result
@@ -116,8 +123,11 @@ perform handshake and authentication. SRV resolution and the monitoring patch
 use internal APIs verified against `mongodb@7.7.0`; stable versions in
 `>=7.7.0 <8.0.0` are accepted, with behavior rechecked on upgrades.
 
-Failed seeds are closed before trying another. A failed topology-store write
-closes the discovered connection and fails the operation. A successful bootstrap
+Failed seeds are closed before trying another. Plugin cache misses still discover
+and persist before operations; a failed topology-store write closes that
+connection and fails the operation. Without a plugin, discovery after an
+executed operation cannot change its result. A failed discovery is retried on
+the next call; routing to another member requires successful discovery. A successful bootstrap
 connection is owned by the wrapper and closes with it. No credentials are
 persisted in topology; optional shared records contain only the authentication
 mechanism and resolved source alongside replica-set status.
@@ -137,13 +147,15 @@ that count actual sockets. Only DNS records are stubbed for SRV tests.
 | Case | Assertion |
 |---|---|
 | Cached role mismatch | Refresh and persist before the read; the next cold start uses the corrected record |
-| Primary landing, first write | Discovery and insert share one socket |
-| Secondary landing, first read | Discovery and find share one socket, even when another secondary is listed first |
+| Primary landing, first write | Insert precedes discovery; both share one socket, including with the default pool size |
+| Secondary landing, first read | Find precedes discovery on the same socket, even when another secondary is listed first |
 | Wrong role, first read or write | Two sockets; correct member serves the operation |
 | Later reads and writes | Reuse the retained primary and secondary |
 | Concurrent first writes | One discovery and one socket with a pool limit of one |
 | SRV, TXT, SCRAM and TLS | One authenticated socket; resolved source survives into operations |
 | Explicit TLS opt-out | Bootstrap and a new wrapper using cached topology both preserve it |
+| Discovery failure after an operation | Preserve its result; retry discovery on the next call |
+| Closed client | Reject before opening a bootstrap connection |
 | Failed handshake | Close the failed client, then try another seed |
 | Failed persistence or concurrent close | Close the discovered socket; do not execute the application operation |
 | Invalid DNS or URI options | Reject before opening a connection |

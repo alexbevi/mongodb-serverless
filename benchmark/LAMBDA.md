@@ -80,8 +80,10 @@ records the timing source; neither includes container provisioning.
 - Native and no-plugin execution environments each fetch the URI through `GetParameter` with
   decryption, then perform SRV and TXT resolution. Warm invocations reuse the existing client.
 - No-plugin reads explicitly permit either healthy member role with `nearest`.
-  They reuse the discovery connection. Writes reuse a primary landing or open one
-  additional connection after a secondary landing. Both landing groups are reported
+  A suitable operation runs before discovery on the same connection. The call
+  waits for discovery before returning, and its time remains in the handler total.
+  Writes reuse a primary landing or open one additional connection after a
+  secondary landing. Discovery uses handshake identity without another hello. Both landing groups are reported
   with their observed sample counts; random selection is not forced.
 - During INIT, the SSM variant fetches URI and topology together with `GetParameters`.
   Cache hits open one authenticated direct connection, without SRV/TXT or discovery.

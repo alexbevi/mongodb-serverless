@@ -377,3 +377,55 @@ it('uses handshake identity for discovery without another hello', async () => {
     await observed.close();
   }
 }, 120_000);
+
+
+it('sends suitable first operations before discovery on the same socket', async () => {
+  const observed = await observeCluster();
+  const { cluster, relays, commands, createClient } = observed;
+
+  const scenarios = [
+    { host: cluster.primary, command: 'insert', run: (client: ServerlessMongoClient) => client.db().collection('first').insertOne({}) },
+    ...(['primary', 'primaryPreferred', 'secondary', 'secondaryPreferred', 'nearest'] as const).map(readPreference => ({
+      host: readPreference.startsWith('primary') ? cluster.primary : cluster.secondaries[0]!, command: 'find',
+      run: (client: ServerlessMongoClient) => client.db().collection('first').findOne({}, { readPreference })
+    })),
+    { host: cluster.primary, command: 'find', run: (client: ServerlessMongoClient) => client.db().collection('first').findOne({}, { readPreference: 'nearest' }) },
+    { host: cluster.secondaries[0]!, command: 'find', run: (client: ServerlessMongoClient) => client.db().collection('first').find({}).toArray() },
+    { host: cluster.secondaries[0]!, command: 'find', run: async (client: ServerlessMongoClient) => {
+      for await (const document of client.db().collection('first').find({})) expect(document).toBeDefined();
+    } },
+    { host: cluster.primary, command: 'insert', run: (client: ServerlessMongoClient) => {
+      const bulk = client.db().collection('first').initializeOrderedBulkOp();
+      bulk.insert({});
+
+      return bulk.execute();
+    } },
+    { host: cluster.primary, command: 'aggregate', run: (client: ServerlessMongoClient) =>
+      client.db().collection('first').aggregate([{ $out: 'copy' }]).toArray()
+    }
+  ];
+
+  try {
+    for (const scenario of scenarios) {
+      const before = commands.length;
+      const accepted = relays.get(scenario.host)!.counts.accepted;
+
+      const client = new ServerlessMongoClient(`mongodb://${scenario.host}/bootstrap`, {
+        disableMonitoring: true, maxPoolSize: 1, monitorCommands: true, createClient
+      });
+
+      try {
+        await scenario.run(client);
+        const work = commands.slice(before).filter(event => [scenario.command, 'replSetGetStatus'].includes(event.commandName));
+        expect(work.map(event => event.commandName)).toEqual([scenario.command, 'replSetGetStatus']);
+        expect(work[0]?.connectionId).toBe(work[1]?.connectionId);
+        expect(work[0]?.address).toBe(work[1]?.address);
+        expect(relays.get(scenario.host)?.counts.accepted).toBe(accepted + 1);
+      } finally {
+        await client.close();
+      }
+    }
+  } finally {
+    await observed.close();
+  }
+}, 120_000);

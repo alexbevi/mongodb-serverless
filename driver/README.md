@@ -109,6 +109,15 @@ primary or secondary, including the bootstrap connection. This permits either
 role but does not implement latency, tag, or staleness filtering; use it only when
 any healthy member is acceptable. Other preferences retain the limitations below.
 
+Without a plugin, a suitable first operation starts from the handshake role
+before `replSetGetStatus`. Discovery starts after that operation checks out its
+socket. With `maxPoolSize: 1`, discovery waits for the socket; larger pools may
+open another connection and run both commands concurrently. The call waits for
+discovery to settle before returning, including for cursors and bulk execution.
+A discovery failure cannot turn a successful write into an error. Later calls
+retry discovery; an operation needing another member must await valid topology.
+
+Plugin cache misses still discover and persist before executing operations.
 The bootstrap connection is reused for its member; other connections open on
 first use. When reads fall back to the primary, one client serves both.
 `close()` closes every client it opened.

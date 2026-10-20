@@ -2,9 +2,9 @@ import { ConnectionString } from 'mongodb-connection-string-url';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
-import type { TopologyPlugin } from './plugin.js';
+import { uncachedTopology, type TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
-import { discoverTopology, openDiscovery } from './discovery.js';
+import { discoverTopology, openDiscovery, openSeed, readTopology } from './discovery.js';
 import { directUri } from './uri.js';
 import { observeMember, type MemberConnection } from './member.js';
 
@@ -31,6 +31,7 @@ export class ClientPair {
   readonly #options: ClientPairOptions;
   readonly #clients = new Map<string, Promise<MemberConnection>>();
   #topology: Promise<Topology> | undefined;
+  #bootstrap: Promise<MemberConnection> | undefined;
   #closed = false;
   #refresh: Promise<void> | undefined;
   #generation = 0;
@@ -50,6 +51,17 @@ export class ClientPair {
   }
 
   async #selectMember(route: 'read' | 'write' | 'any', refreshed = false): Promise<MongoClient> {
+    if (this.#options.plugin === uncachedTopology && !this.#topology) {
+      const member = await this.#connectBootstrap();
+      this.#assertOpen();
+
+      const suitable = route === 'any'
+        ? ['RSPrimary', 'RSSecondary'].includes(member.type)
+        : member.type === (route === 'write' ? 'RSPrimary' : 'RSSecondary');
+
+      if (suitable) return member.client;
+    }
+
     const topology = await this.#resolveTopology();
     const generation = this.#generation;
     const secondary = topology.secondaries.find(host => this.#clients.has(host)) ?? topology.secondaries[0];
@@ -74,6 +86,36 @@ export class ClientPair {
     await this.refreshTopology(generation);
 
     return this.#selectMember(route, true);
+  }
+
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } finally {
+      // Discovery must settle before a Lambda can freeze this client. It cannot undo an executed operation.
+      if (this.#bootstrap) await this.#resolveTopology().catch(() => {});
+    }
+  }
+
+  async #connectBootstrap(): Promise<MemberConnection> {
+    this.#bootstrap ??= openSeed(
+      this.#options.uri, this.#options.createClient, this.#options.driverOptions, this.#options.disableMonitoring
+    ).then(async member => {
+      if (this.#closed) {
+        await member.client.close();
+        this.#assertOpen();
+      }
+
+      if (member.host) this.#clients.set(member.host, Promise.resolve(member));
+      member.client.once('connectionCheckedOut', () => { void this.#resolveTopology().catch(() => {}); });
+
+      return member;
+    }).catch(error => {
+      this.#bootstrap = undefined;
+      throw error;
+    });
+
+    return this.#bootstrap;
   }
 
   get generation(): number {
@@ -107,7 +149,7 @@ export class ClientPair {
 
   async close(): Promise<void> {
     this.#closed = true;
-    await Promise.allSettled([this.#topology, this.#refresh]);
+    await Promise.allSettled([this.#bootstrap, this.#topology, this.#refresh]);
     const pending = [...this.#clients.values()];
     this.#clients.clear();
     this.#topology = undefined;
@@ -124,6 +166,13 @@ export class ClientPair {
     this.#assertOpen();
 
     this.#topology ??= (async () => {
+      if (this.#options.plugin === uncachedTopology) {
+        const member = await this.#connectBootstrap();
+        this.#assertOpen();
+
+        return parseTopology(await readTopology(member));
+      }
+
       const status = await this.#options.plugin.read();
       this.#assertOpen();
 

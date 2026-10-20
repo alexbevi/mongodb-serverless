@@ -30,13 +30,46 @@ export async function discoverTopology(
   }
 }
 
-export async function openDiscovery(
+export function openDiscovery(
   uri: string,
   createClient: ClientFactory,
   options?: MongoClientOptions,
   seeds?: string[],
   disableMonitoring = false
 ): Promise<DiscoveryConnection> {
+  return trySeeds(uri, createClient, options, seeds, disableMonitoring, async member =>
+    Object.assign(member, { status: await readTopology(member) })
+  );
+}
+
+export function openSeed(
+  uri: string,
+  createClient: ClientFactory,
+  options?: MongoClientOptions,
+  disableMonitoring = false
+): Promise<MemberConnection> {
+  return trySeeds(uri, createClient, options, undefined, disableMonitoring, async member => member);
+}
+
+export async function readTopology(member: MemberConnection): Promise<ReplSetGetStatus> {
+  const status = await member.client.db('admin').command({ replSetGetStatus: 1 });
+  assertStatus(status);
+  parseTopology(status);
+  const credentials = member.client.options.credentials;
+
+  return credentials
+    ? { ...status, authentication: { mechanism: credentials.mechanism, source: credentials.source } }
+    : status;
+}
+
+async function trySeeds<T>(
+  uri: string,
+  createClient: ClientFactory,
+  options: MongoClientOptions | undefined,
+  seeds: string[] | undefined,
+  disableMonitoring: boolean,
+  accept: (member: MemberConnection) => Promise<T>
+): Promise<T> {
   const resolved = seeds ? { hosts: seeds, options } : await resolveSeeds(uri, options);
   const expectedSet = resolved.options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
   const candidates = resolved.hosts.map(seed => directUri(uri, seed, resolved.options));
@@ -70,19 +103,9 @@ export async function openDiscovery(
         );
       }
 
-      const status = await client.db('admin').command({ replSetGetStatus: 1 });
-      assertStatus(status);
-      parseTopology(status);
+      member.host ??= new ConnectionString(candidate).hosts[0];
 
-      const credentials = client.options.credentials;
-
-      const resolved = credentials
-        ? { ...status, authentication: { mechanism: credentials.mechanism, source: credentials.source } }
-        : status;
-
-      const host = member.host ?? new ConnectionString(candidate).hosts[0];
-
-      return Object.assign(member, { status: resolved, host });
+      return await accept(member);
     } catch (error) {
       failure = error;
       await client.close().catch(() => {});

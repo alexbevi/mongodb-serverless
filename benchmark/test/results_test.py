@@ -20,9 +20,10 @@ class ResultsTest(unittest.TestCase):
             self.assertEqual(summary['configuration']['diagnostics'], diagnostics)
             if not diagnostics:
                 self.assertEqual(data['executionSources'], [])
-            self.assertEqual({s['variant'] for s in data['samples']}, {'native', 'no-plugin', 'ssm'})
+            variants = data['configuration'].get('variants', ['native', 'no-plugin', 'ssm'])
+            self.assertEqual({s['variant'] for s in data['samples']}, set(variants))
             for operation in ['read', 'write']:
-                for variant in ['native', 'no-plugin', 'ssm']:
+                for variant in variants:
                     cohort = [s for s in data['samples'] if s['variant'] == variant and s['operation'] == operation]
                     self.assertEqual(len(cohort), data['configuration']['count'])
                     group = summary['operations'][operation][variant]
@@ -56,7 +57,7 @@ class ResultsTest(unittest.TestCase):
             data = json.loads((Path(__file__).parents[1] / 'results' / environment / 'samples.json').read_text())
             self.assertGreater(data['configuration']['packageZipBytes'], 0)
             checks = data['configuration']['warmVerification']
-            self.assertEqual(len(checks), 6)
+            self.assertEqual(len(checks), 2 * len(data['configuration'].get('variants', ['native', 'no-plugin', 'ssm'])))
             for check in checks:
                 self.assertTrue(check['verified'] and check['sameEnvironment'] and check['sameClient'])
                 self.assertEqual(check['ssmReads'] + check['ssmWrites'] + check['discoveryCommands'], 0)
@@ -67,11 +68,13 @@ class ResultsTest(unittest.TestCase):
             for sample in data['samples']:
                 self.assertEqual(sample['ssmPhase'], 'init')
                 self.assertEqual(sample['clientConstructions'], 1)
-                self.assertEqual(sample['trace']['ssm'], [])
+                stores = sample['trace']['ssm']
+                self.assertEqual(len(stores), 1 if sample['variant'] == 'ssm-uncached' else 0)
+                self.assertTrue(all(call['command'] == 'PutParameterCommand' and sample['trace']['start'] <= call['start'] < call['end'] <= sample['trace']['end'] for call in stores))
                 self.assertTrue(all(socket['start'] >= sample['trace']['start'] for socket in sample['trace']['sockets']))
                 calls = sample['initialization']['ssm']
                 self.assertEqual(len(calls), 1)
-                self.assertEqual(calls[0]['command'], 'GetParametersCommand' if sample['variant'] == 'ssm' else 'GetParameterCommand')
+                self.assertEqual(calls[0]['command'], 'GetParametersCommand' if sample['variant'] in ['ssm', 'ssm-uncached'] else 'GetParameterCommand')
                 self.assertLessEqual(calls[0]['end'], sample['initialization']['processReadyMs'])
                 self.assertLessEqual(sample['initialization']['processReadyMs'], sample['trace']['start'])
                 self.assertAlmostEqual(calls[0]['end'] - calls[0]['start'], sample['ssmMs'])

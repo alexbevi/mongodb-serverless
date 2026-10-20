@@ -1,7 +1,7 @@
 # Connections with and without stored topology
 
-A client can discover and route operations without a plugin. It keeps topology
-and connections in memory until `close()`. A plugin optionally shares topology
+A client can route operations without a plugin. It discovers topology when
+routing needs another role and keeps connections in memory until `close()`. A plugin optionally shares topology
 with later client instances.
 
 ## With stored topology
@@ -29,17 +29,18 @@ These diagrams show `disableMonitoring: true`, `maxPoolSize: 1`, and
 bootstrap and sequential operations. Concurrent work, failed seeds, idle socket
 replacement, and elections can require more connections.
 
-### Lucky landing: operation first
+### Lucky landing: return without discovery
 
 A write reuses a primary landing. An explicit operation-level `nearest` read
 reuses either healthy member role. Other reads keep the secondary-first policy
 and can use the primary when no healthy secondary exists. The initial handshake
-supplies the role and identity. A suitable operation runs first; discovery then
-uses the same socket. The call waits for discovery to settle before returning,
-so a Lambda does not freeze unfinished work. There is no additional `hello`.
-Discovery does not open another connection even when the pool permits more.
+supplies the role and identity. A suitable operation returns its result without
+status discovery or an additional `hello`. Later operations reuse the connection
+while its reported role remains suitable. A later operation needing another role
+discovers topology first; role mismatches and eligible write failures can also
+trigger discovery. No discovery task is left running after the result.
 
-![Discovery and the operation share one TCP connection](assets/bootstrap-reuse.png)
+![A suitable operation returns on the first connection without discovery](assets/bootstrap-reuse.png)
 
 <details>
 <summary>Editable Mermaid</summary>
@@ -53,10 +54,9 @@ sequenceDiagram
     Note over Driver: Handshake role can serve the operation
     Driver->>Seed: Run operation on connection 1
     Seed-->>Driver: Operation result
-    Driver->>Seed: replSetGetStatus on connection 1
-    Seed-->>Driver: Topology
-    Note over Driver: Return operation result after discovery settles
-    Note over Driver,Seed: Retain topology and connection in memory<br/>1 TCP connection; no monitor sockets
+    Note over Driver: Return result immediately; timing ends
+    Note over Driver,Seed: Retain connection and reported role in memory<br/>1 TCP connection; no monitor sockets
+    Note over Driver: Discover only when a later operation needs another role<br/>or recovery detects a topology change
 ```
 
 </details>
@@ -125,10 +125,10 @@ use internal APIs verified against `mongodb@7.7.0`; stable versions in
 
 Failed seeds are closed before trying another. Plugin cache misses still discover
 and persist before operations; a failed topology-store write closes that
-connection and fails the operation. Without a plugin, discovery after an
-executed operation cannot change its result. A failed discovery is retried on
-the next call; routing to another member requires successful discovery. A successful bootstrap
-connection is owned by the wrapper and closes with it. No credentials are
+connection and fails the operation. Without a plugin, a suitable operation needs
+no discovery. Routing to another member requires successful discovery; a failed
+attempt can be retried by a later call. The wrapper owns the bootstrap connection
+and closes it with the other connections. No credentials are
 persisted in topology; optional shared records contain only the authentication
 mechanism and resolved source alongside replica-set status.
 
@@ -147,14 +147,14 @@ that count actual sockets. Only DNS records are stubbed for SRV tests.
 | Case | Assertion |
 |---|---|
 | Cached role mismatch | Refresh and persist before the read; the next cold start uses the corrected record |
-| Primary landing, first write | Insert precedes discovery; both share one socket, including with the default pool size |
-| Secondary landing, first read | Find precedes discovery on the same socket, even when another secondary is listed first |
+| Primary landing, first write | Insert returns without discovery; repeated writes reuse one socket, including with the default pool size |
+| Secondary landing, first read | Find returns without discovery, even when another secondary would be listed first |
 | Wrong role, first read or write | Two sockets; correct member serves the operation |
 | Later reads and writes | Reuse the retained primary and secondary |
-| Concurrent first writes | One discovery and one socket with a pool limit of one |
+| Concurrent first writes | No discovery and one socket with a pool limit of one |
 | SRV, TXT, SCRAM and TLS | One authenticated socket; resolved source survives into operations |
 | Explicit TLS opt-out | Bootstrap and a new wrapper using cached topology both preserve it |
-| Discovery failure after an operation | Preserve its result; retry discovery on the next call |
+| Discovery failure when another role is needed | Fail that operation before sending it; retry discovery on a later call |
 | Closed client | Reject before opening a bootstrap connection |
 | Failed handshake | Close the failed client, then try another seed |
 | Failed persistence or concurrent close | Close the discovered socket; do not execute the application operation |

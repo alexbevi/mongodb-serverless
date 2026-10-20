@@ -1,7 +1,7 @@
 # @mongodb-serverless/driver
 
 Replaces the driver's `MongoClient` with one that routes operations directly to
-replica-set members. It discovers topology on first use and remembers it for
+replica-set members. It discovers topology when routing needs it and remembers it for
 that client. An optional plugin shares topology across client instances.
 Discovery requires permission to run `replSetGetStatus`.
 
@@ -109,12 +109,13 @@ primary or secondary, including the bootstrap connection. This permits either
 role but does not implement latency, tag, or staleness filtering; use it only when
 any healthy member is acceptable. Other preferences retain the limitations below.
 
-Without a plugin, a suitable first operation starts from the handshake role
-before `replSetGetStatus`. Discovery follows the completed operation and reuses
-its socket, even when the pool permits more connections. The call waits for
-discovery to settle before returning, including for cursors and bulk execution.
-A discovery failure cannot turn a successful write into an error. Later calls
-retry discovery; an operation needing another member must await valid topology.
+Without a plugin, the native handshake identifies the connected member's role.
+If it can serve the operation, the wrapper returns the result without running
+`replSetGetStatus`. Later operations reuse that connection while its reported
+role remains suitable. An operation needing another role first discovers
+topology on the existing connection, then connects to the required member.
+Discovery failures affect only operations that need discovery; later calls can
+retry. Role mismatches and eligible write failures trigger the recovery below.
 
 Plugin cache misses still discover and persist before executing operations.
 The bootstrap connection is reused for its member; other connections open on

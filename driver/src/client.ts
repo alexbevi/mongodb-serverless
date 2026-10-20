@@ -100,16 +100,13 @@ export class ServerlessMongoClient {
       );
     }
 
-    const executeWrite = createWriteExecutor(this.#pair);
-
     return createDbFacade(
       {
         read: async anyMember => (await this.#pair()).read(anyMember),
         write: async () => (await this.#pair()).write()
       },
       dbName,
-      async (operation, replay) => (await this.#pair()).execute(() => executeWrite(operation, replay)),
-      async operation => (await this.#pair()).execute(operation)
+      createWriteExecutor(this.#pair)
     );
   }
 

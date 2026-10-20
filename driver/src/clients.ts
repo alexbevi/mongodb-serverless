@@ -96,15 +96,6 @@ export class ClientPair {
     return this.#selectMember(route, true);
   }
 
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
-    try {
-      return await operation();
-    } finally {
-      // Discovery must settle before a Lambda can freeze this client. It cannot undo an executed operation.
-      if (this.#bootstrap) await this.#resolveTopology().catch(() => {});
-    }
-  }
-
   async #connectBootstrap(): Promise<MemberConnection> {
     this.#bootstrap ??= openSeed(
       this.#options.uri, this.#options.createClient, this.#options.driverOptions, this.#options.disableMonitoring

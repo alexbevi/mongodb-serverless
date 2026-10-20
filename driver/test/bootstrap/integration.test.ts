@@ -81,11 +81,12 @@ it('reuses the bootstrap socket when the first write lands on the primary', asyn
     await client.db().collection('luckyPrimary').insertOne({ value: 1 });
     expect(clients).toHaveLength(1);
     expect(relays.get(cluster.primary)?.counts.accepted).toBe(1);
-    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(1);
-    const discovery = commands.find(event => event.commandName === 'replSetGetStatus');
-    const insert = commands.find(event => event.commandName === 'insert');
-    expect(insert?.connectionId).toBe(discovery?.connectionId);
-    expect(insert?.address).toBe(discovery?.address);
+    await client.db().collection('luckyPrimary').insertOne({ value: 2 });
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
+    const inserts = commands.filter(event => event.commandName === 'insert');
+    expect(inserts).toHaveLength(2);
+    expect(inserts[0]?.connectionId).toBe(inserts[1]?.connectionId);
+    expect(inserts[0]?.address).toBe(inserts[1]?.address);
   } finally {
     await client.close();
     await observed.close();
@@ -109,10 +110,9 @@ it('uses the secondary it landed on even when another secondary appears first', 
     expect(clients).toHaveLength(1);
     expect(relays.get(landed)?.counts.accepted).toBe(1);
     expect(relays.get(cluster.secondaries[0]!)?.counts.accepted).toBe(0);
-    const discovery = commands.find(event => event.commandName === 'replSetGetStatus');
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
     const read = commands.find(event => event.commandName === 'find');
-    expect(read?.connectionId).toBe(discovery?.connectionId);
-    expect(read?.address).toBe(discovery?.address);
+    expect(read?.address).toBe(`127.0.0.1:${relays.get(landed)!.port}`);
 
     await collection.insertOne({ value: 1 });
     await collection.findOne({ value: 1 });
@@ -173,7 +173,7 @@ it('shares one bootstrap and socket across concurrent first writes', async () =>
     ));
     expect(clients).toHaveLength(1);
     expect(relays.get(cluster.primary)?.counts.accepted).toBe(1);
-    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(1);
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
     expect(commands.filter(event => event.commandName === 'insert')).toHaveLength(10);
   } finally {
     await client.close();
@@ -230,7 +230,7 @@ it('tries another seed after a failed handshake and closes the failed client', a
     await client.db().collection('failedSeed').insertOne({ value: 1 });
     expect(clients).toHaveLength(2);
     expect(relays.get(cluster.primary)?.counts.accepted).toBe(1);
-    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(1);
+    expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
     await vi.waitFor(() => expect(relays.get(failed)?.counts.open).toBe(0));
   } finally {
     await client.close();
@@ -263,7 +263,7 @@ it('closes the bootstrap connection if persisting topology fails', async () => {
   }
 }, 120_000);
 
-it('discovers once per client when no shared topology store is configured', async () => {
+it('discovers once per client when a later operation needs another role', async () => {
   const observed = await observeCluster();
   const { cluster, clients, commands, createClient } = observed;
 
@@ -275,13 +275,14 @@ it('discovers once per client when no shared topology store is configured', asyn
 
       try {
         await client.db().collection('clientLifetime').insertOne({ run });
+        await client.db().collection('clientLifetime').findOne({ run });
         await client.db().collection('clientLifetime').insertOne({ run });
       } finally {
         await client.close();
       }
     }
 
-    expect(clients).toHaveLength(2);
+    expect(clients).toHaveLength(4);
     expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(2);
     expect(commands.filter(event => event.commandName === 'insert')).toHaveLength(4);
   } finally {
@@ -322,9 +323,9 @@ it('closes a discovered socket when close races with topology persistence', asyn
   }
 }, 120_000);
 
-it('reuses either discovered role for an unrestricted nearest read', async () => {
+it('reuses either handshake role for an unrestricted nearest read', async () => {
   const observed = await observeCluster();
-  const { cluster, clients, commands, createClient } = observed;
+  const { cluster, relays, clients, commands, createClient } = observed;
 
   try {
     for (const host of [cluster.primary, ...cluster.secondaries]) {
@@ -336,11 +337,10 @@ it('reuses either discovered role for an unrestricted nearest read', async () =>
 
       try {
         await client.db().collection('anyMember').findOne({}, { readPreference: 'nearest' });
-        const discovery = commands.findLast(event => event.commandName === 'replSetGetStatus');
         const read = commands.findLast(event => event.commandName === 'find');
         expect(clients.length - before).toBe(1);
-        expect(read?.address).toBe(discovery?.address);
-        expect(read?.connectionId).toBe(discovery?.connectionId);
+        expect(commands.filter(event => event.commandName === 'replSetGetStatus')).toHaveLength(0);
+        expect(read?.address).toBe(`127.0.0.1:${relays.get(host)!.port}`);
       } finally {
         await client.close();
       }
@@ -379,7 +379,7 @@ it('uses handshake identity for discovery without another hello', async () => {
 }, 120_000);
 
 
-it('sends suitable first operations before discovery on the same socket', async () => {
+it('returns suitable first operations without discovering topology', async () => {
   const observed = await observeCluster();
   const { cluster, relays, commands, createClient } = observed;
 
@@ -417,9 +417,7 @@ it('sends suitable first operations before discovery on the same socket', async 
       try {
         await scenario.run(client);
         const work = commands.slice(before).filter(event => [scenario.command, 'replSetGetStatus'].includes(event.commandName));
-        expect(work.map(event => event.commandName)).toEqual([scenario.command, 'replSetGetStatus']);
-        expect(work[0]?.connectionId).toBe(work[1]?.connectionId);
-        expect(work[0]?.address).toBe(work[1]?.address);
+        expect(work.map(event => event.commandName)).toEqual([scenario.command]);
         expect(relays.get(scenario.host)?.counts.accepted).toBe(accepted + 1);
       } finally {
         await client.close();
@@ -431,7 +429,7 @@ it('sends suitable first operations before discovery on the same socket', async 
 }, 120_000);
 
 
-it('preserves a completed write and retries failed discovery only on the next call', async () => {
+it('retries failed discovery when a later operation needs another role', async () => {
   const observed = await observeCluster();
   const { cluster, commands } = observed;
   let attempts = 0;
@@ -459,7 +457,10 @@ it('preserves a completed write and retries failed discovery only on the next ca
   try {
     const collection = client.db().collection('discoveryFailure');
     await expect(collection.insertOne({ value: 1 })).resolves.toMatchObject({ acknowledged: true });
+    expect(attempts).toBe(0);
+    await expect(collection.findOne({ value: 1 })).rejects.toThrow('discovery denied');
     expect(attempts).toBe(1);
+    expect(commands.filter(event => event.commandName === 'find')).toHaveLength(0);
     expect(commands.filter(event => event.commandName === 'insert')).toHaveLength(1);
     await collection.findOne({ value: 1 });
     expect(attempts).toBe(2);
@@ -472,7 +473,7 @@ it('preserves a completed write and retries failed discovery only on the next ca
 }, 120_000);
 
 
-it('does not open another socket for discovery with the default pool size', async () => {
+it('reuses the socket without discovery with the default pool size', async () => {
   const observed = await observeCluster();
   const { cluster, relays, commands, createClient } = observed;
 
@@ -482,8 +483,9 @@ it('does not open another socket for discovery with the default pool size', asyn
 
   try {
     await client.db().collection('defaultPool').insertOne({});
+    await client.db().collection('defaultPool').insertOne({});
     const work = commands.filter(event => ['insert', 'replSetGetStatus'].includes(event.commandName));
-    expect(work.map(event => event.commandName)).toEqual(['insert', 'replSetGetStatus']);
+    expect(work.map(event => event.commandName)).toEqual(['insert', 'insert']);
     expect(relays.get(cluster.primary)?.counts.accepted).toBe(1);
     expect(work[0]?.connectionId).toBe(work[1]?.connectionId);
   } finally {

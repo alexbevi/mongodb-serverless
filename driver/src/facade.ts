@@ -38,7 +38,7 @@ type Routes = Record<string, Route | 'pipeline'>;
 /** Resolves the real object a call delegates to, once its client is known. */
 type Owner = (client: MongoClient) => Db | Collection;
 
-export function createDbFacade(router: Router, dbName: string, executeWrite?: WriteOperation, executeRead?: WriteOperation): Db {
+export function createDbFacade(router: Router, dbName: string, executeWrite?: WriteOperation): Db {
   const local = new Map([['databaseName', dbName], ['namespace', dbName]]);
   const owner: Owner = client => client.db(dbName);
 
@@ -50,10 +50,10 @@ export function createDbFacade(router: Router, dbName: string, executeWrite?: Wr
       if (local.has(property)) return local.get(property);
 
       if (property === 'collection') {
-        return (name: string) => createCollectionFacade(router, dbName, name, executeWrite, executeRead);
+        return (name: string) => createCollectionFacade(router, dbName, name, executeWrite);
       }
 
-      return routedMethod(router, DB_ROUTES, property, owner, executeWrite, executeRead);
+      return routedMethod(router, DB_ROUTES, property, owner, executeWrite);
     },
 
     has(_target, property) {
@@ -62,7 +62,7 @@ export function createDbFacade(router: Router, dbName: string, executeWrite?: Wr
   });
 }
 
-export function createCollectionFacade(router: Router, dbName: string, name: string, executeWrite?: WriteOperation, executeRead?: WriteOperation): Collection {
+export function createCollectionFacade(router: Router, dbName: string, name: string, executeWrite?: WriteOperation): Collection {
   const local = new Map([
     ['collectionName', name],
     ['dbName', dbName],
@@ -78,7 +78,7 @@ export function createCollectionFacade(router: Router, dbName: string, name: str
 
       if (local.has(property)) return local.get(property);
 
-      return routedMethod(router, COLLECTION_ROUTES, property, owner, executeWrite, executeRead);
+      return routedMethod(router, COLLECTION_ROUTES, property, owner, executeWrite);
     },
 
     has(_target, property) {
@@ -94,7 +94,7 @@ export function createCollectionFacade(router: Router, dbName: string, name: str
  * returns a promise. Methods that hand back a cursor or a bulk builder
  * synchronously use deferred proxies instead.
  */
-function routedMethod(router: Router, routes: Routes, method: string, owner: Owner, executeWrite?: WriteOperation, executeRead?: WriteOperation) {
+function routedMethod(router: Router, routes: Routes, method: string, owner: Owner, executeWrite?: WriteOperation) {
   if (!(method in routes)) {
     throw new ServerlessDriverError(
       `"${method}" is not a routable operation on this proxy. ` +
@@ -131,7 +131,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
         // SAFETY: Every method in CURSOR_METHODS returns an AbstractCursor in the pinned driver.
         return cursor as AbstractCursor<unknown>;
-      }, method, route === 'write' ? executeWrite : executeRead);
+      }, method, route === 'write' ? executeWrite : undefined);
     }
 
     if (BULK_METHODS.has(method)) {
@@ -145,9 +145,9 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
 
     const operation = () => invoke(client(), owner, method, args);
 
-    const execute = route === 'write' ? executeWrite : executeRead;
-
-    return execute ? execute(operation, !hasSession(args)) : operation();
+    return route === 'write' && executeWrite
+      ? executeWrite(operation, !hasSession(args))
+      : operation();
   };
 }
 

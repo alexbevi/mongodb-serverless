@@ -85,8 +85,11 @@ records the timing source; neither includes container provisioning.
   Writes reuse a primary landing or discover and open one additional connection
   after a secondary landing. Discovery uses handshake identity without another
   hello. Both landing groups retain their observed sample counts.
-- During INIT, the SSM variant fetches URI and topology together with `GetParameters`.
-  Cache hits open one authenticated direct connection, without SRV/TXT or discovery.
+- During INIT, both aws-ssm cases fetch URI and topology together with `GetParameters`.
+  This read is excluded from every handler overview. A cache hit opens one
+  authenticated direct connection, without SRV/TXT or discovery. A cache miss
+  resolves the seeds, discovers topology and writes it to SSM before the operation.
+  Discovery and the SSM write are measured separately as additional handler work.
 - Every sample checks the serving role, authenticated/monitor socket counts, DNS,
   discovery commands, SSM request count, and SDK attempts. A failure stops the run;
   the report refuses incomplete cohorts. Hostnames are replaced with stable labels.

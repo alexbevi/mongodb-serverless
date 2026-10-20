@@ -19,3 +19,23 @@ it('accepts both random write landings and rejects cached DNS or extra parameter
   expect(() => verifyPattern({ ...cached, dns: ['SRV'] })).toThrow(/DNS/i);
   expect(() => verifyPattern({ ...noPlugin, cold: false })).toThrow(/cold/i);
 });
+
+it('measures one discovery and topology write for an aws-ssm cache miss', () => {
+  for (const operation of ['read', 'write'] as const) {
+    for (const seedRole of ['PRIMARY', 'SECONDARY']) {
+      const sockets = operation === 'write' && seedRole === 'SECONDARY' ? 2 : 1;
+
+      const sample = {
+        variant: 'ssm-uncached', operation, servedRole: operation === 'write' ? 'PRIMARY' : seedRole, seedRole,
+        sockets, authenticatedSockets: sockets, monitorSockets: 0, dns: ['TXT', 'SRV'],
+        discoveryCommands: 1, ssmReads: 1, ssmWrites: 1, cold: true
+      } as const;
+
+      expect(() => verifyPattern({ ...sample, dns: [...sample.dns] })).not.toThrow();
+
+      for (const change of [{ ssmWrites: 0 }, { ssmWrites: 2 }, { discoveryCommands: 0 }, { ssmReads: 2 }, { dns: [] }]) {
+        expect(() => verifyPattern({ ...sample, dns: [...sample.dns], ...change })).toThrow();
+      }
+    }
+  }
+});

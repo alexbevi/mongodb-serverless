@@ -24,7 +24,8 @@ implement the remaining read-preference features.
 
 The Lambda benchmark fetches the SecureString connection URI and stored topology
 in one `GetParameters` request during INIT. The handler creates the client lazily
-and retains it for warm calls. INIT is excluded from the handler timings.
+and retains it for warm calls. INIT is excluded from the handler timings. The
+diagram uses `disableMonitoring: true` and a pool limit of one.
 
 ![A cached topology selects a direct member after one INIT parameter fetch](assets/bootstrap-stored-topology.png)
 

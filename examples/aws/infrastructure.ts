@@ -72,7 +72,8 @@ const baseResources = {
               Effect: 'Allow',
               Action: ['ssm:GetParameter', 'ssm:GetParameters'],
               Resource: [
-                { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConnectionStringParameterName}' },
+                { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ReadConnectionStringParameterName}' },
+                { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${WriteConnectionStringParameterName}' },
                 { 'Fn::Sub': 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${TopologyParameterName}' }
               ]
             },
@@ -145,13 +146,16 @@ export const template = {
   AWSTemplateFormatVersion: '2010-09-09',
   Description: 'Minimal native and serverless MongoDB Lambda examples',
   Parameters: {
-    ConnectionStringParameterName: {
+    ReadConnectionStringParameterName: {
       Type: 'String', Default: '/mongodb-serverless-pattern/uri'
+    },
+    WriteConnectionStringParameterName: {
+      Type: 'String', Default: '/mongodb-serverless-examples/write-uri'
     },
     TopologyParameterName: {
       Type: 'String', Default: '/mongodb-serverless-examples/topology'
     },
-    DatabaseName: { Type: 'String', Default: 'bench' },
+    DatabaseName: { Type: 'String', Default: 'mongodb_serverless_prod' },
     CollectionName: { Type: 'String', Default: 'serverless_patterns' }
   },
   Resources: resources,
@@ -205,7 +209,11 @@ function endpointResources(route: Endpoint): Array<[string, CloudFormationResour
         Code: { ZipFile: "exports.handler = async () => ({ statusCode: 503, body: 'deployment pending' });" },
         Environment: {
           Variables: {
-            CONNECTION_STRING_PARAMETER: { Ref: 'ConnectionStringParameterName' },
+            CONNECTION_STRING_PARAMETER: {
+              Ref: route.operation === 'find'
+                ? 'ReadConnectionStringParameterName'
+                : 'WriteConnectionStringParameterName'
+            },
             TOPOLOGY_PARAMETER: { Ref: 'TopologyParameterName' },
             DATABASE: { Ref: 'DatabaseName' },
             COLLECTION: { Ref: 'CollectionName' },

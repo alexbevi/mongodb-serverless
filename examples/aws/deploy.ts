@@ -14,7 +14,8 @@ interface Options {
   profile: string;
   region: string;
   stack: string;
-  connectionStringParameter: string;
+  readConnectionStringParameter: string;
+  writeConnectionStringParameter: string;
   topologyParameter: string;
   database: string;
   collection: string;
@@ -35,7 +36,8 @@ export async function deploy(options: Options): Promise<string> {
     '--capabilities', 'CAPABILITY_IAM',
     '--no-fail-on-empty-changeset',
     '--parameter-overrides',
-    `ConnectionStringParameterName=${options.connectionStringParameter}`,
+    `ReadConnectionStringParameterName=${options.readConnectionStringParameter}`,
+    `WriteConnectionStringParameterName=${options.writeConnectionStringParameter}`,
     `TopologyParameterName=${options.topologyParameter}`,
     `DatabaseName=${options.database}`,
     `CollectionName=${options.collection}`
@@ -80,9 +82,10 @@ function options(arguments_: string[]): Options {
     profile: value('--profile', process.env.AWS_PROFILE ?? 'personal'),
     region: value('--region', process.env.AWS_REGION ?? 'ap-southeast-2'),
     stack: value('--stack', 'mongodb-serverless-examples'),
-    connectionStringParameter: value('--connection-string-parameter', '/mongodb-serverless-pattern/uri'),
+    readConnectionStringParameter: value('--read-connection-string-parameter', '/mongodb-serverless-pattern/uri'),
+    writeConnectionStringParameter: value('--write-connection-string-parameter', '/mongodb-serverless-examples/write-uri'),
     topologyParameter: value('--topology-parameter', '/mongodb-serverless-examples/topology'),
-    database: value('--database', 'bench'),
+    database: value('--database', 'mongodb_serverless_prod'),
     collection: value('--collection', 'serverless_patterns')
   };
 }

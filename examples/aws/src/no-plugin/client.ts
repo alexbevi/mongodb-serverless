@@ -3,7 +3,7 @@ import { connectionStringFromSsm } from '../connection-string.js';
 import { requiredEnvironment } from '../environment.js';
 import { initializeParameterCollection } from '../initialization.js';
 
-const database = process.env['DATABASE'] ?? 'bench';
+const database = process.env['DATABASE'] ?? 'mongodb_serverless_prod';
 
 const collectionName = process.env['COLLECTION'] ?? 'serverless_patterns';
 

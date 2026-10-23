@@ -6,9 +6,9 @@ These examples expose the same MongoDB `find` and `save` operations through one 
 
 | Variant | Read | Write | Connection settings |
 | --- | --- | --- | --- |
-| Native MongoDB driver | `/native/find` | `/native/save` | URI from SSM Parameter Store |
-| Serverless driver without a plugin | `/no-plugin/find` | `/no-plugin/save` | URI from SSM Parameter Store |
-| Serverless driver with `aws-ssm` | `/aws-ssm/find` | `/aws-ssm/save` | URI and cached topology from one SSM request |
+| Native MongoDB driver | `/native/find` | `/native/save` | Operation-specific URI from SSM Parameter Store |
+| Serverless driver without a plugin | `/no-plugin/find` | `/no-plugin/save` | Operation-specific URI from SSM Parameter Store |
+| Serverless driver with `aws-ssm` | `/aws-ssm/find` | `/aws-ssm/save` | Operation-specific URI and cached topology from one SSM request |
 
 Each handler follows [MongoDB's Lambda connection guidance](https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/): initialization work runs outside the handler, while the MongoDB client is created only when a valid request needs it and is retained for warm invocations. The find handlers use `nearest`; writes use MongoDB's primary write routing.
 
@@ -22,7 +22,7 @@ From the repository root:
 pnpm install
 ```
 
-The default deployment expects the MongoDB connection string in the `/mongodb-serverless-pattern/uri` SSM parameter. It must be a `SecureString`. The default namespace is `bench.serverless_patterns`. Pass `--connection-string-parameter`, `--database`, or `--collection` to change these values.
+The default deployment expects read and write MongoDB connection strings in `/mongodb-serverless-pattern/uri` and `/mongodb-serverless-examples/write-uri`. Both must be `SecureString` parameters and use SRV connection strings if the no-plugin example should exercise DNS discovery. The default namespace is `mongodb_serverless_prod.serverless_patterns`. Pass `--read-connection-string-parameter`, `--write-connection-string-parameter`, `--database`, or `--collection` to change these values.
 
 ## Usage
 

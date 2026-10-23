@@ -1,8 +1,12 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
 import { buildExamples, bundles } from '../build.js';
+
+const run = promisify(execFile);
 
 it('defines one small bundle for every public example endpoint', () => {
   expect(bundles.map(bundle => bundle.name)).toEqual([
@@ -28,6 +32,12 @@ it('tree-shakes each handler into a deployable zip', async () => {
       expect(bundle.bundleBytes).toBeGreaterThan(0);
       expect(bundle.zipBytes).toBeLessThan(2_000_000);
       expect(source).not.toContain('sourceMappingURL');
+
+      const files = (await run('unzip', ['-Z1', join(outputDirectory, `${bundle.name}.zip`)])).stdout;
+
+      if (bundle.name.startsWith('no-plugin-') || bundle.name.startsWith('aws-ssm-')) {
+        expect(files).toContain('node_modules/mongodb/package.json');
+      }
     }
   } finally {
     await rm(outputDirectory, { recursive: true, force: true });

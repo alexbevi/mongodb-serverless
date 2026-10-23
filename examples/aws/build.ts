@@ -1,11 +1,14 @@
 import { execFile } from 'node:child_process';
-import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { build } from 'esbuild';
 
 const run = promisify(execFile);
+
+const rootRequire = createRequire(import.meta.url);
 
 const exampleDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +29,11 @@ interface BuiltBundle {
   zipBytes: number;
 }
 
+interface PackageManifest {
+  name: string;
+  dependencies?: Record<string, string>;
+}
+
 export interface BuildManifest {
   bundles: BuiltBundle[];
 }
@@ -40,6 +48,7 @@ export async function buildExamples(outputDirectory = join(exampleDirectory, 'di
     const bundleDirectory = join(outputDirectory, bundle.name);
     const output = join(bundleDirectory, 'index.mjs');
     const archive = join(outputDirectory, `${bundle.name}.zip`);
+    const usesServerlessDriver = bundle.name.startsWith('no-plugin-') || bundle.name.startsWith('aws-ssm-');
 
     await mkdir(bundleDirectory, { recursive: true });
     await build({
@@ -60,14 +69,19 @@ export async function buildExamples(outputDirectory = join(exampleDirectory, 'di
       },
       external: [
         '@aws-sdk/*', '@mongodb-js/zstd', 'aws4', 'gcp-metadata', 'kerberos',
-        'mongodb-client-encryption', 'snappy', 'socks'
+        'mongodb-client-encryption', 'snappy', 'socks',
+        ...(usesServerlessDriver ? ['mongodb'] : [])
       ],
       banner: {
         js: "import{createRequire as __createRequire}from'node:module';const require=__createRequire(import.meta.url);"
       }
     });
 
-    await run('zip', ['-q', '-j', archive, output]);
+    if (usesServerlessDriver) {
+      await copyPackage('mongodb', join(bundleDirectory, 'node_modules'), rootRequire, new Set());
+    }
+
+    await run('zip', ['-q', '-r', archive, '.'], { cwd: bundleDirectory });
 
     built.push({
       name: bundle.name,
@@ -80,6 +94,53 @@ export async function buildExamples(outputDirectory = join(exampleDirectory, 'di
   await writeFile(join(outputDirectory, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
   return manifest;
+}
+
+async function copyPackage(
+  name: string,
+  nodeModulesDirectory: string,
+  resolver: NodeJS.Require,
+  copied: Set<string>
+): Promise<void> {
+  if (copied.has(name)) return;
+
+  const source = await packageDirectory(name, resolver);
+  const manifest: PackageManifest = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'));
+  const destination = join(nodeModulesDirectory, ...name.split('/'));
+
+  copied.add(name);
+  await mkdir(dirname(destination), { recursive: true });
+  await cp(source, destination, { recursive: true, dereference: true });
+
+  const childResolver = createRequire(join(source, 'package.json'));
+
+  for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+    await copyPackage(dependency, nodeModulesDirectory, childResolver, copied);
+  }
+}
+
+async function packageDirectory(name: string, resolver: NodeJS.Require): Promise<string> {
+  try {
+    return dirname(resolver.resolve(`${name}/package.json`));
+  } catch {
+    // Packages may hide their manifest with an exports map.
+  }
+
+  let directory = dirname(resolver.resolve(name));
+
+  while (directory !== dirname(directory)) {
+    try {
+      const manifest: PackageManifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'));
+
+      if (manifest.name === name) return directory;
+    } catch {
+      // Keep walking from the package entry point to its manifest.
+    }
+
+    directory = dirname(directory);
+  }
+
+  throw new Error(`Cannot locate package ${name}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

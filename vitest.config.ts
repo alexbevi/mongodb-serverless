@@ -11,7 +11,7 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['{driver,plugins/*,benchmark}/test/**/*.test.ts'],
+    include: ['{driver,plugins/*,benchmark,examples/aws}/test/**/*.test.ts'],
     exclude: [...configDefaults.exclude, 'benchmark/test/live.test.ts', 'plugins/*/test/localstack.test.ts'],
     environment: 'node',
     // Integration suites share one replica set.

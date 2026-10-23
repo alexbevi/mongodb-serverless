@@ -18,5 +18,10 @@ export const collection = await initializeParameterCollection(
     client ??= new MongoClient(connectionString, serverlessClientOptions(commandStarted));
 
     return client.db(database).collection(collectionName);
+  },
+  async () => {
+    const retained = client;
+    client = undefined;
+    await retained?.close();
   }
 );

@@ -18,5 +18,10 @@ export const collection = await initializeParameterCollection(
     client.on('commandStarted', event => commandStarted(event.commandName));
 
     return client.db(database).collection(collectionName);
+  },
+  async () => {
+    const retained = client;
+    client = undefined;
+    await retained?.close();
   }
 );

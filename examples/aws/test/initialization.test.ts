@@ -45,13 +45,20 @@ it('loads the parameter eagerly but creates and retains the client lazily', asyn
     return collectionInstance;
   });
 
-  const run = await initializeParameterCollection(load, create);
+  const close = vi.fn(async () => { order.push('close'); });
+
+  const run = await initializeParameterCollection(load, create, close);
 
   expect(order).toEqual(['parameter']);
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance, ssmMs: 12 });
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
   expect(order).toEqual(['parameter', 'client']);
   expect(create).toHaveBeenCalledOnce();
+
+  await run.close();
+  await run(async collection => collection);
+  expect(order).toEqual(['parameter', 'client', 'close', 'client']);
+  expect(create).toHaveBeenCalledTimes(2);
 });
 
 it('loads plugin settings eagerly but creates and retains the client lazily', async () => {
@@ -70,11 +77,18 @@ it('loads plugin settings eagerly but creates and retains the client lazily', as
     return collectionInstance;
   });
 
-  const run = await initializePluginCollection(verify, create);
+  const close = vi.fn(async () => { order.push('close'); });
+
+  const run = await initializePluginCollection(verify, create, close);
 
   expect(order).toEqual(['plugin']);
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance, ssmMs: 14 });
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
   expect(order).toEqual(['plugin', 'client']);
   expect(create).toHaveBeenCalledOnce();
+
+  await run.close();
+  await run(async collection => collection);
+  expect(order).toEqual(['plugin', 'client', 'close', 'client']);
+  expect(create).toHaveBeenCalledTimes(2);
 });

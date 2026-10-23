@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { collectColdTiming, summarize, table } from '../measure.js';
+import { collectInvocationPair, collectColdTiming, summarize, table } from '../measure.js';
 
 it('retries when AWS routes the request to an old warm environment', async () => {
   let attempts = 0;
@@ -12,6 +12,29 @@ it('retries when AWS routes the request to an old warm environment', async () =>
 
   expect(timing.coldStart).toBe(true);
   expect(attempts).toBe(2);
+});
+
+it('retries stale environments and retains the following warm timing', async () => {
+  const order: string[] = [];
+  let attempts = 0;
+
+  const pair = await collectInvocationPair(
+    'native-find',
+    async () => {
+      attempts += 1;
+      order.push(`cold-${attempts}`);
+
+      return { coldStart: attempts === 2, ssmMs: 5, connectMs: 20, operationMs: 4 };
+    },
+    async () => {
+      order.push('warm');
+
+      return { coldStart: false, ssmMs: 0, connectMs: 1, operationMs: 2 };
+    }
+  );
+
+  expect(pair.warm.operationMs).toBe(2);
+  expect(order).toEqual(['cold-1', 'cold-2', 'warm']);
 });
 
 it('summarizes server timing without including caller latency', () => {

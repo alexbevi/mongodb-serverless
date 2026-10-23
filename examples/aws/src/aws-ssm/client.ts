@@ -27,5 +27,10 @@ export const collection = await initializePluginCollection(
     });
 
     return client.db(database).collection(collectionName);
+  },
+  async () => {
+    const retained = client;
+    client = undefined;
+    await retained?.close();
   }
 );

@@ -22,7 +22,13 @@ function context() {
 }
 
 function runner(collection: ExampleCollection, connectMs = 50, operationMs = 10, ssmMs = 25): OperationRunner {
-  return async operation => ({ result: await operation(collection), ssmMs, connectMs, operationMs });
+  const run = async <Result>(operation: (value: ExampleCollection) => Promise<Result>) => ({
+    result: await operation(collection), ssmMs, connectMs, operationMs
+  });
+
+  run.close = vi.fn(async () => {});
+
+  return run;
 }
 
 function responseBody(response: void | { statusCode: number; body: string }) {
@@ -75,14 +81,32 @@ it('upserts a validated document', async () => {
 it('rejects an invalid save request before opening a collection', async () => {
   let called = false;
 
-  const run: OperationRunner = async () => {
+  const run = async () => {
     called = true;
     throw new Error('The invalid request must not run an operation');
   };
+
+  run.close = vi.fn(async () => {});
 
   const handler = createSaveHandler(run);
   const result = responseBody(await handler(event('{"id":"saved"}'), context()));
 
   expect(result.response.statusCode).toBe(400);
   expect(called).toBe(false);
+});
+
+it('drains a warm measurement environment after the operation completes', async () => {
+  const findOne = vi.fn(async () => ({ _id: 'example', value: 'hello' }));
+  const run = runner({ findOne, updateOne: vi.fn() });
+  const handler = createFindHandler(run, true);
+  const request = event();
+
+  const cold = responseBody(await handler(request, context()));
+  expect(run.close).not.toHaveBeenCalled();
+
+  const warm = responseBody(await handler(request, context()));
+  expect(cold.body.timing.coldStart).toBe(true);
+  expect(warm.body.timing).toEqual({ coldStart: false, ssmMs: 0, connectMs: 50, operationMs: 10 });
+  expect(findOne).toHaveBeenCalledTimes(2);
+  expect(run.close).toHaveBeenCalledOnce();
 });

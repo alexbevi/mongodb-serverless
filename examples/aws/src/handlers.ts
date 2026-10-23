@@ -44,15 +44,20 @@ export interface OperationMeasurement<Result> {
 
 export interface OperationRunner {
   <Result>(operation: (collection: ExampleCollection) => Promise<Result>): Promise<OperationMeasurement<Result>>;
+  close(): Promise<void>;
 }
 
 export type ApiHandler = (event: ApiEvent, context: LambdaContext) => Promise<ApiResponse>;
 
-export function createFindHandler(run: OperationRunner): ApiHandler {
+export function createFindHandler(
+  run: OperationRunner,
+  drainAfterWarm = process.env['BENCHMARK_DRAIN_AFTER_WARM'] === 'true'
+): ApiHandler {
   let cold = true;
 
   return async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
+
     const id = validId(event.queryStringParameters?.id ?? 'example');
     const invocationIsCold = cold;
     cold = false;
@@ -61,9 +66,11 @@ export function createFindHandler(run: OperationRunner): ApiHandler {
       return response(400, invocationIsCold, 0, 0, 0, { error: 'id must contain 1–100 URL-safe characters' });
     }
 
-    const measured = await run(collection => collection.findOne(
-      { _id: id }, { readPreference: 'nearest' }
-    ));
+    const measured = await measureOperation(
+      run,
+      collection => collection.findOne({ _id: id }, { readPreference: 'nearest' }),
+      drainAfterWarm && !invocationIsCold
+    );
 
     return response(
       measured.result === null ? 404 : 200,
@@ -76,11 +83,15 @@ export function createFindHandler(run: OperationRunner): ApiHandler {
   };
 }
 
-export function createSaveHandler(run: OperationRunner): ApiHandler {
+export function createSaveHandler(
+  run: OperationRunner,
+  drainAfterWarm = process.env['BENCHMARK_DRAIN_AFTER_WARM'] === 'true'
+): ApiHandler {
   let cold = true;
 
   return async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
+
     const request = saveRequest(event);
     const invocationIsCold = cold;
     cold = false;
@@ -94,11 +105,15 @@ export function createSaveHandler(run: OperationRunner): ApiHandler {
 
     const id = request.id ?? 'example';
 
-    const measured = await run(collection => collection.updateOne(
-      { _id: id },
-      { $set: { value: request.value }, $currentDate: { updatedAt: true } },
-      { upsert: true }
-    ));
+    const measured = await measureOperation(
+      run,
+      collection => collection.updateOne(
+        { _id: id },
+        { $set: { value: request.value }, $currentDate: { updatedAt: true } },
+        { upsert: true }
+      ),
+      drainAfterWarm && !invocationIsCold
+    );
 
     return response(
       200, invocationIsCold, invocationIsCold ? measured.ssmMs : 0,
@@ -147,6 +162,18 @@ function isSaveRequest(value: unknown): value is SaveRequest {
 
 function validId(value: string): string | undefined {
   return /^[A-Za-z0-9._~-]{1,100}$/.test(value) ? value : undefined;
+}
+
+async function measureOperation<Result>(
+  run: OperationRunner,
+  operation: (collection: ExampleCollection) => Promise<Result>,
+  drain: boolean
+): Promise<OperationMeasurement<Result>> {
+  try {
+    return await run(operation);
+  } finally {
+    if (drain) await run.close();
+  }
 }
 
 function response(

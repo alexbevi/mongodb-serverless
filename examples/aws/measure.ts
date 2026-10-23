@@ -128,6 +128,21 @@ export async function collectColdTiming(
   throw new Error(`${label} cold-start attempts were not executed`);
 }
 
+export async function collectInvocationPair(
+  label: string,
+  coldAttempt: () => Promise<Timing>,
+  warmAttempt: () => Promise<Timing>
+): Promise<{ cold: Timing; warm: Timing }> {
+  const cold = await collectColdTiming(label, coldAttempt);
+  const warm = await warmAttempt();
+
+  if (warm.coldStart !== false) {
+    throw new Error(`${label} reported coldStart=${String(warm.coldStart)}; expected false`);
+  }
+
+  return { cold, warm };
+}
+
 export async function measure(options: Options): Promise<ResultRow[]> {
   const stack = await stackDetails(options);
 
@@ -145,55 +160,68 @@ export async function measure(options: Options): Promise<ResultRow[]> {
 
   if (!seedEndpoint) throw new Error('The aws-ssm save endpoint is required to seed the topology');
 
-  await invoke(stack.apiUrl, apiKey, seedEndpoint, 'seed');
-
   const measurements = new Map<string, TemperatureSamples>(
     endpoints.map(endpoint => [endpoint.bundle, { cold: [], warm: [] }])
   );
 
-  for (let index = 0; index < options.samples; index += 1) {
-    await Promise.all(endpoints.map(async endpoint => {
+  try {
+    await collectInvocationPair(
+      'aws-ssm topology seed',
+      async () => {
+        await forceColdStart(options, seedEndpoint.functionName);
+
+        return invoke(stack.apiUrl, apiKey, seedEndpoint, 'seed');
+      },
+      () => invoke(stack.apiUrl, apiKey, seedEndpoint, 'seed')
+    );
+
+    for (let index = 0; index < options.samples; index += 1) {
+      await Promise.all(endpoints.map(async endpoint => {
+        const samples = measurements.get(endpoint.bundle);
+
+        if (!samples) throw new Error(`Missing measurements for ${endpoint.bundle}`);
+
+        const pair = await collectInvocationPair(
+          endpoint.bundle,
+          async () => {
+            await forceColdStart(options, endpoint.functionName);
+
+            return invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
+          },
+          () => invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`)
+        );
+
+        samples.cold.push(pair.cold);
+        samples.warm.push(pair.warm);
+      }));
+
+      await writeCheckpoint(options, index + 1, measurements);
+    }
+
+    return endpoints.flatMap(endpoint => {
       const samples = measurements.get(endpoint.bundle);
+      const packageBytes = packageSizes.get(endpoint.bundle);
 
       if (!samples) throw new Error(`Missing measurements for ${endpoint.bundle}`);
 
-      const cold = await collectColdTiming(endpoint.bundle, async () => {
-        await forceColdStart(options, endpoint.functionName);
+      if (packageBytes === undefined) throw new Error(`Missing package size for ${endpoint.bundle}`);
 
-        return invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
-      });
+      const temperatures: Array<{ temperature: 'cold' | 'warm'; timings: Timing[] }> = [
+        { temperature: 'cold', timings: samples.cold },
+        { temperature: 'warm', timings: samples.warm }
+      ];
 
-      const warm = await invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
-
-      assertTemperature(warm, false, endpoint);
-      samples.cold.push(cold);
-      samples.warm.push(warm);
-    }));
-
-    await writeCheckpoint(options, index + 1, measurements);
+      return temperatures.map(result => ({
+        variant: endpoint.variant,
+        operation: endpoint.operation,
+        temperature: result.temperature,
+        packageBytes,
+        summary: summarize(result.timings)
+      }));
+    });
+  } finally {
+    await Promise.all(endpoints.map(endpoint => restoreNormalMode(options, endpoint.functionName)));
   }
-
-  return endpoints.flatMap(endpoint => {
-    const samples = measurements.get(endpoint.bundle);
-    const packageBytes = packageSizes.get(endpoint.bundle);
-
-    if (!samples) throw new Error(`Missing measurements for ${endpoint.bundle}`);
-
-    if (packageBytes === undefined) throw new Error(`Missing package size for ${endpoint.bundle}`);
-
-    const temperatures: Array<{ temperature: 'cold' | 'warm'; timings: Timing[] }> = [
-      { temperature: 'cold', timings: samples.cold },
-      { temperature: 'warm', timings: samples.warm }
-    ];
-
-    return temperatures.map(result => ({
-      variant: endpoint.variant,
-      operation: endpoint.operation,
-      temperature: result.temperature,
-      packageBytes,
-      summary: summarize(result.timings)
-    }));
-  });
 }
 
 async function writeCheckpoint(
@@ -239,7 +267,30 @@ async function forceColdStart(options: Options, functionName: string): Promise<v
 
   await aws(options, [
     'lambda', 'update-function-configuration', '--function-name', functionName,
-    '--environment', JSON.stringify({ Variables: { ...variables, COLD_NONCE: randomUUID() } })
+    '--environment', JSON.stringify({
+      Variables: { ...variables, BENCHMARK_DRAIN_AFTER_WARM: 'true', COLD_NONCE: randomUUID() }
+    })
+  ]);
+  await aws(options, [
+    'lambda', 'wait', 'function-updated-v2', '--function-name', functionName
+  ]);
+}
+
+async function restoreNormalMode(options: Options, functionName: string): Promise<void> {
+  const text = await aws(options, [
+    'lambda', 'get-function-configuration', '--function-name', functionName,
+    '--query', 'Environment.Variables', '--output', 'json'
+  ]);
+
+  const variables: Record<string, string> = JSON.parse(text);
+
+  if (variables['BENCHMARK_DRAIN_AFTER_WARM'] === undefined) return;
+
+  delete variables['BENCHMARK_DRAIN_AFTER_WARM'];
+
+  await aws(options, [
+    'lambda', 'update-function-configuration', '--function-name', functionName,
+    '--environment', JSON.stringify({ Variables: variables })
   ]);
   await aws(options, [
     'lambda', 'wait', 'function-updated-v2', '--function-name', functionName
@@ -273,12 +324,6 @@ async function invoke(
   }
 
   return result.timing;
-}
-
-function assertTemperature(timing: Timing, cold: boolean, endpoint: Endpoint): void {
-  if (timing.coldStart !== cold) {
-    throw new Error(`${endpoint.bundle} reported coldStart=${String(timing.coldStart)}; expected ${String(cold)}`);
-  }
 }
 
 async function aws(options: Pick<Options, 'profile' | 'region'>, args: string[]): Promise<string> {

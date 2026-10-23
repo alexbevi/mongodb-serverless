@@ -1,5 +1,18 @@
 import { expect, it } from 'vitest';
-import { summarize, table } from '../measure.js';
+import { collectColdTiming, summarize, table } from '../measure.js';
+
+it('retries when AWS routes the request to an old warm environment', async () => {
+  let attempts = 0;
+
+  const timing = await collectColdTiming('no-plugin-save', async () => {
+    attempts += 1;
+
+    return { coldStart: attempts === 2, ssmMs: 5, connectMs: 20, operationMs: 4 };
+  });
+
+  expect(timing.coldStart).toBe(true);
+  expect(attempts).toBe(2);
+});
 
 it('summarizes server timing without including caller latency', () => {
   const summary = summarize([

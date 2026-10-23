@@ -110,6 +110,24 @@ export function table(rows: ResultRow[]): string {
   return [...header, ...body].join('\n');
 }
 
+export async function collectColdTiming(
+  label: string,
+  attempt: () => Promise<Timing>,
+  maximumAttempts = 3
+): Promise<Timing> {
+  for (let attemptNumber = 1; attemptNumber <= maximumAttempts; attemptNumber += 1) {
+    const timing = await attempt();
+
+    if (timing.coldStart === true) return timing;
+
+    if (attemptNumber === maximumAttempts) {
+      throw new Error(`${label} did not reach a new Lambda environment after ${maximumAttempts} attempts`);
+    }
+  }
+
+  throw new Error(`${label} cold-start attempts were not executed`);
+}
+
 export async function measure(options: Options): Promise<ResultRow[]> {
   const stack = await stackDetails(options);
 
@@ -139,16 +157,20 @@ export async function measure(options: Options): Promise<ResultRow[]> {
 
       if (!samples) throw new Error(`Missing measurements for ${endpoint.bundle}`);
 
-      await forceColdStart(options, endpoint.functionName);
+      const cold = await collectColdTiming(endpoint.bundle, async () => {
+        await forceColdStart(options, endpoint.functionName);
 
-      const cold = await invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
+        return invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
+      });
+
       const warm = await invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
 
-      assertTemperature(cold, true, endpoint);
       assertTemperature(warm, false, endpoint);
       samples.cold.push(cold);
       samples.warm.push(warm);
     }));
+
+    await writeCheckpoint(options, index + 1, measurements);
   }
 
   return endpoints.flatMap(endpoint => {
@@ -172,6 +194,23 @@ export async function measure(options: Options): Promise<ResultRow[]> {
       summary: summarize(result.timings)
     }));
   });
+}
+
+async function writeCheckpoint(
+  options: Options,
+  completedSamples: number,
+  measurements: Map<string, TemperatureSamples>
+): Promise<void> {
+  const checkpoint = {
+    measuredAt: new Date().toISOString(),
+    region: options.region,
+    stack: options.stack,
+    requestedSamples: options.samples,
+    completedSamples,
+    measurements: Object.fromEntries(measurements)
+  };
+
+  await writeFile(`${options.output}.checkpoint.json`, `${JSON.stringify(checkpoint, null, 2)}\n`);
 }
 
 async function stackDetails(options: Options): Promise<StackDetails> {

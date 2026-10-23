@@ -215,14 +215,17 @@ async function invoke(
 ): Promise<Timing> {
   const url = `${apiUrl}/${endpoint.variant}/${endpoint.operation}${endpoint.operation === 'find' ? '?id=example' : ''}`;
 
-  const response = await fetch(url, {
+  const request: RequestInit = {
     method: endpoint.method,
     headers: {
       'content-type': 'application/json',
       'x-api-key': apiKey
-    },
-    body: endpoint.operation === 'save' ? JSON.stringify({ id: 'example', value }) : undefined
-  });
+    }
+  };
+
+  if (endpoint.operation === 'save') request.body = JSON.stringify({ id: 'example', value });
+
+  const response = await fetch(url, request);
 
   const result: ApiResult = JSON.parse(await response.text());
 

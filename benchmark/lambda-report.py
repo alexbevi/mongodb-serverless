@@ -102,7 +102,10 @@ def cold_markdown(summary):
                   '', '| Warm check | Handler time | Serving role |', '|---|---:|---|']
         lines += [f"| {check['operation']} / {LABELS[check['variant']]} | {check['totalMs']:.1f} ms | {check['servedRole']} |" for check in checks]
         lines += ['', 'One warm invocation per case validates reuse; these timings are not a warm latency distribution.']
-    lines += ['', '![Measured connection breakdown](latency.png)', '',
+    lines += ['', '### Read connection breakdown', '',
+              '![Measured read connection breakdown](read-latency.png)', '',
+              '### Write connection breakdown', '',
+              '![Measured write connection breakdown](write-latency.png)', '',
               'Each panel shows a real invocation nearest its cohort median of INIT + handler time. INIT and its SSM request are shown above the handler detail. Each socket has its own row; DNS and other work have separate rows. Parallel rows must not be added. The summary accounts for every measured millisecond once.']
     title = configuration.get('environment', 'Cold Lambda')
     count = configuration['count']
@@ -151,7 +154,10 @@ def handler_markdown(summary):
     checks = configuration.get('warmVerification', [])
     if checks:
         lines += ['', f'{len(checks)} separate warm checks verified environment and client reuse without another SSM request, cluster DNS or topology discovery. These checks are excluded from the cold distributions.']
-    lines += ['', '![Measured connection breakdown](latency.png)', '',
+    lines += ['', '### Read connection breakdown', '',
+              '![Measured read connection breakdown](read-latency.png)', '',
+              '### Write connection breakdown', '',
+              '![Measured write connection breakdown](write-latency.png)', '',
               'Each panel shows a real invocation nearest the handler median. Connections occupy separate overlapping lanes; do not add their elapsed times. INIT, provisioning, caller transport and post-result reporting are outside the overview. LocalStack timings do not predict AWS performance.']
     return f"# {configuration.get('environment', 'Cold Lambda')} results\n\nMeasured {summary.get('measuredAt') or 'date not recorded'} · Node {', '.join(summary['runtimes']) or 'not recorded'}.\n\n" + '\n'.join(lines) + '\n'
 
@@ -265,57 +271,63 @@ def illustrated_cases(data):
     return cases
 
 
-def render(data, summary, output):
+def render(data, summary, output_directory):
     codec.expand_diagnostics(data)
-    plt = breakdown.plt
     cases = illustrated_cases(data)
     handler_only = data['configuration'].get('overview') == 'handler'
     diagnostics = data['configuration'].get('diagnostics', True)
     # Validate every sample, not only the illustrated traces.
     for sample in data['samples']:
         breakdown.accounting_segments(timeline(sample))
-    rows = max(sum(case['operation'] == operation for case in cases) for operation in ['read', 'write'])
-    figure, axes = plt.subplots(rows, 2, figsize=(25, 5 * rows + 3), squeeze=False)
-    maximum = max(case['timeline']['total'] for case in cases) * 1.14
     summary['illustratedTraces'] = []
-    visible = set()
-    for column, operation in enumerate(['read', 'write']):
+    output_directory.mkdir(parents=True, exist_ok=True)
+
+    for operation in ['read', 'write']:
         current = [case for case in cases if case['operation'] == operation]
-        for axis, case in zip(axes[:, column], current):
-            measured = case['timeline']
-            lanes = handler_lanes(case['sample'])
-            segments = breakdown.accounting_segments(measured)
-            visible.update(span['phase'] for lane in lanes for span in lane['spans'])
-            for index, lane in enumerate(lanes):
-                y = len(lanes)-index
-                for span in lane['spans']:
-                    phase = span['phase']
-                    axis.barh(y, span['end']-span['start'], left=span['start'], height=.36,
-                              color=breakdown.COLORS.get(phase) or breakdown.phase_color(phase))
-                if lane['kind'] == 'code' and diagnostics:
-                    breakdown.draw_off_cpu(axis, measured, y)
-            axis.set_yticks(list(reversed(range(1, len(lanes)+1))), [lane['label'] for lane in lanes], fontsize=8)
-            axis.set_ylim(0, len(lanes)+1)
-            axis.set_xlim(0, maximum)
-            stats = case['statistics']
-            variation = f"SD {stats['standardDeviationMs']:.1f} ms · CV {stats['coefficientOfVariationPercent']:.1f}%" if stats['count'] > 1 else 'SD / CV unavailable for n=1'
-            init = case['sample']['lambda']['initMs']
-            init_ssm = sum(call['end']-call['start'] for call in case['sample'].get('initialization', {}).get('ssm', []))
-            title = f"{operation.title()} · {case['label']}\nCold median {stats['medianInitPlusHandlerMs']:.1f} ms · p95 {stats['p95InitPlusHandlerMs']:.1f} ms · n={stats['count']}\nShown INIT {init:.1f} ms (SSM {init_ssm:.1f} ms included) + handler {measured['total']:.1f} ms\nHandler mean {stats['meanMs']:.1f} ms · {variation}"
-            if handler_only:
-                title = f"{operation.title()} · {case['label']}\nMean {stats['meanMs']:.1f} ms · median {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}\n{variation} · shown handler {measured['total']:.1f} ms"
-            axis.set_title(title, loc='left', fontsize=10, weight='bold', pad=14)
-            axis.set_xlabel('Milliseconds since handler measurement started · SSM read excluded with INIT', fontsize=9)
-            axis.grid(axis='x', alpha=.15)
-            axis.set_axisbelow(True)
-            axis.spines[['top', 'right', 'left']].set_visible(False)
-            if diagnostics:
-                axis.text(0, -.31, breakdown.cpu_annotation(measured), transform=axis.transAxes, fontsize=8, color='#475569')
-            summary['illustratedTraces'].append(dict(operation=operation, pattern=case['label'],
-                iteration=case['sample'].get('iteration'), totalMs=measured['total'] if handler_only else init+measured['total'], initMs=init, handlerMs=measured['total'],
-                accountingMs=breakdown.accounting_totals(measured) if handler_only else cold_accounting(case['sample']), segments=segments))
-        for axis in axes[len(current):, column]:
-            axis.set_visible(False)
+        render_operation(
+            data, summary, current, operation,
+            output_directory / f'{operation}-latency.png', handler_only, diagnostics
+        )
+
+
+def render_operation(data, summary, cases, operation, output, handler_only, diagnostics):
+    plt = breakdown.plt
+    figure, axes = plt.subplots(len(cases), 1, figsize=(15, 3.8 * len(cases) + 4), squeeze=False)
+    maximum = max(case['timeline']['total'] for case in cases) * 1.14
+    visible = set()
+    for axis, case in zip(axes[:, 0], cases):
+        measured = case['timeline']
+        lanes = handler_lanes(case['sample'])
+        segments = breakdown.accounting_segments(measured)
+        visible.update(span['phase'] for lane in lanes for span in lane['spans'])
+        for index, lane in enumerate(lanes):
+            y = len(lanes)-index
+            for span in lane['spans']:
+                phase = span['phase']
+                axis.barh(y, span['end']-span['start'], left=span['start'], height=.36,
+                          color=breakdown.COLORS.get(phase) or breakdown.phase_color(phase))
+            if lane['kind'] == 'code' and diagnostics:
+                breakdown.draw_off_cpu(axis, measured, y)
+        axis.set_yticks(list(reversed(range(1, len(lanes)+1))), [lane['label'] for lane in lanes], fontsize=8)
+        axis.set_ylim(0, len(lanes)+1)
+        axis.set_xlim(0, maximum)
+        stats = case['statistics']
+        variation = f"SD {stats['standardDeviationMs']:.1f} ms · CV {stats['coefficientOfVariationPercent']:.1f}%" if stats['count'] > 1 else 'SD / CV unavailable for n=1'
+        init = case['sample']['lambda']['initMs']
+        init_ssm = sum(call['end']-call['start'] for call in case['sample'].get('initialization', {}).get('ssm', []))
+        title = f"{operation.title()} · {case['label']}\nCold median {stats['medianInitPlusHandlerMs']:.1f} ms · p95 {stats['p95InitPlusHandlerMs']:.1f} ms · n={stats['count']}\nShown INIT {init:.1f} ms (SSM {init_ssm:.1f} ms included) + handler {measured['total']:.1f} ms\nHandler mean {stats['meanMs']:.1f} ms · {variation}"
+        if handler_only:
+            title = f"{operation.title()} · {case['label']}\nMean {stats['meanMs']:.1f} ms · median {stats['medianMs']:.1f} ms · p95 {stats['p95Ms']:.1f} ms · n={stats['count']}\n{variation} · shown handler {measured['total']:.1f} ms"
+        axis.set_title(title, loc='left', fontsize=10, weight='bold', pad=14)
+        axis.set_xlabel('Milliseconds since handler measurement started · SSM read excluded with INIT', fontsize=9)
+        axis.grid(axis='x', alpha=.15)
+        axis.set_axisbelow(True)
+        axis.spines[['top', 'right', 'left']].set_visible(False)
+        if diagnostics:
+            axis.text(0, -.31, breakdown.cpu_annotation(measured), transform=axis.transAxes, fontsize=8, color='#475569')
+        summary['illustratedTraces'].append(dict(operation=operation, pattern=case['label'],
+            iteration=case['sample'].get('iteration'), totalMs=measured['total'] if handler_only else init+measured['total'], initMs=init, handlerMs=measured['total'],
+            accountingMs=breakdown.accounting_totals(measured) if handler_only else cold_accounting(case['sample']), segments=segments))
     groups = {'Setup & storage': ['ssm', 'clusterDns', 'topologyStore'], 'Connection': ['lookup', 'tcp', 'tls', 'hello', 'auth', 'monitor', 'discovery', 'roleCheck'], 'Code & scheduling': ['callback', 'dispatch', 'other'], 'Operation': ['send', 'receive']}
     groups['Code & scheduling'] += sorted(phase for phase in visible if phase.startswith('code:'))
     for (title, phases), x in zip(groups.items(), [.06, .27, .49, .79]):
@@ -324,15 +336,15 @@ def render(data, summary, output):
         legend = figure.legend(handles=handles, title=title, loc='upper left', bbox_to_anchor=(x,.21), fontsize=8, title_fontsize=11, frameon=False, ncol=2 if title == 'Code & scheduling' else 1, columnspacing=1)
         legend.get_title().set_fontweight('bold')
     configuration = data['configuration']
-    figure.suptitle(f"Cold Lambda connection breakdown · {configuration['environment']}", x=.08, ha='left', y=.985, fontsize=23, weight='bold')
+    figure.suptitle(f"Cold Lambda {operation} connection breakdown · {configuration['environment']}", x=.08, ha='left', y=.985, fontsize=23, weight='bold')
     description = ('One real invocation nearest each handler median. INIT and its SSM fetch are excluded.' if handler_only else 'One real invocation nearest each cold cohort median. INIT includes SSM; timelines below show the handler.')
     description += ' Detailed probes are enabled.' if diagnostics else ' Stack, callback CPU and source probes are disabled.'
-    figure.text(.08,.95, f"Measured {data.get('createdAt', '')[:10]} · {configuration['count']} cold invocations per pattern/operation · {configuration['memoryMB']} MB · MongoDB driver 7.7.0\n{description}", fontsize=12)
+    figure.text(.08,.95, f"Measured {data.get('createdAt', '')[:10]} · {configuration['count']} cold invocations per pattern · {configuration['memoryMB']} MB · MongoDB driver 7.7.0\n{description}", fontsize=12)
     package = configuration.get('packageZipBytes', 0)
     init_source = 'Local INIT uses the Node process clock; AWS INIT uses Lambda REPORT.'
     detail = 'Hatching marks callbacks with ≥2 ms off CPU.' if diagnostics else 'Other handler work / scheduling is a measured remainder; its internal causes are not probed.'
-    figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM retrieval. Remaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. {detail} Provisioning and caller transport are outside the measurement.\nPackage {package/1e6:.2f} MB ZIP · same bundle for all cases. LocalStack timings do not predict AWS latency.', fontsize=10)
-    figure.subplots_adjust(left=.12, right=.97, top=.89, bottom=.27, hspace=1.1, wspace=.4)
+    figure.text(.08,.025, f'{init_source} INIT includes runtime, modules and SSM retrieval.\nRemaining INIT time has no internal phase split. Handler lanes overlap and must not be added.\nThe client is retained for warm invocations. {detail}\nProvisioning and caller transport are outside the measurement. Package {package/1e6:.2f} MB ZIP · same bundle for all cases.\nLocalStack timings do not predict AWS latency.', fontsize=9)
+    figure.subplots_adjust(left=.2, right=.97, top=.88, bottom=.25, hspace=.85)
     figure.savefig(output, dpi=150, facecolor='white')
     plt.close(figure)
 
@@ -343,7 +355,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     data = json.loads(args.samples.read_text())
     summary = summarize(data)
-    render(data, summary, args.samples.with_name('latency.png'))
+    render(data, summary, args.samples.parent)
     args.samples.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     args.samples.with_name('results.md').write_text(markdown(summary))
     print(markdown(summary))

@@ -2,8 +2,9 @@
 
 Keep exactly two checked-in result folders: `results/local/` and `results/aws/`.
 Each contains the latest complete measurement for that environment:
-`samples.json`, `summary.json`, `results.md`, and `latency.png`. Refresh those
-files together. A local run must not replace AWS results.
+`samples.json`, `summary.json`, `results.md`, `read-latency.png`, and
+`write-latency.png`. Refresh those files together. A local run must not replace
+AWS results.
 
 Checked-in results state the last measured performance. Include the measurement
 date, runtime, workload, sample counts, instrumentation, and timing boundaries.

@@ -9,7 +9,13 @@ serverless driver using topology cached in SSM.
 - [AWS Lambda measurements](benchmark/results/aws/results.md)
 - [Run the benchmark](benchmark/LAMBDA.md)
 
-![AWS connection breakdown](benchmark/results/aws/latency.png)
+### Reads
+
+![AWS read connection breakdown](benchmark/results/aws/read-latency.png)
+
+### Writes
+
+![AWS write connection breakdown](benchmark/results/aws/write-latency.png)
 
 Each report states the measurement date, environment, sample counts, and timing
 scope. Charts show individual traces nearest cohort medians, including SSM,

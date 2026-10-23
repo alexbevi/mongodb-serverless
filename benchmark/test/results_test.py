@@ -10,7 +10,10 @@ class ResultsTest(unittest.TestCase):
         self.assertEqual({p.name for p in root.iterdir() if p.is_dir()}, {'local', 'aws'})
         for environment in ['local', 'aws']:
             directory = root / environment
-            self.assertEqual({p.name for p in directory.iterdir()}, {'samples.json', 'summary.json', 'results.md', 'latency.png'})
+            self.assertEqual(
+                {p.name for p in directory.iterdir()},
+                {'samples.json', 'summary.json', 'results.md', 'read-latency.png', 'write-latency.png'}
+            )
             data = json.loads((directory / 'samples.json').read_text())
             summary = json.loads((directory / 'summary.json').read_text())
             self.assertFalse(data['failures'])
@@ -50,7 +53,20 @@ class ResultsTest(unittest.TestCase):
                 text = (directory / document).read_text()
                 for forbidden in ['historicalBaseline', 'improvementVs', '"baseline":', '"main"', 'previous main']:
                     self.assertNotIn(forbidden, text)
-            self.assertTrue((directory / 'latency.png').read_bytes().startswith(b'\x89PNG'))
+            for operation in ['read', 'write']:
+                self.assertTrue((directory / f'{operation}-latency.png').read_bytes().startswith(b'\x89PNG'))
+
+    def test_published_documents_place_the_split_aws_charts(self):
+        root = Path(__file__).parents[2]
+        read_chart = 'benchmark/results/aws/read-latency.png'
+        write_chart = 'benchmark/results/aws/write-latency.png'
+        readme = (root / 'README.md').read_text()
+        benchmark = (root / 'BENCHMARK.md').read_text()
+
+        self.assertIn(read_chart, readme)
+        self.assertNotIn(write_chart, readme)
+        self.assertIn(read_chart, benchmark)
+        self.assertIn(write_chart, benchmark)
 
     def test_latest_runs_fetch_settings_before_handler_entry_and_reuse_warm_clients(self):
         for environment in ['local', 'aws']:

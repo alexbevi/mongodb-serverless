@@ -63,6 +63,12 @@ Package: 4,950,399 bytes ZIP; identical for every case. Detailed execution/sourc
 
 8 separate warm checks verified environment and client reuse without another SSM request, cluster DNS or topology discovery. These checks are excluded from the cold distributions.
 
-![Measured connection breakdown](latency.png)
+### Read connection breakdown
+
+![Measured read connection breakdown](read-latency.png)
+
+### Write connection breakdown
+
+![Measured write connection breakdown](write-latency.png)
 
 Each panel shows a real invocation nearest the handler median. Connections occupy separate overlapping lanes; do not add their elapsed times. INIT, provisioning, caller transport and post-result reporting are outside the overview. LocalStack timings do not predict AWS performance.

@@ -24,7 +24,7 @@ node benchmark/lambda-local.mjs --samples 40
 
 [Lambda benchmark usage](LAMBDA.md) covers AWS deployment, SSM permissions,
 resource cleanup, and measurement verification. Refresh the raw samples, summary,
-report, and image together for the environment being measured.
+report, and both latency images together for the environment being measured.
 
 ## Read the timeline
 

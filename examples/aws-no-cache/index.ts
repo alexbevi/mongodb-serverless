@@ -6,14 +6,9 @@ interface Document {
   value: string;
 }
 
-interface SaveDocument {
-  id: string;
-  value: string;
-}
-
-interface ErrorResponse {
+type ErrorResponse = {
   error: string;
-}
+};
 
 const uri = process.env['MONGODB_URI'];
 
@@ -40,7 +35,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     case '/save': {
       const document = saveBody(event.body);
 
-      if (!document) return json(400, { error: 'body must contain URL-safe id and string value' });
+      if (!document) return json(400, { error: 'body must contain URL-safe _id and string value' });
 
       await documents.updateOne({ _id: document._id }, { $set: { value: document.value } }, { upsert: true });
 
@@ -56,17 +51,15 @@ function saveBody(body: string | null | undefined): Document | undefined {
   try {
     const value: unknown = JSON.parse(body ?? '');
 
-    if (!isSaveDocument(value)) return undefined;
-
-    return { _id: value.id, value: value.value };
+    return isDocument(value) ? value : undefined;
   } catch {
     return undefined;
   }
 }
 
-function isSaveDocument(value: unknown): value is SaveDocument {
+function isDocument(value: unknown): value is Document {
   return value !== null && typeof value === 'object' &&
-    'id' in value && isValidId(value.id) &&
+    '_id' in value && isValidId(value._id) &&
     'value' in value && typeof value.value === 'string';
 }
 

@@ -53,7 +53,7 @@ afterAll(async () => {
 });
 
 it('uses INIT settings in the actual Lambda handler against LocalStack and MongoDB', async () => {
-  const saved = await handler(event('/save', { body: JSON.stringify({ id: 'example', value: 'stored' }) }));
+  const saved = await handler(event('/save', { body: JSON.stringify({ _id: 'example', value: 'stored' }) }));
 
   expect(saved.statusCode).toBe(200);
 

@@ -43,6 +43,7 @@ function measured(create: CollectionFactory): OperationRunner {
 
     return {
       result,
+      ssmMs: 0,
       connectMs: applicationCommandStarted - operationStarted,
       operationMs: operationFinished - applicationCommandStarted
     };

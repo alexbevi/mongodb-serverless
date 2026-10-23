@@ -37,6 +37,7 @@ export interface ApiResponse {
 
 export interface OperationMeasurement<Result> {
   result: Result;
+  ssmMs: number;
   connectMs: number;
   operationMs: number;
 }
@@ -57,7 +58,7 @@ export function createFindHandler(run: OperationRunner): ApiHandler {
     cold = false;
 
     if (id === undefined) {
-      return response(400, invocationIsCold, 0, 0, { error: 'id must contain 1–100 URL-safe characters' });
+      return response(400, invocationIsCold, 0, 0, 0, { error: 'id must contain 1–100 URL-safe characters' });
     }
 
     const measured = await run(collection => collection.findOne(
@@ -67,6 +68,7 @@ export function createFindHandler(run: OperationRunner): ApiHandler {
     return response(
       measured.result === null ? 404 : 200,
       invocationIsCold,
+      invocationIsCold ? measured.ssmMs : 0,
       measured.connectMs,
       measured.operationMs,
       { document: measured.result }
@@ -85,7 +87,7 @@ export function createSaveHandler(run: OperationRunner): ApiHandler {
 
     if (request === undefined) {
       return response(
-        400, invocationIsCold, 0, 0,
+        400, invocationIsCold, 0, 0, 0,
         { error: 'body must contain a string value and an optional URL-safe id' }
       );
     }
@@ -99,7 +101,8 @@ export function createSaveHandler(run: OperationRunner): ApiHandler {
     ));
 
     return response(
-      200, invocationIsCold, measured.connectMs, measured.operationMs,
+      200, invocationIsCold, invocationIsCold ? measured.ssmMs : 0,
+      measured.connectMs, measured.operationMs,
       {
         id, acknowledged: measured.result.acknowledged,
         matched: measured.result.matchedCount, upserted: measured.result.upsertedCount
@@ -149,6 +152,7 @@ function validId(value: string): string | undefined {
 function response(
   statusCode: number,
   coldStart: boolean,
+  ssmMs: number,
   connectMs: number,
   operationMs: number,
   result: ResponseBody
@@ -157,8 +161,12 @@ function response(
     statusCode,
     headers: {
       'content-type': 'application/json',
-      'server-timing': `connect;dur=${connectMs.toFixed(3)}, operation;dur=${operationMs.toFixed(3)}`
+      'server-timing': [
+        `ssm;dur=${ssmMs.toFixed(3)}`,
+        `connect;dur=${connectMs.toFixed(3)}`,
+        `operation;dur=${operationMs.toFixed(3)}`
+      ].join(', ')
     },
-    body: JSON.stringify({ ...result, timing: { coldStart, connectMs, operationMs } })
+    body: JSON.stringify({ ...result, timing: { coldStart, ssmMs, connectMs, operationMs } })
   };
 }

@@ -21,8 +21,8 @@ function context() {
   };
 }
 
-function runner(collection: ExampleCollection, connectMs = 50, operationMs = 10): OperationRunner {
-  return async operation => ({ result: await operation(collection), connectMs, operationMs });
+function runner(collection: ExampleCollection, connectMs = 50, operationMs = 10, ssmMs = 25): OperationRunner {
+  return async operation => ({ result: await operation(collection), ssmMs, connectMs, operationMs });
 }
 
 function responseBody(response: void | { statusCode: number; body: string }) {
@@ -31,7 +31,7 @@ function responseBody(response: void | { statusCode: number; body: string }) {
   const body: {
     document?: object;
     id?: string;
-    timing: { coldStart: boolean; connectMs: number; operationMs: number };
+    timing: { coldStart: boolean; ssmMs: number; connectMs: number; operationMs: number };
   } = JSON.parse(response.body);
 
   return { response, body };
@@ -48,9 +48,9 @@ it('finds by id on any healthy member and reports warm reuse', async () => {
   expect(first.response.statusCode).toBe(200);
   expect(first.body).toMatchObject({
     document: { _id: 'example', value: 'hello' },
-    timing: { coldStart: true, connectMs: 50, operationMs: 10 }
+    timing: { coldStart: true, ssmMs: 25, connectMs: 50, operationMs: 10 }
   });
-  expect(second.body.timing.coldStart).toBe(false);
+  expect(second.body.timing).toEqual({ coldStart: false, ssmMs: 0, connectMs: 50, operationMs: 10 });
   expect(runtime.callbackWaitsForEmptyEventLoop).toBe(false);
   expect(findOne).toHaveBeenCalledWith({ _id: 'example' }, { readPreference: 'nearest' });
 });
@@ -63,7 +63,7 @@ it('upserts a validated document', async () => {
 
   expect(result.response.statusCode).toBe(200);
   expect(result.body).toMatchObject({
-    id: 'saved', timing: { coldStart: true, connectMs: 50, operationMs: 10 }
+    id: 'saved', timing: { coldStart: true, ssmMs: 25, connectMs: 50, operationMs: 10 }
   });
   expect(updateOne).toHaveBeenCalledWith(
     { _id: 'saved' },

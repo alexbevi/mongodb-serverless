@@ -2,6 +2,7 @@ import { MongoClient } from '@mongodb-serverless/driver';
 import { connectionStringFromSsm } from '../connection-string.js';
 import { requiredEnvironment } from '../environment.js';
 import { initializeParameterCollection } from '../initialization.js';
+import { serverlessClientOptions } from '../serverless-options.js';
 
 const database = process.env['DATABASE'] ?? 'mongodb_serverless_prod';
 
@@ -14,10 +15,7 @@ let client: MongoClient | undefined;
 export const collection = await initializeParameterCollection(
   () => connectionStringFromSsm(connectionStringParameter),
   (connectionString, commandStarted) => {
-    client ??= new MongoClient(connectionString, {
-      disableMonitoring: true, maxPoolSize: 1, minPoolSize: 0,
-      on: { commandStarted: event => commandStarted(event.commandName) }
-    });
+    client ??= new MongoClient(connectionString, serverlessClientOptions(commandStarted));
 
     return client.db(database).collection(collectionName);
   }

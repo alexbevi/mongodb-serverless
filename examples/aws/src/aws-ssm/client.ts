@@ -2,6 +2,7 @@ import { MongoClient } from '@mongodb-serverless/driver';
 import { SsmPlugin } from '@mongodb-serverless/plugin-aws-ssm';
 import { requiredEnvironment } from '../environment.js';
 import { initializePluginCollection } from '../initialization.js';
+import { serverlessClientOptions } from '../serverless-options.js';
 
 const database = process.env['DATABASE'] ?? 'mongodb_serverless_prod';
 
@@ -22,8 +23,7 @@ export const collection = await initializePluginCollection(
   },
   commandStarted => {
     client ??= new MongoClient(undefined, {
-      plugin, disableMonitoring: true, maxPoolSize: 1, minPoolSize: 0,
-      on: { commandStarted: event => commandStarted(event.commandName) }
+      ...serverlessClientOptions(commandStarted), plugin
     });
 
     return client.db(database).collection(collectionName);

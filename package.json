@@ -24,6 +24,8 @@
     "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts",
     "test:no-monitoring:package": "tsx tools/verify-no-monitoring-package.ts",
     "examples:aws:build": "tsx examples/aws/build.ts",
+    "examples:aws:deploy": "tsx examples/aws/deploy.ts",
+    "examples:aws:measure": "tsx examples/aws/measure.ts",
     "lint": "oxlint ."
   },
   "devDependencies": {

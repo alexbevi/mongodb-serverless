@@ -58,7 +58,7 @@ no environment variable for choosing a plugin, though a plugin may read the
 environment for its own configuration.
 
 When the plugin implements `getConnectionString()`, omit the explicit URI with
-`new MongoClient(undefined, { plugin })`. Pass a database name to `db(name)` in
+`new MongoClient({ plugin })`. Pass a database name to `db(name)` in
 this form: the plugin resolves asynchronously, so its default database is not
 available when `db()` is called. An explicit URI takes precedence. Credentials
 remain in the plugin's connection-string store; topology documents contain no

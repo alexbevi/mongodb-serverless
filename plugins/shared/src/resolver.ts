@@ -47,7 +47,7 @@ export async function resolvePlugin(source?: PluginSource, fallback?: TopologyPl
 
   if (chosen == null) {
     throw new MissingPluginError(
-      'No plugin configured. Pass one as new MongoClient(uri, { plugin }), ' +
+      'No plugin configured. Pass one as new MongoClient({ plugin }) or new MongoClient(uri, { plugin }), ' +
         'or call setDefaultPlugin() once at startup.'
     );
   }

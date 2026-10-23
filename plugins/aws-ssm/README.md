@@ -14,15 +14,16 @@ npm install @mongodb-serverless/plugin-aws-ssm
 ## Usage
 
 ```ts
+import { MongoClient } from '@mongodb-serverless/driver';
 import { SsmPlugin } from '@mongodb-serverless/plugin-aws-ssm';
 
 const plugin = new SsmPlugin({
   connectionStringParameter: '/my-app/mongodb/uri',
   topologyParameter: '/my-app/mongodb/topology'
 });
-// Supply this plugin to new MongoClient(undefined, { plugin }).
-const uri = await plugin.getConnectionString();
-const topology = await plugin.read();
+
+const client = new MongoClient({ plugin });
+await client.db('app').collection('users').findOne({ name: 'Ada' });
 const ssmMs = plugin.fetchDurationMs;
 ```
 

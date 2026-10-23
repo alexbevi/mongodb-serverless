@@ -201,7 +201,7 @@ it('reports connection-string provider failures from connect', async () => {
   const { ServerlessMongoClient } = await import('../src/client.js');
   const failure = new Error('secret store unavailable');
 
-  const client = new ServerlessMongoClient(undefined, {
+  const client = new ServerlessMongoClient({
     plugin: { ...stub(), async getConnectionString() { throw failure; } }
   });
 
@@ -215,7 +215,7 @@ it('defers credential lookup until the client is used', async () => {
   const { ServerlessMongoClient } = await import('../src/client.js');
   let lookups = 0;
 
-  const client = new ServerlessMongoClient(undefined, {
+  const client = new ServerlessMongoClient({
     plugin: { ...stub(), async getConnectionString() {
       lookups += 1;
 

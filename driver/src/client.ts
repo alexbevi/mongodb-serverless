@@ -34,8 +34,22 @@ export class ServerlessMongoClient {
   readonly #plugin: () => Promise<TopologyPlugin>;
   readonly #pair: () => Promise<ClientPair>;
 
-  constructor(uri?: string, options: ServerlessClientOptions = {}) {
-    const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
+  constructor(options: ServerlessClientOptions);
+  constructor(uri: string, options?: ServerlessClientOptions);
+  constructor();
+  constructor(uriOrOptions?: string | ServerlessClientOptions, options: ServerlessClientOptions = {}) {
+    let uri: string | undefined;
+    let clientOptions: ServerlessClientOptions;
+
+    if (isClientOptions(uriOrOptions)) {
+      uri = undefined;
+      clientOptions = uriOrOptions;
+    } else {
+      uri = uriOrOptions;
+      clientOptions = options;
+    }
+
+    const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = clientOptions;
 
     this.#uri = uri;
     let resolvedPlugin: Promise<TopologyPlugin> | undefined;
@@ -147,4 +161,8 @@ function defaultDatabaseOf(uri: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function isClientOptions(value: string | ServerlessClientOptions | undefined): value is ServerlessClientOptions {
+  return typeof value === 'object' && value !== null;
 }

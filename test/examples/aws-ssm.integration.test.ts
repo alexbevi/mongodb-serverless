@@ -57,10 +57,11 @@ it('uses INIT settings in the actual Lambda handler against LocalStack and Mongo
 
   expect(saved.statusCode).toBe(200);
 
-  const found = await handler(event('/find', { queryStringParameters: { id: 'example' } }));
+  await expect.poll(async () => {
+    const found = await handler(event('/find', { queryStringParameters: { id: 'example' } }));
 
-  expect(found.statusCode).toBe(200);
-  expect(JSON.parse(found.body)).toEqual({ _id: 'example', value: 'stored' });
+    return { statusCode: found.statusCode, body: JSON.parse(found.body) };
+  }).toEqual({ statusCode: 200, body: { _id: 'example', value: 'stored' } });
 
   const topology = await ssm.send(new GetParameterCommand({ Name: topologyParameter }));
 

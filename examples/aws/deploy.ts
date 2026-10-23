@@ -16,6 +16,8 @@ interface Options {
   stack: string;
   connectionStringParameter: string;
   topologyParameter: string;
+  database: string;
+  collection: string;
 }
 
 export async function deploy(options: Options): Promise<string> {
@@ -34,7 +36,9 @@ export async function deploy(options: Options): Promise<string> {
     '--no-fail-on-empty-changeset',
     '--parameter-overrides',
     `ConnectionStringParameterName=${options.connectionStringParameter}`,
-    `TopologyParameterName=${options.topologyParameter}`
+    `TopologyParameterName=${options.topologyParameter}`,
+    `DatabaseName=${options.database}`,
+    `CollectionName=${options.collection}`
   ]);
 
   for (const endpoint of endpoints) {
@@ -77,7 +81,9 @@ function options(arguments_: string[]): Options {
     region: value('--region', process.env.AWS_REGION ?? 'ap-southeast-2'),
     stack: value('--stack', 'mongodb-serverless-examples'),
     connectionStringParameter: value('--connection-string-parameter', '/mongodb-serverless-pattern/uri'),
-    topologyParameter: value('--topology-parameter', '/mongodb-serverless-examples/topology')
+    topologyParameter: value('--topology-parameter', '/mongodb-serverless-examples/topology'),
+    database: value('--database', 'bench'),
+    collection: value('--collection', 'documents')
   };
 }
 

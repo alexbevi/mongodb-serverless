@@ -3,7 +3,7 @@ import { SsmPlugin } from '@mongodb-serverless/plugin-aws-ssm';
 import { requiredEnvironment } from '../environment.js';
 import { initializePluginCollection } from '../initialization.js';
 
-const database = process.env['DATABASE'] ?? 'mongodb_serverless_examples';
+const database = process.env['DATABASE'] ?? 'bench';
 
 const collectionName = process.env['COLLECTION'] ?? 'documents';
 

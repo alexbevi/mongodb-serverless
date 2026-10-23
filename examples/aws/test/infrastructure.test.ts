@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { deploymentResources, endpoints } from '../infrastructure.js';
+import { deploymentResources, endpoints, template } from '../infrastructure.js';
 
 it('defines a Regional API route and Lambda for each example handler', () => {
   expect(endpoints.map(endpoint => `${endpoint.method} /${endpoint.variant}/${endpoint.operation}`)).toEqual([
@@ -17,6 +17,7 @@ it('defines a Regional API route and Lambda for each example handler', () => {
   expect(functions.every(resource => resource.Properties?.['Runtime'] === 'nodejs24.x')).toBe(true);
   expect(methods).toHaveLength(6);
   expect(methods.every(resource => resource.Properties?.['ApiKeyRequired'] === true)).toBe(true);
+  expect(template.Parameters.DatabaseName.Default).toBe('bench');
 });
 
 it('grants reads of the URI and topology but writes only the topology', () => {

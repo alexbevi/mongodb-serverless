@@ -151,7 +151,7 @@ export const template = {
     TopologyParameterName: {
       Type: 'String', Default: '/mongodb-serverless-examples/topology'
     },
-    DatabaseName: { Type: 'String', Default: 'mongodb_serverless_examples' },
+    DatabaseName: { Type: 'String', Default: 'bench' },
     CollectionName: { Type: 'String', Default: 'documents' }
   },
   Resources: resources,

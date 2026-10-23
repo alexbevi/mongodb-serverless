@@ -35,58 +35,76 @@ export interface ApiResponse {
   body: string;
 }
 
-export type CollectionProvider = () => ExampleCollection | Promise<ExampleCollection>;
+export interface OperationMeasurement<Result> {
+  result: Result;
+  connectMs: number;
+  operationMs: number;
+}
+
+export interface OperationRunner {
+  <Result>(operation: (collection: ExampleCollection) => Promise<Result>): Promise<OperationMeasurement<Result>>;
+}
 
 export type ApiHandler = (event: ApiEvent, context: LambdaContext) => Promise<ApiResponse>;
 
-export function createFindHandler(collection: CollectionProvider): ApiHandler {
+export function createFindHandler(run: OperationRunner): ApiHandler {
   let cold = true;
 
   return async (event, context) => {
-    const started = performance.now();
     context.callbackWaitsForEmptyEventLoop = false;
     const id = validId(event.queryStringParameters?.id ?? 'example');
-
-    if (id === undefined) return response(400, started, useCold(), { error: 'id must contain 1–100 URL-safe characters' });
-
-    const document = await (await collection()).findOne({ _id: id }, { readPreference: 'nearest' });
-
-    return response(document === null ? 404 : 200, started, useCold(), { document });
-  };
-
-  function useCold(): boolean {
-    const value = cold;
+    const invocationIsCold = cold;
     cold = false;
 
-    return value;
-  }
+    if (id === undefined) {
+      return response(400, invocationIsCold, 0, 0, { error: 'id must contain 1–100 URL-safe characters' });
+    }
+
+    const measured = await run(collection => collection.findOne(
+      { _id: id }, { readPreference: 'nearest' }
+    ));
+
+    return response(
+      measured.result === null ? 404 : 200,
+      invocationIsCold,
+      measured.connectMs,
+      measured.operationMs,
+      { document: measured.result }
+    );
+  };
 }
 
-export function createSaveHandler(collection: CollectionProvider): ApiHandler {
+export function createSaveHandler(run: OperationRunner): ApiHandler {
   let cold = true;
 
   return async (event, context) => {
-    const started = performance.now();
     context.callbackWaitsForEmptyEventLoop = false;
     const request = saveRequest(event);
     const invocationIsCold = cold;
     cold = false;
 
     if (request === undefined) {
-      return response(400, started, invocationIsCold, { error: 'body must contain a string value and an optional URL-safe id' });
+      return response(
+        400, invocationIsCold, 0, 0,
+        { error: 'body must contain a string value and an optional URL-safe id' }
+      );
     }
 
     const id = request.id ?? 'example';
 
-    const result = await (await collection()).updateOne(
+    const measured = await run(collection => collection.updateOne(
       { _id: id },
       { $set: { value: request.value }, $currentDate: { updatedAt: true } },
       { upsert: true }
-    );
+    ));
 
-    return response(200, started, invocationIsCold, {
-      id, acknowledged: result.acknowledged, matched: result.matchedCount, upserted: result.upsertedCount
-    });
+    return response(
+      200, invocationIsCold, measured.connectMs, measured.operationMs,
+      {
+        id, acknowledged: measured.result.acknowledged,
+        matched: measured.result.matchedCount, upserted: measured.result.upsertedCount
+      }
+    );
   };
 }
 
@@ -128,12 +146,19 @@ function validId(value: string): string | undefined {
   return /^[A-Za-z0-9._~-]{1,100}$/.test(value) ? value : undefined;
 }
 
-function response(statusCode: number, started: number, cold: boolean, result: ResponseBody): ApiResponse {
-  const handlerMs = performance.now() - started;
-
+function response(
+  statusCode: number,
+  coldStart: boolean,
+  connectMs: number,
+  operationMs: number,
+  result: ResponseBody
+): ApiResponse {
   return {
     statusCode,
-    headers: { 'content-type': 'application/json', 'server-timing': `handler;dur=${handlerMs.toFixed(3)}` },
-    body: JSON.stringify({ ...result, cold, handlerMs })
+    headers: {
+      'content-type': 'application/json',
+      'server-timing': `connect;dur=${connectMs.toFixed(3)}, operation;dur=${operationMs.toFixed(3)}`
+    },
+    body: JSON.stringify({ ...result, timing: { coldStart, connectMs, operationMs } })
   };
 }

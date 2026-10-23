@@ -10,7 +10,7 @@
     "rootDir": ".",
     "tsBuildInfoFile": "dist/types.tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["*.ts", "src/**/*.ts", "test/**/*.ts"],
   "references": [
     { "path": "../../driver" },
     { "path": "../../plugins/aws-ssm" }

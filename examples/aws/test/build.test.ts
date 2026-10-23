@@ -1,0 +1,35 @@
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { expect, it } from 'vitest';
+import { buildExamples, bundles } from '../build.js';
+
+it('defines one small bundle for every public example endpoint', () => {
+  expect(bundles.map(bundle => bundle.name)).toEqual([
+    'native-find', 'native-save',
+    'no-plugin-find', 'no-plugin-save',
+    'aws-ssm-find', 'aws-ssm-save'
+  ]);
+});
+
+it('tree-shakes each handler into a deployable zip', async () => {
+  const outputDirectory = await mkdtemp(join(tmpdir(), 'mongodb-serverless-aws-'));
+
+  try {
+    const manifest = await buildExamples(outputDirectory);
+
+    expect(manifest.bundles).toHaveLength(6);
+
+    for (const bundle of manifest.bundles) {
+      const archive = await stat(join(outputDirectory, `${bundle.name}.zip`));
+      const source = await readFile(join(outputDirectory, bundle.name, 'index.mjs'), 'utf8');
+
+      expect(archive.size).toBe(bundle.zipBytes);
+      expect(bundle.bundleBytes).toBeGreaterThan(0);
+      expect(bundle.zipBytes).toBeLessThan(2_000_000);
+      expect(source).not.toContain('sourceMappingURL');
+    }
+  } finally {
+    await rm(outputDirectory, { recursive: true, force: true });
+  }
+});

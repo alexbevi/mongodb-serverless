@@ -15,7 +15,7 @@ const plugin = new SsmPlugin();
 
 await plugin.verify();
 
-const client = new MongoServerlessClient({ plugin });
+const client = new MongoServerlessClient(plugin);
 
 const documents = client
   .db(process.env['MONGODB_DATABASE'] ?? 'app')

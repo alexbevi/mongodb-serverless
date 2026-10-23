@@ -34,18 +34,25 @@ export class ServerlessMongoClient {
   readonly #plugin: () => Promise<TopologyPlugin>;
   readonly #pair: () => Promise<ClientPair>;
 
+  constructor(plugin: TopologyPlugin);
   constructor(options: ServerlessClientOptions);
   constructor(uri: string, options?: ServerlessClientOptions);
   constructor();
-  constructor(uriOrOptions?: string | ServerlessClientOptions, options: ServerlessClientOptions = {}) {
+  constructor(
+    uriPluginOrOptions?: string | TopologyPlugin | ServerlessClientOptions,
+    options: ServerlessClientOptions = {}
+  ) {
     let uri: string | undefined;
     let clientOptions: ServerlessClientOptions;
 
-    if (isClientOptions(uriOrOptions)) {
+    if (isPluginArgument(uriPluginOrOptions)) {
       uri = undefined;
-      clientOptions = uriOrOptions;
+      clientOptions = { plugin: uriPluginOrOptions };
+    } else if (isClientOptions(uriPluginOrOptions)) {
+      uri = undefined;
+      clientOptions = uriPluginOrOptions;
     } else {
-      uri = uriOrOptions;
+      uri = uriPluginOrOptions;
       clientOptions = options;
     }
 
@@ -163,6 +170,18 @@ function defaultDatabaseOf(uri: string): string | undefined {
   }
 }
 
-function isClientOptions(value: string | ServerlessClientOptions | undefined): value is ServerlessClientOptions {
+function isPluginArgument(
+  value: string | TopologyPlugin | ServerlessClientOptions | undefined
+): value is TopologyPlugin {
+  return typeof value === 'object' && value !== null &&
+    'setup' in value &&
+    'verify' in value &&
+    'read' in value &&
+    'write' in value;
+}
+
+function isClientOptions(
+  value: string | ServerlessClientOptions | undefined
+): value is ServerlessClientOptions {
   return typeof value === 'object' && value !== null;
 }

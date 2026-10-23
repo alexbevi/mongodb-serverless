@@ -163,9 +163,9 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   it('uses the plugin connection string when no explicit URI is supplied', async () => {
     const plugin = new TestPlugin(cluster.status);
 
-    const client = new ServerlessMongoClient({
-      plugin: Object.assign(plugin, { async getConnectionString() { return cluster.uri; } })
-    });
+    const client = new ServerlessMongoClient(
+      Object.assign(plugin, { async getConnectionString() { return cluster.uri; } })
+    );
 
     clients.push(client);
 

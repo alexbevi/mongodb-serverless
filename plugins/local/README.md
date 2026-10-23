@@ -28,7 +28,7 @@ authentication mechanism and resolved source added by discovery. Credentials
 remain in the connection string or driver options.
 
 To supply credentials through the plugin, set `__MONGODB_CONNECTION_STRING`
-and construct `new MongoClient({ plugin })`. Use an explicit database
+and construct `new MongoClient(plugin)`. Use an explicit database
 name in `db(name)` with this form. Connection strings are kept separate from
 topology documents.
 

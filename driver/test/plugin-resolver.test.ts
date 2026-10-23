@@ -215,13 +215,13 @@ it('defers credential lookup until the client is used', async () => {
   const { ServerlessMongoClient } = await import('../src/client.js');
   let lookups = 0;
 
-  const client = new ServerlessMongoClient({
-    plugin: { ...stub(), async getConnectionString() {
-      lookups += 1;
+  const plugin = { ...stub(), async getConnectionString() {
+    lookups += 1;
 
-      return 'mongodb://seed/db';
-    } }
-  });
+    return 'mongodb://seed/db';
+  } };
+
+  const client = new ServerlessMongoClient(plugin);
 
   await Promise.resolve();
 
@@ -229,4 +229,13 @@ it('defers credential lookup until the client is used', async () => {
   await client.connect();
   expect(lookups).toBe(1);
   await client.close();
+});
+
+it('validates a direct plugin argument after overload selection', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  const plugin = stub();
+  Object.defineProperty(plugin, 'read', { value: undefined });
+  const client = new ServerlessMongoClient(plugin);
+
+  await expect(client.plugin()).rejects.toThrow(InvalidPluginError);
 });

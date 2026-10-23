@@ -14,6 +14,7 @@ const exampleDirectory = dirname(fileURLToPath(import.meta.url));
 
 interface Timing {
   coldStart?: boolean;
+  ssmMs: number;
   connectMs: number;
   operationMs: number;
 }
@@ -25,6 +26,7 @@ interface ApiResult {
 
 export interface TimingSummary {
   samples: number;
+  ssmMeanMs: number;
   connectMeanMs: number;
   operationMeanMs: number;
   totalMeanMs: number;
@@ -59,17 +61,23 @@ interface TemperatureSamples {
   warm: Timing[];
 }
 
-export function summarize(samples: Array<Pick<Timing, 'connectMs' | 'operationMs'>>): TimingSummary {
+export function summarize(samples: Array<Pick<Timing, 'ssmMs' | 'connectMs' | 'operationMs'>>): TimingSummary {
   if (samples.length === 0) throw new Error('At least one timing sample is required');
 
+  const ssm = samples.map(sample => sample.ssmMs);
   const connect = samples.map(sample => sample.connectMs);
   const operation = samples.map(sample => sample.operationMs);
-  const totals = samples.map(sample => sample.connectMs + sample.operationMs).sort((left, right) => left - right);
+
+  const totals = samples
+    .map(sample => sample.ssmMs + sample.connectMs + sample.operationMs)
+    .sort((left, right) => left - right);
+
   const totalMean = mean(totals);
   const variance = mean(totals.map(value => (value - totalMean) ** 2));
 
   return {
     samples: samples.length,
+    ssmMeanMs: round(mean(ssm)),
     connectMeanMs: round(mean(connect)),
     operationMeanMs: round(mean(operation)),
     totalMeanMs: round(totalMean),
@@ -81,14 +89,15 @@ export function summarize(samples: Array<Pick<Timing, 'connectMs' | 'operationMs
 
 export function table(rows: ResultRow[]): string {
   const header = [
-    '| Driver | Operation | Run | Connect mean ms | Operation mean ms | Total mean ms | Total SD ms | Total p95 ms | ZIP KiB | n |',
-    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
+    '| Driver | Operation | Run | SSM mean ms | Connect mean ms | Operation mean ms | Total mean ms | Total SD ms | Total p95 ms | ZIP KiB | n |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
   ];
 
   const body = rows.map(row => [
     `| ${row.variant}`,
     row.operation,
     row.temperature,
+    fixed(row.summary.ssmMeanMs),
     fixed(row.summary.connectMeanMs),
     fixed(row.summary.operationMeanMs),
     fixed(row.summary.totalMeanMs),
@@ -120,12 +129,16 @@ export async function measure(options: Options): Promise<ResultRow[]> {
 
   await invoke(stack.apiUrl, apiKey, seedEndpoint, 'seed');
 
-  const measurements = new Map<string, TemperatureSamples>();
+  const measurements = new Map<string, TemperatureSamples>(
+    endpoints.map(endpoint => [endpoint.bundle, { cold: [], warm: [] }])
+  );
 
-  for (const endpoint of endpoints) {
-    const samples: TemperatureSamples = { cold: [], warm: [] };
+  for (let index = 0; index < options.samples; index += 1) {
+    await Promise.all(endpoints.map(async endpoint => {
+      const samples = measurements.get(endpoint.bundle);
 
-    for (let index = 0; index < options.samples; index += 1) {
+      if (!samples) throw new Error(`Missing measurements for ${endpoint.bundle}`);
+
       await forceColdStart(options, endpoint.functionName);
 
       const cold = await invoke(stack.apiUrl, apiKey, endpoint, `${endpoint.bundle}-${index}`);
@@ -135,9 +148,7 @@ export async function measure(options: Options): Promise<ResultRow[]> {
       assertTemperature(warm, false, endpoint);
       samples.cold.push(cold);
       samples.warm.push(warm);
-    }
-
-    measurements.set(endpoint.bundle, samples);
+    }));
   }
 
   return endpoints.flatMap(endpoint => {

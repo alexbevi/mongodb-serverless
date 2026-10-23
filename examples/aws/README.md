@@ -43,7 +43,7 @@ The response includes the application result and handler timing:
 ```json
 {
   "document": { "_id": "example", "value": "hello" },
-  "timing": { "coldStart": true, "connectMs": 50, "operationMs": 10 }
+  "timing": { "coldStart": true, "ssmMs": 40, "connectMs": 50, "operationMs": 10 }
 }
 ```
 
@@ -53,7 +53,7 @@ Run paired cold and warm requests for every endpoint:
 pnpm examples:aws:measure -- --profile personal --region ap-southeast-2 --samples 20
 ```
 
-The measurement command changes a harmless Lambda environment nonce before each cold request, waits for the update, then sends one cold request and one warm request. It seeds the shared document and cached topology before collecting samples. The report uses the timing returned by the handler, so API Gateway and caller network latency are excluded. Lambda module initialization, including the SSM read, is also outside `connectMs` and `operationMs`.
+The measurement command changes a harmless Lambda environment nonce before each cold request, waits for the update, then sends one cold request and one warm request. It seeds the shared document and cached topology before collecting samples. The report uses the timing returned by the handler, so API Gateway and caller network latency are excluded. `ssmMs` measures the eager SSM request during Lambda initialization. Native and no-plugin handlers fetch one connection string; `aws-ssm` fetches the connection string and cached topology together. Warm responses report `ssmMs` as zero. `connectMs` and `operationMs` contain only handler work.
 
 The source entry points are under [`src/native`](./src/native), [`src/no-plugin`](./src/no-plugin), and [`src/aws-ssm`](./src/aws-ssm).
 

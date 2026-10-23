@@ -14,7 +14,7 @@
     "test:integration": "npm run build && vitest run integration.test.ts --testTimeout=60000",
     "test:watch": "vitest",
     "cluster:stop": "docker rm -f mongodb-serverless-driver-test-rs",
-    "typecheck": "tsc --build",
+    "typecheck": "tsc --build && pnpm examples:typecheck",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
@@ -23,9 +23,7 @@
     "benchmark:build": "tsc --build benchmark",
     "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts",
     "test:no-monitoring:package": "tsx tools/verify-no-monitoring-package.ts",
-    "examples:aws:build": "tsx examples/aws/build.ts",
-    "examples:aws:deploy": "tsx examples/aws/deploy.ts",
-    "examples:aws:measure": "tsx examples/aws/measure.ts",
+    "examples:typecheck": "pnpm --filter './examples/*' typecheck",
     "lint": "oxlint ."
   },
   "devDependencies": {

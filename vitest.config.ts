@@ -11,8 +11,13 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['{driver,plugins/*,benchmark,examples/aws}/test/**/*.test.ts'],
-    exclude: [...configDefaults.exclude, 'benchmark/test/live.test.ts', 'plugins/*/test/localstack.test.ts'],
+    include: ['{driver,plugins/*,benchmark}/test/**/*.test.ts', 'test/examples/**/*.test.ts'],
+    exclude: [
+      ...configDefaults.exclude,
+      'benchmark/test/live.test.ts',
+      'plugins/*/test/localstack.test.ts',
+      'test/examples/aws-ssm.integration.test.ts'
+    ],
     environment: 'node',
     // Integration suites share one replica set.
     fileParallelism: false

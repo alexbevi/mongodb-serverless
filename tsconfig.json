@@ -4,7 +4,6 @@
     { "path": "./plugins/local" },
     { "path": "./plugins/aws-ssm" },
     { "path": "./driver" },
-    { "path": "./benchmark" },
-    { "path": "./examples/aws" }
+    { "path": "./benchmark" }
   ]
 }

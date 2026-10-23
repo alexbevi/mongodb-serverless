@@ -174,5 +174,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mongodb-serverless/plugin-aws-ssm typecheck
-      - name: Test the plugin against emulated SSM and KMS
+      - name: Test the plugin and example against LocalStack and MongoDB
         run: pnpm --filter @mongodb-serverless/plugin-aws-ssm test:integration

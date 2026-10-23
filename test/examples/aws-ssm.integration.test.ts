@@ -29,21 +29,22 @@ const ssm = new SSMClient(settings);
 
 let handler: typeof import('../../examples/aws-ssm/index.js').handler;
 
+let connectionString: string;
+
 beforeAll(async () => {
   await startCluster();
   const cluster = await describeCluster();
+  connectionString = cluster.uri;
 
   await ssm.send(new DeleteParametersCommand({ Names: [connectionStringParameter, topologyParameter] }));
   await ssm.send(new PutParameterCommand({
     Name: connectionStringParameter,
     Type: 'SecureString',
-    Value: cluster.uri,
+    Value: connectionString,
     Overwrite: true
   }));
 
   handler = (await import('../../examples/aws-ssm/index.js')).handler;
-
-  await ssm.send(new DeleteParametersCommand({ Names: [connectionStringParameter] }));
 }, 90_000);
 
 afterAll(async () => {
@@ -52,7 +53,23 @@ afterAll(async () => {
   await stopCluster();
 });
 
-it('uses INIT settings in the actual Lambda handler against LocalStack and MongoDB', async () => {
+it('defers SSM retrieval until the first operation', async () => {
+  await ssm.send(new DeleteParametersCommand({ Names: [connectionStringParameter] }));
+
+  try {
+    await expect(handler(event('/find', { queryStringParameters: { id: 'missing' } })))
+      .rejects.toThrow('must contain a SecureString connection string');
+  } finally {
+    await ssm.send(new PutParameterCommand({
+      Name: connectionStringParameter,
+      Type: 'SecureString',
+      Value: connectionString,
+      Overwrite: true
+    }));
+  }
+});
+
+it('uses the actual Lambda handler against LocalStack and MongoDB', async () => {
   const saved = await handler(event('/save', { body: JSON.stringify({ _id: 'example', value: 'stored' }) }));
 
   expect(saved.statusCode).toBe(200);

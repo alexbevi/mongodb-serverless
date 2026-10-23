@@ -1,28 +1,29 @@
 import type { ExampleCollection, OperationRunner } from './handlers.js';
+import type { ConnectionSettings } from './connection-string.js';
 
 type CommandStarted = (commandName: string) => void;
 
 type CollectionFactory = (commandStarted: CommandStarted) => ExampleCollection;
 
 export async function initializeParameterCollection(
-  load: () => Promise<string>,
+  load: () => Promise<ConnectionSettings>,
   create: (connectionString: string, commandStarted: CommandStarted) => ExampleCollection
 ): Promise<OperationRunner> {
-  const connectionString = await load();
+  const settings = await load();
 
-  return measured(commandStarted => create(connectionString, commandStarted));
+  return measured(commandStarted => create(settings.connectionString, commandStarted), settings.ssmMs);
 }
 
 export async function initializePluginCollection(
-  verify: () => Promise<void>,
+  verify: () => Promise<number>,
   create: CollectionFactory
 ): Promise<OperationRunner> {
-  await verify();
+  const ssmMs = await verify();
 
-  return measured(create);
+  return measured(create, ssmMs);
 }
 
-function measured(create: CollectionFactory): OperationRunner {
+function measured(create: CollectionFactory, ssmMs: number): OperationRunner {
   let collection: ExampleCollection | undefined;
   let operationStarted = 0;
   let commandStarted: number | undefined;
@@ -43,7 +44,7 @@ function measured(create: CollectionFactory): OperationRunner {
 
     return {
       result,
-      ssmMs: 0,
+      ssmMs,
       connectMs: applicationCommandStarted - operationStarted,
       operationMs: operationFinished - applicationCommandStarted
     };

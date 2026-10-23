@@ -14,7 +14,10 @@ it('decrypts a SecureString connection parameter', async () => {
     return { Parameter: { Type: 'SecureString', Value: 'mongodb+srv://example.test/app' } };
   });
 
-  await expect(loadConnectionString('/example/uri', send)).resolves.toBe('mongodb+srv://example.test/app');
+  await expect(loadConnectionString('/example/uri', send)).resolves.toEqual({
+    connectionString: 'mongodb+srv://example.test/app',
+    ssmMs: expect.any(Number)
+  });
   expect(send).toHaveBeenCalledOnce();
 });
 
@@ -33,7 +36,7 @@ it('loads the parameter eagerly but creates and retains the client lazily', asyn
   const load = vi.fn(async () => {
     order.push('parameter');
 
-    return 'mongodb://example.test/app';
+    return { connectionString: 'mongodb://example.test/app', ssmMs: 12 };
   });
 
   const create = vi.fn(() => {
@@ -45,7 +48,7 @@ it('loads the parameter eagerly but creates and retains the client lazily', asyn
   const run = await initializeParameterCollection(load, create);
 
   expect(order).toEqual(['parameter']);
-  await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
+  await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance, ssmMs: 12 });
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
   expect(order).toEqual(['parameter', 'client']);
   expect(create).toHaveBeenCalledOnce();
@@ -55,7 +58,11 @@ it('loads plugin settings eagerly but creates and retains the client lazily', as
   const order: string[] = [];
   const collectionInstance = exampleCollection();
 
-  const verify = vi.fn(async () => { order.push('plugin'); });
+  const verify = vi.fn(async () => {
+    order.push('plugin');
+
+    return 14;
+  });
 
   const create = vi.fn(() => {
     order.push('client');
@@ -66,7 +73,7 @@ it('loads plugin settings eagerly but creates and retains the client lazily', as
   const run = await initializePluginCollection(verify, create);
 
   expect(order).toEqual(['plugin']);
-  await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
+  await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance, ssmMs: 14 });
   await expect(run(async collection => collection)).resolves.toMatchObject({ result: collectionInstance });
   expect(order).toEqual(['plugin', 'client']);
   expect(create).toHaveBeenCalledOnce();

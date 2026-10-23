@@ -2,17 +2,27 @@ import { GetParameterCommand, SSMClient, type GetParameterCommandOutput } from '
 
 type SendParameter = (command: GetParameterCommand) => Promise<Pick<GetParameterCommandOutput, 'Parameter'>>;
 
-export async function loadConnectionString(parameterName: string, send: SendParameter): Promise<string> {
+export interface ConnectionSettings {
+  connectionString: string;
+  ssmMs: number;
+}
+
+export async function loadConnectionString(
+  parameterName: string,
+  send: SendParameter
+): Promise<ConnectionSettings> {
+  const started = performance.now();
   const result = await send(new GetParameterCommand({ Name: parameterName, WithDecryption: true }));
+  const ssmMs = performance.now() - started;
 
   if (result.Parameter?.Type !== 'SecureString' || !result.Parameter.Value) {
     throw new Error(`SSM parameter "${parameterName}" must contain a SecureString connection string`);
   }
 
-  return result.Parameter.Value;
+  return { connectionString: result.Parameter.Value, ssmMs };
 }
 
-export async function connectionStringFromSsm(parameterName: string): Promise<string> {
+export async function connectionStringFromSsm(parameterName: string): Promise<ConnectionSettings> {
   const client = new SSMClient({});
 
   try {

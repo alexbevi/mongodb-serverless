@@ -15,7 +15,11 @@ const plugin = new SsmPlugin({
 let client: MongoClient | undefined;
 
 export const collection = await initializePluginCollection(
-  () => plugin.verify(),
+  async () => {
+    await plugin.verify();
+
+    return plugin.fetchDurationMs ?? 0;
+  },
   commandStarted => {
     client ??= new MongoClient(undefined, {
       plugin, disableMonitoring: true, maxPoolSize: 1, minPoolSize: 0,

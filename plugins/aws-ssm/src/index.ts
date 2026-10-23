@@ -22,6 +22,7 @@ export class SsmPlugin implements TopologyPlugin {
   readonly #uriParameter: string;
   readonly #topologyParameter: string;
   #settings: Promise<Settings> | undefined;
+  #fetchDurationMs: number | undefined;
 
   constructor(options: SsmPluginOptions = {}) {
     this.writable = options.writable ?? true;
@@ -48,6 +49,10 @@ export class SsmPlugin implements TopologyPlugin {
     await this.#load();
   }
 
+  get fetchDurationMs(): number | undefined {
+    return this.#fetchDurationMs;
+  }
+
   async write(status: ReplSetGetStatus): Promise<void> {
     if (!this.writable) throw new PluginReadOnlyError('SSM topology writes are disabled');
     assertStatus(status);
@@ -72,9 +77,13 @@ export class SsmPlugin implements TopologyPlugin {
   }
 
   async #fetch(): Promise<Settings> {
+    const started = performance.now();
+
     const result = await this.#client.send(new GetParametersCommand({
       Names: [this.#uriParameter, this.#topologyParameter], WithDecryption: true
     }));
+
+    this.#fetchDurationMs = performance.now() - started;
 
     const uri = result.Parameters?.find(parameter => parameter.Name === this.#uriParameter);
     const topology = result.Parameters?.find(parameter => parameter.Name === this.#topologyParameter);

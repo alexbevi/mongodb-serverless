@@ -25,8 +25,10 @@ it('shares one decrypted parameter request between concurrent URI and topology r
   const plugin = new SsmPlugin({ client, connectionStringParameter: '/test/uri', topologyParameter: '/test/topology' });
 
   try {
+    expect(plugin.fetchDurationMs).toBeUndefined();
     expect(await Promise.all([plugin.getConnectionString(), plugin.read(), plugin.getConnectionString(), plugin.read()]))
       .toEqual(['mongodb://user:password@a/db', status, 'mongodb://user:password@a/db', status]);
+    expect(plugin.fetchDurationMs).toBeGreaterThanOrEqual(0);
     expect(requests.map(text => JSON.parse(text))).toEqual([{ Names: ['/test/uri', '/test/topology'], WithDecryption: true }]);
     expect(warning).not.toHaveBeenCalled();
   } finally {

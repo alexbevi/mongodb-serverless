@@ -23,7 +23,11 @@ const plugin = new SsmPlugin({
 // Supply this plugin to new MongoClient(undefined, { plugin }).
 const uri = await plugin.getConnectionString();
 const topology = await plugin.read();
+const ssmMs = plugin.fetchDurationMs;
 ```
+
+`fetchDurationMs` reports the duration of the shared `GetParameters` request after
+it completes. It remains `undefined` before the first request.
 
 The AWS SDK uses its normal region and credential providers. Supply an `SSMClient`
 through `client` to configure an endpoint or share an existing SDK client.

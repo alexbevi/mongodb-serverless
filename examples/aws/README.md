@@ -22,7 +22,7 @@ From the repository root:
 pnpm install
 ```
 
-The default deployment expects the MongoDB connection string in the `/mongodb-serverless-pattern/uri` SSM parameter. It must be a `SecureString`. The default namespace is `bench.documents`. Pass `--connection-string-parameter`, `--database`, or `--collection` to change these values.
+The default deployment expects the MongoDB connection string in the `/mongodb-serverless-pattern/uri` SSM parameter. It must be a `SecureString`. The default namespace is `bench.serverless_patterns`. Pass `--connection-string-parameter`, `--database`, or `--collection` to change these values.
 
 ## Usage
 

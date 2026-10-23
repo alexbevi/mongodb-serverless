@@ -18,6 +18,7 @@ it('defines a Regional API route and Lambda for each example handler', () => {
   expect(methods).toHaveLength(6);
   expect(methods.every(resource => resource.Properties?.['ApiKeyRequired'] === true)).toBe(true);
   expect(template.Parameters.DatabaseName.Default).toBe('bench');
+  expect(template.Parameters.CollectionName.Default).toBe('serverless_patterns');
 });
 
 it('grants reads of the URI and topology but writes only the topology', () => {

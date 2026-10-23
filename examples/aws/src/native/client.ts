@@ -5,7 +5,7 @@ import { initializeParameterCollection } from '../initialization.js';
 
 const database = process.env['DATABASE'] ?? 'bench';
 
-const collectionName = process.env['COLLECTION'] ?? 'documents';
+const collectionName = process.env['COLLECTION'] ?? 'serverless_patterns';
 
 const connectionStringParameter = requiredEnvironment('CONNECTION_STRING_PARAMETER');
 

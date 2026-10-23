@@ -83,7 +83,7 @@ function options(arguments_: string[]): Options {
     connectionStringParameter: value('--connection-string-parameter', '/mongodb-serverless-pattern/uri'),
     topologyParameter: value('--topology-parameter', '/mongodb-serverless-examples/topology'),
     database: value('--database', 'bench'),
-    collection: value('--collection', 'documents')
+    collection: value('--collection', 'serverless_patterns')
   };
 }
 

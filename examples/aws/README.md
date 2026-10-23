@@ -12,7 +12,7 @@ These examples expose the same MongoDB `find` and `save` operations through one 
 
 Each handler follows [MongoDB's Lambda connection guidance](https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda/): initialization work runs outside the handler, while the MongoDB client is created only when a valid request needs it and is retained for warm invocations. The find handlers use `nearest`; writes use MongoDB's primary write routing.
 
-The build uses [esbuild, as documented by AWS for TypeScript Lambda functions](https://docs.aws.amazon.com/lambda/latest/dg/typescript-package.html). It emits one minified, tree-shaken ZIP for each handler. The API uses the [Regional endpoint type](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html).
+The build uses [esbuild, as documented by AWS for TypeScript Lambda functions](https://docs.aws.amazon.com/lambda/latest/dg/typescript-package.html). It emits one minified ZIP for each handler and includes the complete MongoDB driver dependency tree in every variant so package loading is comparable. The API uses the [Regional endpoint type](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html).
 
 ## Install
 

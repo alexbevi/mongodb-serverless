@@ -48,8 +48,6 @@ export async function buildExamples(outputDirectory = join(exampleDirectory, 'di
     const bundleDirectory = join(outputDirectory, bundle.name);
     const output = join(bundleDirectory, 'index.mjs');
     const archive = join(outputDirectory, `${bundle.name}.zip`);
-    const usesServerlessDriver = bundle.name.startsWith('no-plugin-') || bundle.name.startsWith('aws-ssm-');
-
     await mkdir(bundleDirectory, { recursive: true });
     await build({
       entryPoints: [join(exampleDirectory, bundle.entry)],
@@ -69,17 +67,14 @@ export async function buildExamples(outputDirectory = join(exampleDirectory, 'di
       },
       external: [
         '@aws-sdk/*', '@mongodb-js/zstd', 'aws4', 'gcp-metadata', 'kerberos',
-        'mongodb-client-encryption', 'snappy', 'socks',
-        ...(usesServerlessDriver ? ['mongodb'] : [])
+        'mongodb-client-encryption', 'snappy', 'socks', 'mongodb'
       ],
       banner: {
         js: "import{createRequire as __createRequire}from'node:module';const require=__createRequire(import.meta.url);"
       }
     });
 
-    if (usesServerlessDriver) {
-      await copyPackage('mongodb', join(bundleDirectory, 'node_modules'), rootRequire, new Set());
-    }
+    await copyPackage('mongodb', join(bundleDirectory, 'node_modules'), rootRequire, new Set());
 
     await run('zip', ['-q', '-r', archive, '.'], { cwd: bundleDirectory });
 

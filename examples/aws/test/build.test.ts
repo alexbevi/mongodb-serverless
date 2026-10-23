@@ -16,7 +16,7 @@ it('defines one small bundle for every public example endpoint', () => {
   ]);
 });
 
-it('tree-shakes each handler into a deployable zip', async () => {
+it('packages each handler with the same external MongoDB driver', async () => {
   const outputDirectory = await mkdtemp(join(tmpdir(), 'mongodb-serverless-aws-'));
 
   try {
@@ -32,12 +32,11 @@ it('tree-shakes each handler into a deployable zip', async () => {
       expect(bundle.bundleBytes).toBeGreaterThan(0);
       expect(bundle.zipBytes).toBeLessThan(2_000_000);
       expect(source).not.toContain('sourceMappingURL');
+      expect(source).toContain('from"mongodb"');
 
       const files = (await run('unzip', ['-Z1', join(outputDirectory, `${bundle.name}.zip`)])).stdout;
 
-      if (bundle.name.startsWith('no-plugin-') || bundle.name.startsWith('aws-ssm-')) {
-        expect(files).toContain('node_modules/mongodb/package.json');
-      }
+      expect(files).toContain('node_modules/mongodb/package.json');
     }
   } finally {
     await rm(outputDirectory, { recursive: true, force: true });

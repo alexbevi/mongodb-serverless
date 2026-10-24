@@ -1,8 +1,7 @@
 # @mongodb-serverless/plugin-local
 
-Reads cluster topology from an environment variable. The first plugin for
-[`@mongodb-serverless/driver`](../../driver), and the one to use for local
-development.
+Stores replica-set topology and reads the cluster connection string in the
+current process environment. Use it for local development.
 
 ## Install
 
@@ -16,46 +15,39 @@ npm install @mongodb-serverless/plugin-local
 import { MongoClient } from '@mongodb-serverless/driver';
 import { LocalPlugin } from '@mongodb-serverless/plugin-local';
 
-const client = new MongoClient(uri, { plugin: new LocalPlugin() });
-```
-
-The variable holds the JSON output of
-[`replSetGetStatus`](https://www.mongodb.com/docs/manual/reference/command/replSetGetStatus/),
-which is what `rs.status()` returns:
-
-```sh
-export __MONGODB_CLUSTER_TOPOLOGY="$(mongosh --quiet --eval 'JSON.stringify(rs.status())')"
-```
-
-`verify()` throws if the variable is unset or does not parse as JSON.
-
-This plugin is read-only as constructed above, which is what the driver wants.
-The watcher needs to write, so it asks:
-
-```ts
-new LocalPlugin({ writable: true });
-```
-
-A read-only `write()` throws `PluginReadOnlyError` and leaves the variable
-untouched.
-
-## Configuration
-
-Override the variable name with the inherited `clusterTopologyVariableName`:
-
-```ts
 const plugin = new LocalPlugin();
-plugin.set('clusterTopologyVariableName', 'MY_TOPOLOGY');
+const client = new MongoClient(uri, { plugin });
+await client.db('app').collection('users').insertOne({ n: 1 });
+await client.close();
 ```
 
-The default is `__MONGODB_CLUSTER_TOPOLOGY`. See
-[the plugin overview](..) for the rest of the config.
+Leave `__MONGODB_CLUSTER_TOPOLOGY` unset for first-run discovery. `read()` returns
+`null` for an absent or empty variable, and throws for malformed JSON or status.
+`write()` replaces the variable with the JSON status document, including the
+authentication mechanism and resolved source added by discovery. Credentials
+remain in the connection string or driver options.
 
-## Scope
+To supply credentials through the plugin, set `__MONGODB_CONNECTION_STRING`
+and construct `new MongoClient(plugin)`. Use an explicit database
+name in `db(name)` with this form. Connection strings are kept separate from
+topology documents.
 
-This plugin is for local and development use. It reads one process environment,
-so a watcher in another process cannot update it. A deployment wants a plugin
-backed by a store both processes can reach.
+Override variable names with `plugin.set('clusterTopologyVariableName', 'MY_TOPOLOGY')`
+and `plugin.set('connectionStringVariableName', 'MY_URI')`.
 
-`replSetGetStatus` describes a replica set, so sharded and load-balanced
-clusters are out of scope.
+The plugin is writable by default. `{ writable: false }` prevents updates and
+causes discovery to fail with `PluginReadOnlyError` when it needs to store topology.
+`setup()` does nothing; `verify()` validates a populated topology variable and
+throws if it is missing. The driver calls `setup()` on a cache miss, but does not
+call `verify()` automatically.
+
+## Limitations
+
+Environment updates only affect this process. They do not update Lambda
+configuration, another process, or later cold starts. Use a shared-store plugin
+for persistence across instances. Concurrent clients in one process share the
+same variable; separate clusters or authentication defaults need separate
+variable names.
+
+Replica sets only. Sharded and load-balanced clusters, change streams, and
+sessions spanning read and write clients are unsupported by the driver.

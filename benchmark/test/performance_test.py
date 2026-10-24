@@ -2,37 +2,46 @@ import copy
 import sys
 import unittest
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parent))
+
+from event_fixtures import run
 
 
 class PerformanceTest(unittest.TestCase):
-    def test_gate_requires_one_hundred_valid_samples_and_ten_percent_for_both_operations(self):
+    def test_gate_requires_the_cached_plugin_ten_percent_below_native_for_both_operations(self):
         from performance import check_performance
-        data = {"configuration": {"diagnostics": False}, "samples": [
-            {"operation": operation, "variant": variant, "iteration": iteration,
-             "verified": True, "timings": {"total": duration}}
-            for operation in ('read', 'write')
-            for variant, duration in (('native', 100), ('serverless-no-monitoring', 90))
-            for iteration in range(100)]}
-        result = check_performance(data)
-        self.assertTrue(all(row['passed'] for row in result))
+        data = run(count=4, totals={('native', 'read'): 100.0, ('native', 'write'): 100.0,
+                                    ('ssm', 'read'): 90.0, ('ssm', 'write'): 90.0, ('no-plugin', 'write'): 120.0})
+        rows = check_performance(data)
+        self.assertTrue(all(row['passed'] for row in rows))
+        write = next(row for row in rows if row['operation'] == 'write')
+        self.assertEqual((write['nativeMedianMs'], write['noPluginMedianMs'], write['ssmMedianMs']), (100, 120, 90))
         for operation in ('read', 'write'):
             slower = copy.deepcopy(data)
             for sample in slower['samples']:
-                if sample['operation'] == operation and sample['variant'] == 'serverless-no-monitoring':
-                    sample['timings']['total'] = 90.01
+                if sample['operation'] == operation and sample['variant'] == 'ssm':
+                    sample['totalMs'] = 90.01
             self.assertEqual([row['operation'] for row in check_performance(slower) if not row['passed']], [operation])
-        outlier = copy.deepcopy(data)
-        outlier['samples'][-1]['timings']['total'] = 10000
-        self.assertTrue(all(row['passed'] for row in check_performance(outlier)))
-        for corrupt in ('missing', 'duplicate', 'nan', 'unverified', 'diagnostics'):
+
+    def test_gate_rejects_incomplete_or_invalid_runs(self):
+        from performance import check_performance
+        data = run(count=4, totals={('ssm', 'read'): 50.0, ('ssm', 'write'): 50.0})
+        for corrupt in ('missing', 'duplicate', 'nan', 'unverified', 'failure'):
             invalid = copy.deepcopy(data)
-            if corrupt == 'missing': invalid['samples'].pop()
-            if corrupt == 'duplicate': invalid['samples'][-1]['iteration'] = 0
-            if corrupt == 'nan': invalid['samples'][-1]['timings']['total'] = float('nan')
-            if corrupt == 'unverified': invalid['samples'][-1]['verified'] = False
-            if corrupt == 'diagnostics': invalid['configuration']['diagnostics'] = True
-            with self.subTest(corrupt=corrupt), self.assertRaises(ValueError):
+            if corrupt == 'missing':
+                invalid['samples'].pop()
+            if corrupt == 'duplicate':
+                invalid['samples'][1]['iteration'] = invalid['samples'][0]['iteration'] = 0
+                invalid['samples'][1].update(operation=invalid['samples'][0]['operation'], variant=invalid['samples'][0]['variant'])
+            if corrupt == 'nan':
+                invalid['samples'][0]['totalMs'] = float('nan')
+            if corrupt == 'unverified':
+                invalid['samples'][0]['verified'] = False
+            if corrupt == 'failure':
+                invalid['failures'] = [{'name': 'Error', 'message': 'x'}]
+            with self.assertRaises(ValueError, msg=corrupt):
                 check_performance(invalid)
 
 

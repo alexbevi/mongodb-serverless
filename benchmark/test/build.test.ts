@@ -8,12 +8,12 @@ test('declares the connection string parser imported by benchmark instrumentatio
   expect(manifest.devDependencies['mongodb-connection-string-url']).toBeDefined();
 });
 
-test('npm benchmark compiles the harness before validating arguments', () => {
+test('npm benchmark compiles the worker before validating arguments', () => {
   const result = spawnSync('npm', ['run', 'benchmark', '--', '--samples', '0'], { encoding: 'utf8' });
 
   expect(result.status).not.toBe(0);
-  expect(result.stderr).toMatch(/--samples must be an integer/);
-  expect(existsSync('benchmark/dist/run.js')).toBe(true);
+  expect(result.stderr).toMatch(/--samples must be a positive integer/);
+  expect(existsSync('benchmark/dist/cold.js')).toBe(true);
 }, 30_000);
 
 test('does not impose an artificial CPU quota on local benchmarks', () => {

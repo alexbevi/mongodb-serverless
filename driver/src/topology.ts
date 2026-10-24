@@ -1,8 +1,10 @@
+import { isResolvedAuthentication, type ResolvedAuthentication } from '../../plugins/shared/src/index.js';
 import type { ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
 import { InvalidTopologyError, NoPrimaryError, NoTopologyError } from './errors.js';
 
 export interface Topology {
   setName: string | undefined;
+  authentication?: ResolvedAuthentication;
   /** `host:port` of the primary. */
   primary: string;
   /** `host:port` of each healthy secondary, in the order reported. */
@@ -47,6 +49,10 @@ export function parseTopology(status: ReplSetGetStatus | null | undefined): Topo
     throw new InvalidTopologyError('Topology reports no members');
   }
 
+  if (status.authentication !== undefined && !isResolvedAuthentication(status.authentication)) {
+    throw new InvalidTopologyError('Topology authentication must contain a mechanism and source');
+  }
+
   const primaries: string[] = [];
   const secondaries: string[] = [];
 
@@ -74,7 +80,11 @@ export function parseTopology(status: ReplSetGetStatus | null | undefined): Topo
     );
   }
 
-  return { setName: isString(status.set) ? status.set : undefined, primary, secondaries };
+  const topology: Topology = { setName: isString(status.set) ? status.set : undefined, primary, secondaries };
+
+  if (status.authentication !== undefined) topology.authentication = status.authentication;
+
+  return topology;
 }
 
 function hostPortOf(member: ReplSetGetStatusMember): string {

@@ -35,6 +35,39 @@ for (const version of ['7.7.0', '^7.7.0']) {
 
     await writeFile(join(directory, 'example.cjs'), `(async () => {\n${prefix}${commonjs}\n})().catch(error => { console.error(error); process.exitCode = 1; });\n`);
 
+    const bootstrapDoc = await readFile(join(root, 'docs/bootstrap.md'), 'utf8');
+    const bootstrap = bootstrapDoc.match(/```js\n([\s\S]*?)```/)?.[1];
+
+    if (!bootstrap) throw new Error('No bootstrap example');
+    await writeFile(join(directory, 'bootstrap.mjs'), prefix + bootstrap);
+
+    const bootstrapCjs = bootstrap.replace(
+      "import { MongoClient } from '@mongodb-serverless/driver';",
+      "const { MongoClient } = require('@mongodb-serverless/driver');"
+    );
+
+    await writeFile(join(directory, 'bootstrap.cjs'), `(async () => {\n${prefix}${bootstrapCjs}\n})().catch(error => { console.error(error); process.exitCode = 1; });\n`);
+
+    const rootReadme = await readFile(join(root, 'README.md'), 'utf8');
+    const quickstart = rootReadme.split('## Quickstart')[1]?.match(/```ts\n([\s\S]*?)```/)?.[1];
+
+    if (!quickstart) throw new Error('No root quickstart example');
+    await writeFile(join(directory, 'quickstart.mjs'), prefix + quickstart + '\nawait client.close();\n');
+
+    const srvPrefix = `
+      import dns from 'node:dns';
+      dns.promises.resolve = async (_host, kind) => kind === 'SRV'
+        ? [{ name: 'member.cluster.localhost', port: 29400, weight: 0, priority: 0 }]
+        : [['authSource=admin&replicaSet=securetest']];
+      const uri = 'mongodb+srv://test:fixture-password@cluster.localhost/app?tlsCAFile=' + ${JSON.stringify(encodeURIComponent(fixture.ca))};
+    `;
+
+    const srvExample = bootstrap.replace('disableMonitoring: true,', `
+      lookup: (_hostname, options, callback) => dns.lookup('localhost', options, callback),
+      servername: 'localhost', disableMonitoring: true,`);
+
+    await writeFile(join(directory, 'bootstrap-srv.mjs'), srvPrefix + srvExample);
+
     await cp(join(directory, 'node_modules/mongodb'), join(directory, 'node_modules/mongodb-other'), { recursive: true });
     await cp(join(directory, 'node_modules/@mongodb-serverless/driver'), join(directory, 'node_modules/@mongodb-serverless/driver-copy'), { recursive: true });
 
@@ -60,7 +93,7 @@ for (const version of ['7.7.0', '^7.7.0']) {
 
     await writeFile(join(directory, 'isolation.mjs'), prefix + isolation);
 
-    for (const file of ['example.mjs', 'example.cjs', 'isolation.mjs']) {
+    for (const file of ['example.mjs', 'example.cjs', 'bootstrap.mjs', 'bootstrap.cjs', 'bootstrap-srv.mjs', 'quickstart.mjs', 'isolation.mjs']) {
       await exec(process.execPath, [file], { cwd: directory });
       await exec('npx', ['--yes', '--package=node@20.19.0', 'node', file], { cwd: directory });
     }

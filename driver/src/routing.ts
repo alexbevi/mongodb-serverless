@@ -95,7 +95,7 @@ export function routeFor(routes: Record<string, Rule>, method: string, args: unk
 
   // An explicit read preference can pull a read onto the primary, but never
   // pushes a write off it.
-  if (route === 'read' && wantsPrimary(args)) return 'write';
+  if (route === 'read' && PRIMARY_MODES.has(readPreferenceMode(args) ?? '')) return 'write';
 
   return route;
 }
@@ -118,20 +118,20 @@ function pipelineRoute(args: unknown[]): Route {
   return 'read';
 }
 
-function wantsPrimary(args: unknown[]): boolean {
+export function readPreferenceMode(args: unknown[]): string | undefined {
   for (const arg of args) {
     if (!isRoutingFields(arg)) continue;
 
     const preference = arg['readPreference'];
 
-    if (isReadPreferenceString(preference)) return PRIMARY_MODES.has(preference);
+    if (isReadPreferenceString(preference)) return preference;
 
     if (isReadPreferenceObject(preference)) {
-      return PRIMARY_MODES.has(preference['mode']);
+      return preference['mode'];
     }
   }
 
-  return false;
+  return undefined;
 }
 
 interface RoutingFields {

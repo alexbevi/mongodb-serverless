@@ -74,7 +74,7 @@ describe.skipIf(!existsSync(built))('drop-in resolution', () => {
     const output = run(
       'construct.mjs',
       `import { MongoClient, MissingPluginError } from '${built}';
-       const client = new MongoClient('mongodb://host:27017/db');
+       const client = new MongoClient();
        try {
          await client.db('app').collection('c').findOne({});
          console.log('unexpected');

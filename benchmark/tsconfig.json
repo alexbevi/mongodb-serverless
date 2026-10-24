@@ -16,6 +16,7 @@
     },
     {
       "path": "../plugins/local"
-    }
+    },
+    { "path": "../plugins/aws-ssm" }
   ]
 }

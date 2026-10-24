@@ -6,3 +6,15 @@ export type {
   ReplSetGetStatus,
   ReplSetGetStatusMember
 } from '../../plugins/shared/src/index.js';
+
+import type { TopologyPlugin } from '../../plugins/shared/src/index.js';
+
+export const uncachedTopology: TopologyPlugin = {
+  name: 'uncached',
+  version: '1',
+  author: 'mongodb-serverless',
+  async setup() {},
+  async verify() {},
+  async read() { return null; },
+  async write() {}
+};

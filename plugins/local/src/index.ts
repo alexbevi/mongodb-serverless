@@ -6,6 +6,14 @@ export class LocalPlugin extends ServerlessPlugin {
   readonly version = '0.0.0';
   readonly author = 'MongoDB';
 
+  constructor(options: { writable?: boolean } = {}) {
+    super({ writable: true, ...options });
+  }
+
+  async getConnectionString(): Promise<string | undefined> {
+    return process.env[this.get('connectionStringVariableName')];
+  }
+
   async setup(): Promise<void> {
     // The environment is already there; nothing to provision.
   }
@@ -14,8 +22,10 @@ export class LocalPlugin extends ServerlessPlugin {
     this.#parse(this.#rawOrThrow());
   }
 
-  async read(): Promise<ReplSetGetStatus> {
-    return this.#parse(this.#rawOrThrow());
+  async read(): Promise<ReplSetGetStatus | null> {
+    const raw = process.env[this.#variableName()];
+
+    return raw == null || raw === '' ? null : this.#parse(raw);
   }
 
   async write(status: ReplSetGetStatus): Promise<void> {

@@ -1,3 +1,4 @@
+import type { WriteOperation } from './recovery.js';
 import type { BulkOperationBase, FindOperators } from 'mongodb';
 import { callMethod } from './method.js';
 import { isStringProperty } from './property.js';
@@ -41,7 +42,7 @@ type Recorded = { path: 'self' | 'find'; method: string; args: unknown[] };
  * Bulk writes always go to the primary, so there is no routing decision here,
  * only the ordering problem.
  */
-export function createBulkProxy(source: BulkSource, label: string) {
+export function createBulkProxy(source: BulkSource, label: string, executeWrite?: WriteOperation) {
   const recorded: Recorded[] = [];
   let real: Promise<BulkOperationBase> | undefined;
 
@@ -133,9 +134,13 @@ export function createBulkProxy(source: BulkSource, label: string) {
 
         if (property === 'execute') {
           return async (...args: unknown[]) => {
-            const builder = await resolve();
+            const operation = async () => {
+              const builder = await resolve();
 
-            return callMethod(builder, 'execute', args, `${label}: the mongodb driver has no execute() to replay.`);
+              return callMethod(builder, 'execute', args, `${label}: the mongodb driver has no execute() to replay.`);
+            };
+
+            return executeWrite ? executeWrite(operation, false) : operation();
           };
         }
 

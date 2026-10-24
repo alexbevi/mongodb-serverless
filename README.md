@@ -1,41 +1,42 @@
 # MongoDB Serverless Driver
 
 A wrapper around the [MongoDB Node.js driver](https://github.com/mongodb/node-mongodb-native)
-that skips topology discovery on connect.
+that discovers replica-set members and routes operations directly to them.
+An optional plugin shares topology across client instances.
 
-In a serverless runtime, every cold start pays for the driver's normal startup
-work: handshake each replica set member, elect a view of the topology, then
-select a server. The instance serves one request and throws that away. This
-wrapper moves discovery out of the request path. A watcher process keeps the
-output of `replSetGetStatus` in a store, a plugin reads it, and the driver
-opens a `directConnection` straight to the member it needs.
+The driver discovers topology on first use through one direct member connection,
+retains that connection for operations, and opens another only when the required
+role differs. With a plugin, later cold starts can reuse cached topology.
+Native retryable writes stay on. Topology-related write failures also trigger a
+refresh and one replay on the new primary when the server confirms that the write
+was rejected before execution. No separate
+watcher process is needed.
 
-Reads go to a secondary, writes go to the primary, each on its own client,
-created on first use.
+Reads prefer a healthy secondary; writes go to the primary.
 
 ## Benchmark
 
-![Local replica-set discovery and direct member connections](benchmark/results/local/latency.png)
-See the [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
+![Cold read on AWS Lambda with cached topology](benchmark/results/aws/read-ssm.png)
+
+See the [AWS results](benchmark/results/aws/results.md), [local results](benchmark/results/local/results.md) and [how to run the benchmark](benchmark/README.md).
 
 ## Components
 
 | Directory | Package | What it does |
 |---|---|---|
 | `driver/` | `@mongodb-serverless/driver` | Replaces `MongoClient` and routes operations to a read or write client |
-| `watcher/` | `@mongodb-serverless/watcher` | Polls a cluster and writes its topology through a plugin |
 | `plugins/shared/` | not published | The plugin contract, compiled into each plugin |
 | `plugins/local/` | `@mongodb-serverless/plugin-local` | Reads topology from an environment variable |
+| `plugins/aws-ssm/` | `@mongodb-serverless/plugin-aws-ssm` | Fetches a SecureString URI and cached topology in one SSM request |
 
 ## Quickstart
 
-Change the import, pick a plugin, and leave the rest of your code alone.
+Change the import and supply a replica-set connection string.
 
 ```ts
 import { MongoClient } from '@mongodb-serverless/driver';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
 
-const client = new MongoClient(uri, { plugin: new LocalPlugin() });
+const client = new MongoClient(uri);
 
 await client.db('app').collection('users').insertOne({ n: 1 }); // primary
 await client.db('app').collection('users').find({}).toArray();  // secondary
@@ -44,22 +45,15 @@ await client.db('app').collection('users').find({}).toArray();  // secondary
 Every other export (`ObjectId`, `ReadPreference`, the error classes) passes
 through to the real driver unchanged.
 
-The topology comes from the watcher, which runs separately:
+With `disableMonitoring: true` and a pool limit of one, healthy bootstrap opens
+one socket when the chosen member can serve the operation, or two when another
+member is needed. See [the bootstrap diagrams and configuration](docs/bootstrap.md)
+for the supported authentication modes and connection-count limits.
 
-```ts
-import { Watcher } from '@mongodb-serverless/watcher';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
-
-const watcher = new Watcher({ uri, plugin: new LocalPlugin({ writable: true }) });
-watcher.start();
-```
-
-The driver's plugin is read-only; only the watcher's is writable. For a
-one-off local setup you can also populate the variable by hand:
-
-```sh
-export __MONGODB_CLUSTER_TOPOLOGY="$(mongosh --quiet --eval 'JSON.stringify(rs.status())')"
-```
+The optional local plugin stores discovered topology in the current process
+environment.
+For shared topology across Lambda instances, use the [SSM plugin](plugins/aws-ssm),
+which fetches the connection string and topology together. See [the architecture and plugin sequences](docs/architecture.md).
 
 ## Scope
 
@@ -69,9 +63,10 @@ different source. Change streams and sessions that span the read and write
 client are also unsupported. See `driver/README.md` for the details and the
 reasoning.
 
-A failover is only picked up on the watcher's next cycle. Until then the stored
-topology names a member that is no longer primary and writes will fail, so
-`refreshIntervalMS` is a tradeoff rather than a fix.
+Discovery needs `replSetGetStatus` permission. Network failures, bulk operations,
+and cursors can leave partial or unknown outcomes, so these refresh topology
+without automatic replay. Read failures do not trigger refresh. See the
+[driver limitations](driver/README.md) before migrating.
 
 ## Development
 

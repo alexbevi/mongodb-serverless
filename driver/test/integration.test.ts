@@ -1,3 +1,5 @@
+import { once } from 'node:events';
+import { createServer } from 'node:net';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { MongoClient as RealMongoClient, type CommandStartedEvent } from 'mongodb';
 import { ServerlessMongoClient, type ServerlessClientOptions } from '../src/client.js';
@@ -5,10 +7,12 @@ import { NoPrimaryError, SessionRoutingError } from '../src/errors.js';
 import {
   describeCluster,
   dockerAvailable,
+  failCommand,
   startCluster,
   type TestCluster
 } from '../../test/harness/cluster.js';
 import { TestPlugin } from './harness/plugin.js';
+import { startRelay, tcpPort } from '../../test/harness/relay.js';
 
 const hasDocker = await dockerAvailable();
 
@@ -94,6 +98,272 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     expect(cluster.primary).toMatch(/^localhost:\d+$/);
     expect(cluster.secondaries).toHaveLength(2);
   });
+
+  it('discovers and stores topology on first use, then reuses it', async () => {
+    let stored: typeof cluster.status | null = null;
+
+    const plugin = {
+      name: 'discovery', version: '1', author: 'test',
+      async setup() {}, async verify() {},
+      async read() { return stored; },
+      async write(status: typeof cluster.status) { stored = status; }
+    };
+
+    const commands: CommandStartedEvent[] = [];
+
+    for (let run = 0; run < 2; run += 1) {
+      const client = new ServerlessMongoClient(cluster.uri, {
+        plugin, monitorCommands: true,
+        on: { commandStarted: event => commands.push(event) }
+      });
+
+      clients.push(client);
+      await client.db('itest').collection('discovery').insertOne({ run });
+    }
+
+    expect(stored).toMatchObject({ set: cluster.status.set });
+    expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
+    expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+  });
+
+  it('rejects discovery when the seed belongs to a different replica set', async () => {
+    const uri = `mongodb://${cluster.primary}/?replicaSet=${cluster.status.set}-other`;
+    const native = new RealMongoClient(uri, { serverSelectionTimeoutMS: 250 });
+
+    try {
+      await expect(native.connect()).rejects.toMatchObject({ name: 'MongoServerSelectionError' });
+    } finally {
+      await native.close();
+    }
+
+    let stored: typeof cluster.status | null = null;
+
+    const plugin = {
+      name: 'discovery', version: '1', author: 'test',
+      async setup() {}, async verify() {},
+      async read() { return stored; },
+      async write(status: typeof cluster.status) { stored = status; }
+    };
+
+    const commands: CommandStartedEvent[] = [];
+
+    const client = new ServerlessMongoClient(uri, {
+      plugin,
+      serverSelectionTimeoutMS: 250,
+      monitorCommands: true,
+      on: { commandStarted: event => commands.push(event) }
+    });
+
+    clients.push(client);
+
+    await expect(client.db('admin').command({ ping: 1 })).rejects.toThrow();
+    expect(stored).toBeNull();
+    expect(portsFor(commands, 'ping')).toEqual([]);
+  });
+
+  it('uses the plugin connection string when no explicit URI is supplied', async () => {
+    const plugin = new TestPlugin(cluster.status);
+
+    const client = new ServerlessMongoClient(
+      Object.assign(plugin, { async getConnectionString() { return cluster.uri; } })
+    );
+
+    clients.push(client);
+
+    await expect(client.db('itest').collection('plugin_uri').insertOne({ value: 1 }))
+      .resolves.toMatchObject({ acknowledged: true });
+  });
+
+  it('refreshes a stale primary before sending a write', async () => {
+    const stale = {
+      ...cluster.status,
+      members: cluster.status.members.map(member => ({
+        ...member,
+        state: member.name === cluster.secondaries[0] ? 1 : 2,
+        stateStr: member.name === cluster.secondaries[0] ? 'PRIMARY' : 'SECONDARY'
+      }))
+    };
+
+    const { client, commands, plugin } = connect(stale);
+    await client.db('itest').collection('recovery').insertOne({ marker: Date.now() });
+
+    expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary)]);
+    expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
+    expect(await plugin.read()).toMatchObject({
+      members: expect.arrayContaining([expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })])
+    });
+  });
+
+  it('lets the native driver retry a write whose connection drops', async () => {
+    const appName = `retry-network-${Date.now()}`;
+    const marker = Date.now();
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], closeConnection: true, appName }, 1);
+
+    try {
+      const { client, commands } = connect(cluster.status, cluster.uri, { appName });
+      await client.db('itest').collection('native_retry').insertOne({ marker });
+
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+      expect(portsFor(commands, 'replSetGetStatus')).toEqual([]);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('native_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
+  });
+
+  it('lets the native driver retry a dropped write on the bootstrap connection', async () => {
+    const appName = `retry-bootstrap-${Date.now()}`;
+    const marker = Date.now();
+    const commands: CommandStartedEvent[] = [];
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], closeConnection: true, appName }, 1);
+
+    try {
+      // Seeding only the primary makes the bootstrap connection serve the write.
+      const client = new ServerlessMongoClient(`mongodb://${cluster.primary}/?replicaSet=${cluster.status.set}`, {
+        appName, monitorCommands: true, on: { commandStarted: event => commands.push(event) }
+      });
+
+      clients.push(client);
+      await client.db('itest').collection('bootstrap_retry').insertOne({ marker });
+
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+      expect(portsFor(commands, 'replSetGetStatus')).toEqual([]);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('bootstrap_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
+  });
+
+  it('replays on the refreshed primary after the native retry is also rejected', async () => {
+    const appName = `retry-layers-${Date.now()}`;
+    const marker = Date.now();
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], errorCode: 10107, appName }, 2);
+
+    try {
+      const { client, commands } = connect(cluster.status, cluster.uri, { appName });
+      await client.db('itest').collection('layered_retry').insertOne({ marker });
+
+      // The original attempt and the native retry are rejected; the wrapper
+      // refreshes topology and its replay succeeds.
+      expect(portsFor(commands, 'insert')).toEqual(Array(3).fill(portOf(cluster.primary)));
+      expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('layered_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
+  });
+
+  it('refreshes topology after a server-selection error with an undefined code', async () => {
+    const unavailableMember = createServer(socket => socket.destroy());
+    unavailableMember.listen(0, '127.0.0.1');
+    await once(unavailableMember, 'listening');
+
+    try {
+      const stale = {
+        ...cluster.status,
+        members: cluster.status.members.map(member =>
+          member.stateStr === 'PRIMARY'
+            ? { ...member, name: `127.0.0.1:${tcpPort(unavailableMember)}` }
+            : member
+        )
+      };
+
+      const { client, commands, plugin } = connect(stale, cluster.uri, {
+        serverSelectionTimeoutMS: 1000,
+        connectTimeoutMS: 250
+      });
+
+      const collection = client.db('itest').collection('unreachable_primary');
+      const attempt = collection.insertOne({ marker: Date.now() });
+
+      await expect(attempt).rejects.toMatchObject({ name: 'MongoServerSelectionError' });
+      await expect(attempt).rejects.toHaveProperty('code', undefined);
+      expect(portsFor(commands, 'insert')).toEqual([]);
+      expect(
+        portsFor(commands, 'replSetGetStatus'),
+        'A server-selection failure must refresh through a reachable cached member'
+      ).toHaveLength(1);
+      expect(await plugin.read()).toMatchObject({
+        members: expect.arrayContaining([
+          expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })
+        ])
+      });
+
+      await expect(collection.insertOne({ marker: Date.now() }))
+        .resolves.toMatchObject({ acknowledged: true });
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary)]);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        unavailableMember.close(error => error ? reject(error) : resolve());
+      });
+    }
+  }, 10_000);
+
+  it('refreshes topology after a bulk write wraps a network failure without replaying it', async () => {
+    const relay = await startRelay(portOf(cluster.primary));
+    let disconnected: Promise<void> | undefined;
+
+    try {
+      const cached = {
+        ...cluster.status,
+        members: cluster.status.members.map(member =>
+          member.stateStr === 'PRIMARY'
+            ? { ...member, name: `127.0.0.1:${relay.port}` }
+            : member
+        )
+      };
+
+      const { client, commands, plugin } = connect(cached, cluster.uri, {
+        serverSelectionTimeoutMS: 1000,
+        connectTimeoutMS: 250,
+        // Isolates the wrapper's handling of a wrapped network error. With
+        // native retries on, the retry fails server selection instead.
+        retryWrites: false,
+        on: {
+          commandStarted(event) {
+            if (event.commandName === 'insert' && disconnected == null) {
+              disconnected = relay.close();
+            }
+          }
+        }
+      });
+
+      const collection = client.db('itest').collection('bulk_network_failure');
+      const attempt = collection.insertMany([{ value: 1 }, { value: 2 }]);
+
+      await expect(attempt).rejects.toMatchObject({
+        name: 'MongoBulkWriteError',
+        errorResponse: { name: 'MongoNetworkError' },
+        errorLabels: expect.not.arrayContaining(['RetryableWriteError'])
+      });
+      expect(portsFor(commands, 'insert')).toEqual([relay.port]);
+      expect(
+        portsFor(commands, 'replSetGetStatus'),
+        'A wrapped bulk network failure must refresh through a reachable cached member'
+      ).toHaveLength(1);
+      expect(await plugin.read()).toMatchObject({
+        members: expect.arrayContaining([
+          expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })
+        ])
+      });
+
+      await expect(collection.insertOne({ value: 3 }))
+        .resolves.toMatchObject({ acknowledged: true });
+      expect(portsFor(commands, 'insert')).toEqual([relay.port, portOf(cluster.primary)]);
+    } finally {
+      await disconnected;
+      await relay.close();
+    }
+  }, 10_000);
 
   it('sends a write to the primary', async () => {
     const { client, commands } = connect();
@@ -221,6 +491,40 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       }
 
       expect(seen).toEqual([0, 1, 2, 3]);
+    });
+
+    it('closes a primary cursor on early iterator exit', async () => {
+      const { client, commands } = connect();
+      const name = `iterator-close-${Date.now()}`;
+      await seed(client, name, 3);
+      const cursor = client.db('itest').collection(name).find({}, { readPreference: 'primary', batchSize: 1 });
+      const seen: unknown[] = [];
+
+      for await (const document of cursor) {
+        seen.push(document['n']);
+        break;
+      }
+
+      expect(seen).toHaveLength(1);
+      expect(cursor.closed).toBe(true);
+      expect(portsFor(commands, 'find')).toEqual([portOf(cluster.primary)]);
+      expect(portsFor(commands, 'killCursors')).toEqual([portOf(cluster.primary)]);
+    });
+
+    it('executes an iterated $out once on the primary', async () => {
+      const { client, commands } = connect();
+      const source = `iterator-out-${Date.now()}`;
+      const destination = `${source}-result`;
+      await seed(client, source, 3);
+      const seen: unknown[] = [];
+
+      for await (const document of client.db('itest').collection(source).aggregate([{ $out: destination }])) {
+        seen.push(document);
+      }
+
+      expect(seen).toEqual([]);
+      expect(portsFor(commands, 'aggregate')).toEqual([portOf(cluster.primary)]);
+      await expect(client.db('itest').collection(destination).countDocuments({}, { readPreference: 'primary' })).resolves.toBe(3);
     });
 
     it('sends an aggregate with $out to the primary', async () => {

@@ -1,10 +1,11 @@
 import { MongoClient, type Db, type MongoClientOptions, type MongoClientEvents } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { ClientPair, type ClientFactory } from './clients.js';
-import { UnsupportedOperationError } from './errors.js';
+import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
+import { createWriteExecutor } from './recovery.js';
 import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
-import type { TopologyPlugin } from './plugin.js';
+import { uncachedTopology, type TopologyPlugin } from './plugin.js';
 
 export interface ServerlessClientOptions extends MongoClientOptions {
   /** A plugin, or the name of a package exporting one. */
@@ -28,21 +29,49 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
  * makes.
  */
 export class ServerlessMongoClient {
-  readonly #uri: string;
-  readonly #defaultDb: string | undefined;
-  readonly #plugin: Promise<TopologyPlugin>;
-  readonly #pair: Promise<ClientPair>;
+  readonly #uri: string | undefined;
+  #defaultDb: string | undefined;
+  readonly #plugin: () => Promise<TopologyPlugin>;
+  readonly #pair: () => Promise<ClientPair>;
 
-  constructor(uri: string, options: ServerlessClientOptions = {}) {
-    const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = options;
+  constructor(plugin: TopologyPlugin);
+  constructor(options: ServerlessClientOptions);
+  constructor(uri: string, options?: ServerlessClientOptions);
+  constructor();
+  constructor(
+    uriPluginOrOptions?: string | TopologyPlugin | ServerlessClientOptions,
+    options: ServerlessClientOptions = {}
+  ) {
+    let uri: string | undefined;
+    let clientOptions: ServerlessClientOptions;
+
+    if (isPluginArgument(uriPluginOrOptions)) {
+      uri = undefined;
+      clientOptions = { plugin: uriPluginOrOptions };
+    } else if (isClientOptions(uriPluginOrOptions)) {
+      uri = undefined;
+      clientOptions = uriPluginOrOptions;
+    } else {
+      uri = uriPluginOrOptions;
+      clientOptions = options;
+    }
+
+    const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = clientOptions;
 
     this.#uri = uri;
-    this.#defaultDb = defaultDatabaseOf(uri);
-    this.#plugin = resolvePlugin(plugin);
-    this.#pair = this.#plugin.then(
-      resolved =>
-        new ClientPair({
-          uri,
+    let resolvedPlugin: Promise<TopologyPlugin> | undefined;
+    let pair: Promise<ClientPair> | undefined;
+    this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin, uri == null ? undefined : uncachedTopology);
+    this.#pair = () => pair ??= this.#plugin().then(
+      async resolved => {
+        const connectionString = uri ?? await resolved.getConnectionString?.();
+
+        if (!connectionString) {
+          throw new ServerlessDriverError('Supply a connection string or a plugin with getConnectionString().');
+        }
+
+        return new ClientPair({
+          uri: connectionString,
           plugin: resolved,
           createClient: (uri, options) => {
             const client = (createClient ?? defaultFactory)(uri, options);
@@ -55,8 +84,12 @@ export class ServerlessMongoClient {
           },
           driverOptions,
           disableMonitoring
-        })
-    );
+        });
+      }
+    ).catch(error => {
+      pair = undefined;
+      throw error;
+    });
   }
 
   get options(): Readonly<MongoClientOptions> {
@@ -65,7 +98,7 @@ export class ServerlessMongoClient {
 
   /** The plugin, once resolved. Resolution is deferred to first use. */
   async plugin(): Promise<TopologyPlugin> {
-    return this.#plugin;
+    return this.#plugin();
   }
 
   /**
@@ -73,13 +106,13 @@ export class ServerlessMongoClient {
    * operation, so there is nothing to do here.
    */
   async connect(): Promise<this> {
-    await this.#plugin;
+    await this.#pair();
 
     return this;
   }
 
   db(name?: string): Db {
-    const dbName = name ?? this.#defaultDb;
+    const dbName = name ?? (this.#defaultDb ??= this.#uri == null ? undefined : defaultDatabaseOf(this.#uri));
 
     if (dbName == null) {
       throw new TypeError(
@@ -89,21 +122,21 @@ export class ServerlessMongoClient {
 
     return createDbFacade(
       {
-        read: async () => (await this.#pair).read(),
-        write: async () => (await this.#pair).write()
+        read: async anyMember => (await this.#pair()).read(anyMember),
+        write: async () => (await this.#pair()).write()
       },
-      dbName
+      dbName,
+      createWriteExecutor(this.#pair)
     );
   }
 
   async close(): Promise<void> {
-    await (await this.#pair).close();
+    await (await this.#pair()).close();
   }
 
   watch(): never {
     throw new UnsupportedOperationError(
-      'watch() is not supported. Change streams need a resume story that belongs with ' +
-        'the watcher, so they are out of scope in this version.'
+      'watch() is not supported. Change streams require resumable cursors across member changes.'
     );
   }
 
@@ -135,4 +168,20 @@ function defaultDatabaseOf(uri: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function isPluginArgument(
+  value: string | TopologyPlugin | ServerlessClientOptions | undefined
+): value is TopologyPlugin {
+  return typeof value === 'object' && value !== null &&
+    'setup' in value &&
+    'verify' in value &&
+    'read' in value &&
+    'write' in value;
+}
+
+function isClientOptions(
+  value: string | ServerlessClientOptions | undefined
+): value is ServerlessClientOptions {
+  return typeof value === 'object' && value !== null;
 }

@@ -1,7 +1,9 @@
 # @mongodb-serverless/driver
 
-Replaces the driver's `MongoClient` with one that reads a pre-discovered
-topology from a plugin and routes each operation to a read or write client.
+Replaces the driver's `MongoClient` with one that routes operations directly to
+replica-set members. It discovers topology when routing needs it and remembers it for
+that client. An optional plugin shares topology across client instances.
+Discovery requires permission to run `replSetGetStatus`.
 
 ## Install
 
@@ -14,14 +16,13 @@ dependency of this package. Install whichever one you use.
 
 ## Usage
 
-Change `from 'mongodb'` to `from '@mongodb-serverless/driver'`. Nothing else in
-your code changes.
+Change `from 'mongodb'` to `from '@mongodb-serverless/driver'`. Check the
+limitations below before replacing an existing client.
 
 ```ts
 import { MongoClient, ObjectId } from '@mongodb-serverless/driver';
-import { LocalPlugin } from '@mongodb-serverless/plugin-local';
 
-const client = new MongoClient(uri, { plugin: new LocalPlugin() });
+const client = new MongoClient(uri);
 ```
 
 `ObjectId` here is the real driver's class. Only `MongoClient` is ours.
@@ -31,6 +32,8 @@ const client = new MongoClient(uri, { plugin: new LocalPlugin() });
 By instance, which TypeScript checks at compile time:
 
 ```ts
+import { LocalPlugin } from '@mongodb-serverless/plugin-local';
+
 new MongoClient(uri, { plugin: new LocalPlugin() });
 ```
 
@@ -49,10 +52,43 @@ setDefaultPlugin(new LocalPlugin());
 const client = new MongoClient(uri);
 ```
 
-An explicit `plugin` option wins over `setDefaultPlugin`. With neither, the
-first operation throws `MissingPluginError`. There is no environment variable
-for choosing a plugin, though a plugin may read the environment for its own
-configuration.
+An explicit `plugin` option wins over `setDefaultPlugin`. With neither, supply
+a URI: topology stays in memory for that client and is not persisted. There is
+no environment variable for choosing a plugin, though a plugin may read the
+environment for its own configuration.
+
+When the plugin implements `getConnectionString()`, omit the explicit URI with
+`new MongoClient(plugin)`. If other driver options are needed, use
+`new MongoClient({ plugin, ...options })`. Pass a database name to `db(name)` in
+this form: the plugin resolves asynchronously, so its default database is not
+available when `db()` is called. An explicit URI takes precedence. Credentials
+remain in the plugin's connection-string store; topology documents contain no
+copy of them.
+
+On a cache miss, the native driver's URI parser and SRV/TXT resolver produce the
+seed list and connection settings. The wrapper tries seeds in random order,
+connecting directly to one member at a time. It retains a successful connection
+for operations targeting that member. Cached routing and refresh through known
+members perform no SRV or TXT lookups. Discovery uses the initial handshake for
+replica-set identity and member address checks; it sends no additional `hello`.
+
+SRV resolution uses an internal driver API, verified against `mongodb@7.7.0`.
+It requires a stable version in `>=7.7.0 <8.0.0`; recheck DNS and authentication
+behavior on driver upgrades.
+
+Discovery stores the authentication mechanism and the native driver's resolved
+`authSource` alongside topology. Direct read, write, and refresh connections reuse
+that source, including when another wrapper reads the cached topology. Explicit
+`authSource` in the URI or constructor options takes precedence. Passwords,
+certificates, tokens, and provider callbacks come from each wrapper's original
+configuration; they are never stored in topology. TLS remains enabled by default
+for SRV URIs; an explicit `tls: false` or `ssl: false` constructor option is
+preserved for bootstrap and cached connections.
+
+Use separate topology records for different clusters or authentication defaults.
+Changing the authentication mechanism triggers native discovery again. Older
+records without authentication metadata still work with explicit `authSource`;
+clear them once to discover a source supplied only by DNS TXT.
 
 ## Routing
 
@@ -64,18 +100,42 @@ stage.
 An explicit `readPreference` overrides the table, so
 `find(q, { readPreference: 'primary' })` goes to the write client.
 
-The read client connects to the first member whose `stateStr` is `SECONDARY`
-with `health: 1`. With no healthy secondary, reads fall back to the primary,
+Reads reuse an existing healthy secondary connection. Otherwise, the read
+client connects to the first member whose `stateStr` is `SECONDARY` with
+`health: 1`. With no healthy secondary, reads fall back to the primary,
 which is what a single-node set needs.
 
-Both clients are created on first use and reused. When reads fall back to the
-primary, one client serves both. `close()` closes every client it opened.
+An explicit operation `readPreference: 'nearest'` can reuse an already connected
+primary or secondary, including the bootstrap connection. This permits either
+role but does not implement latency, tag, or staleness filtering; use it only when
+any healthy member is acceptable. Other preferences retain the limitations below.
+
+Without a plugin, the native handshake identifies the connected member's role.
+If it can serve the operation, the wrapper returns the result without running
+`replSetGetStatus`. Later operations reuse that connection while its reported
+role remains suitable. An operation needing another role first discovers
+topology on the existing connection, then connects to the required member.
+Discovery failures affect only operations that need discovery; later calls can
+retry. Role mismatches and eligible write failures trigger the recovery below.
+
+Plugin cache misses still discover and persist before executing operations.
+The bootstrap connection is reused for its member; other connections open on
+first use. When reads fall back to the primary, one client serves both.
+`close()` closes every client it opened.
+
+Before returning a routed client, the wrapper checks the role reported by the
+native driver against the cached topology. A mismatch triggers one discovery
+refresh, awaits the plugin's topology write, and selects the member again. A
+second mismatch fails before sending the application operation. Matching roles
+need no extra `hello` command. The check uses native server-description events;
+with monitoring disabled, it does not poll reused connections for role changes.
+An election can still occur between validation and execution.
 
 ### Disable monitoring
 
-Opt in with `disableMonitoring: true` on the wrapper. It applies to both lazy
-clients, including clients returned by `createClient`. The default remains
-unchanged.
+Opt in with `disableMonitoring: true` on the wrapper. It applies to bootstrap,
+routed, and refresh connections, including clients returned by `createClient`.
+Monitoring remains enabled by default.
 
 The same patch works on a native client without a plugin. Install
 `mongodb@^7.7.0`, then call the helper before connecting or issuing an operation.
@@ -99,15 +159,22 @@ try {
 }
 ```
 
+With `maxPoolSize: 1` and `minPoolSize: 0`, healthy bootstrap and sequential
+operations open one socket if the selected member can serve the operation, or
+two if another member is needed. No plugin is required. The first connection is
+retained; later reads prefer an already connected healthy secondary. Failed
+seeds, elections, and replacement of idle connections can increase the count.
+See [the bootstrap diagrams](../docs/bootstrap.md).
+
 The first socket completes the native handshake and authentication, then enters
 the application pool. No heartbeat or RTT sockets, timers, or heartbeat events
 run for this client. Command monitoring and pool events still work. Pool sizes
 remain configurable; minimum-pool maintenance can open application connections.
 
-Recovery runs when an operation needs a connection and targets the same host.
-It does not discover another primary or refresh the plugin's topology. A write
-to a member that has stepped down can therefore fail. Native retry rules still
-apply. Closing the client never reconnects to end sessions.
+On a standalone native client, the monitoring patch reconnects to the same host
+and retains native retry rules. The serverless wrapper keeps those rules too;
+topology-related write failures also trigger the refresh described below.
+Closing a patched client never reconnects to end sessions.
 
 This experimental patch uses 7.7.0 as its verified baseline. It accepts stable
 versions in `>=7.7.0 <8.0.0` when the internal API checks pass. Those checks cannot
@@ -137,7 +204,7 @@ Cursors work as they normally do:
 const docs = await collection.find({ a: 1 }).sort({ b: -1 }).limit(10).toArray();
 ```
 
-Under the hood the real cursor is not created until the first terminal call
+The native cursor is not created until the first terminal call
 (`toArray`, `next`, `hasNext`, `forEach`, `for await`), since routing has to
 read the topology first. Chained calls are buffered and replayed in order, and
 a cursor you never read opens no connection. `initializeOrderedBulkOp` and
@@ -159,7 +226,7 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 
 | Error | Cause |
 |---|---|
-| `MissingPluginError` | No plugin supplied by option or `setDefaultPlugin` |
+| `MissingPluginError` | Neither a URI nor a plugin supplied by option or `setDefaultPlugin` |
 | `PluginNotInstalledError` | A plugin named by string could not be resolved |
 | `InvalidPluginError` | The plugin is missing required members, which the message names |
 | `NoTopologyError` | The plugin returned no topology |
@@ -170,6 +237,13 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 
 ## Limitations
 
+**Read preferences do not yet match the native driver.** The default is
+secondary-first. Inherited preferences, strict-secondary fallback, tags,
+staleness, latency selection, and some command routes have known differences.
+Database and collection options are discarded, including read and write concern.
+Role validation does not resolve these differences. See the
+[preference comparison and executable tests](../docs/operation-preferences.md).
+
 **Reads inside a transaction throw.** The driver rejects a session used with a
 different client than the one that created it, so a session cannot span our
 read and write clients. Any session-bearing operation that would route to the
@@ -177,7 +251,7 @@ secondary raises `SessionRoutingError`, which includes a read inside
 `withTransaction`.
 
 **`watch()` and `startSession()` throw.** Change streams need a resume story
-that belongs with the watcher's design, and a session cannot leave the client
+across member changes, and a session cannot leave the client
 that created it.
 
 **A few mongodb exports are missing.** The driver marks some of its runtime
@@ -191,4 +265,37 @@ does not.
 **Replica sets only.** Sharded and load-balanced clusters do not report their
 topology through `replSetGetStatus`.
 
-**Topology is read once per client.** There is no refresh while a client lives.
+**Errors from an executed read do not refresh topology.** A role mismatch
+detected before routing does refresh it. With monitoring disabled, a reused
+connection is not polled, so later role changes can remain unnoticed.
+Topology-related write failures also refresh the cached members.
+
+### Discovery and write recovery
+
+The native driver retries a retryable write once against the same member,
+unless `retryWrites` is `false`. That recovers a dropped connection. A
+topology-related write failure that remains triggers one shared refresh per client after
+100–249 ms of jittered backoff. An ordinary promise-returning write rejected with `NotWritablePrimary` or
+`NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
+A `NoWritesPerformed` label on a topology-related server error also permits replay.
+Explicit sessions, bulk builders, and cursors are excluded from automatic replay.
+Network failures that the native retry cannot recover, and partial bulk
+failures, refresh topology but are returned to the caller: their writes may
+already have run. Duplicate-key, validation, and
+authorization errors do not trigger discovery. A failed refresh preserves the
+original write error. The caller decides whether to retry again after an election.
+
+Bulk builders and cursors also refresh topology on topology-related failures,
+but their state is not replayed automatically. A bulk may have committed earlier
+batches, and a cursor may already have returned results or performed writes.
+Create a new operation after handling the error. If async iteration and cursor
+cleanup both fail, the original iteration error is returned.
+
+Refresh tries the cached members, so losing the original seed does not prevent
+recovery. Each attempt uses a temporary direct client and closes it afterward.
+The default server-selection timeout is five seconds per seed during initial
+discovery or refresh. An explicit
+`serverSelectionTimeoutMS` overrides it.
+
+See [architecture and plugin sequences](../docs/architecture.md) for the storage
+contract, migration notes, and concurrency limits.

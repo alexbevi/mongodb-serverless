@@ -32,7 +32,7 @@ describe('workspace', () => {
     expect(versions[0]).toBe(versions[1]);
   });
 
-  it('selects both packages with the integration command', () => {
+  it('selects the driver with the integration command', () => {
     const { scripts } = JSON.parse(read('package.json'));
     const args = scripts['test:integration'].split('vitest run ')[1].split(/\s+/);
 
@@ -43,14 +43,14 @@ describe('workspace', () => {
     );
 
     expect(files).toContain('driver/test/integration.test.ts');
-    expect(files).toContain('watcher/test/integration.test.ts');
+    expect(files).not.toContain('watcher/test/integration.test.ts');
   });
 
-  it('declares every publishable package', () => {
+  it('declares driver and plugins without a watcher package', () => {
     const workspace = read('pnpm-workspace.yaml');
 
     expect(workspace).toContain('driver');
-    expect(workspace).toContain('watcher');
+    expect(workspace).not.toContain('watcher');
     expect(workspace).toContain('plugins/local');
   });
 
@@ -64,7 +64,6 @@ describe('workspace', () => {
     for (const path of [
       'README.md',
       'driver/README.md',
-      'watcher/README.md',
       'plugins/README.md',
       'plugins/shared/README.md',
       'plugins/local/README.md'

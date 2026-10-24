@@ -14,5 +14,3 @@ would want to read. The file it creates belongs in the commit.
 On merge to `main`, a workflow opens a "Version Packages" PR that applies every
 pending changeset. Merging that PR publishes to npm and creates the GitHub
 Releases.
-
-`@mongodb-serverless/watcher` is ignored while it is private.

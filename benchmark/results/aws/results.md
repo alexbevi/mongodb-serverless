@@ -1,74 +1,125 @@
 # AWS Lambda results
 
-Measured 2026-10-20T03:36:10.555Z · Node v24.21.0.
+Measured 2026-10-24T17:06:28.821Z · Node v24.21.0.
 
 | Operation / pattern | n | Mean | Median | SD | p95 | Mean 95% CI |
 |---|---:|---:|---:|---:|---:|---:|
-| read / Native MongoDB | 200 | 160.4 | 158.1 | 15.1 | 184.3 | 158.4–162.6 |
-| read / No plugin | 200 | 116.2 | 114.2 | 12.4 | 131.2 | 114.6–118.1 |
-| read / aws-ssm · cached topology | 200 | 114.3 | 112.9 | 10.7 | 130.7 | 112.8–115.8 |
-| read / aws-ssm · no cached topology | 200 | 161.2 | 159.6 | 13.5 | 183.2 | 159.3–163.1 |
-| write / Native MongoDB | 200 | 171.0 | 168.9 | 24.7 | 208.1 | 167.8–174.7 |
-| write / No plugin | 200 | 162.1 | 171.4 | 35.1 | 210.5 | 157.2–167.0 |
-| write / aws-ssm · cached topology | 200 | 119.8 | 116.7 | 12.0 | 142.1 | 118.2–121.5 |
-| write / aws-ssm · no cached topology | 200 | 204.2 | 214.3 | 35.8 | 241.3 | 199.4–209.3 |
-| No plugin / lucky write, 1 connection | 73 | 121.5 | 119.4 | 14.9 | 133.6 | 118.4–125.1 |
-| No plugin / write, 2 connections | 127 | 185.5 | 183.1 | 17.7 | 213.3 | 182.5–188.6 |
+| read / Native MongoDB | 200 | 158.3 | 157.5 | 13.8 | 182.0 | 156.4–160.2 |
+| read / No plugin | 200 | 118.7 | 117.8 | 15.5 | 137.8 | 116.8–121.0 |
+| read / aws-ssm · cached topology | 200 | 116.5 | 116.4 | 11.9 | 134.0 | 114.9–118.2 |
+| read / aws-ssm · no cached topology | 200 | 161.5 | 159.4 | 21.7 | 181.5 | 158.8–164.8 |
+| write / Native MongoDB | 200 | 166.4 | 166.8 | 18.0 | 192.5 | 163.9–168.9 |
+| write / No plugin | 200 | 165.0 | 172.4 | 33.4 | 208.7 | 160.5–169.6 |
+| write / No plugin · 1 connection | 66 | 122.4 | 121.3 | 12.7 | 141.7 | 119.4–125.5 |
+| write / No plugin · 2 connections | 134 | 186.0 | 184.1 | 15.7 | 211.9 | 183.3–188.7 |
+| write / aws-ssm · cached topology | 200 | 121.1 | 119.6 | 15.4 | 146.2 | 119.1–123.3 |
+| write / aws-ssm · no cached topology | 200 | 200.7 | 208.7 | 29.4 | 239.7 | 196.6–204.7 |
 
 ### Average read phase times
 
 | Phase | Native MongoDB (n=200) | No plugin (n=200) | aws-ssm · cached topology (n=200) | aws-ssm · no cached topology (n=200) |
 |---|---:|---:|---:|---:|
-| Cluster DNS · SRV + TXT | 5.0 | 2.3 | 0.0 | 2.2 |
-| Monitor handshakes · overlapping time counted once | 65.1 | 0.0 | 0.0 | 0.0 |
-| Application host DNS | 5.8 | 6.0 | 4.7 | 5.1 |
-| TCP connection | 3.8 | 1.5 | 1.5 | 1.5 |
-| TLS handshake | 38.6 | 39.3 | 38.8 | 39.4 |
-| Initial hello | 3.3 | 7.8 | 7.9 | 8.3 |
-| Authentication | 11.1 | 12.0 | 11.3 | 11.9 |
-| Topology discovery | 0.0 | 0.0 | 0.0 | 5.0 |
-| Topology storage · SSM PutParameter | 0.0 | 0.0 | 0.0 | 35.7 |
-| Additional hello commands | 0.0 | 0.0 | 0.0 | 0.0 |
-| Prepare/send operation | 1.0 | 1.1 | 1.1 | 0.6 |
-| Operation request → reply | 3.4 | 3.3 | 3.1 | 2.5 |
-| Other handler work / scheduling | 23.3 | 43.0 | 45.9 | 49.0 |
-| **Total** | **160.4** | **116.2** | **114.3** | **161.2** |
+| Setup before the first member connection | 22.9 | 36.4 | 36.3 | 36.7 |
+| ↳ Plugin topology read | — | — | ~0.2 | ~0.4 |
+| ↳ URI and option parsing | ~6 | ~8 | ~7 | ~8 |
+| ↳ SRV + TXT DNS | ~3 | ~2 | — | ~2 |
+| ↳ Client and topology construction | ~8 | ~6 | ~9 | ~6 |
+| ↳ No-monitoring module load | — | — | ~8 | — |
+| ↳ Driver runtime metadata | ~6 | ~21 | ~12 | ~21 |
+| SSM parameter request | 0.0 | 0.0 | 0.0 | 0.0 |
+| SSM topology write | 0.0 | 0.0 | 0.0 | 34.4 |
+| Monitor handshakes | 64.2 | 0.0 | 0.0 | 0.0 |
+| Host DNS | 5.0 | 5.3 | 5.2 | 4.8 |
+| TCP connect | 4.5 | 1.1 | 1.5 | 1.1 |
+| TLS handshake | 38.6 | 40.4 | 39.4 | 41.5 |
+| Initial hello | 5.1 | 8.0 | 7.7 | 8.0 |
+| Authentication | 11.6 | 16.6 | 15.5 | 16.3 |
+| Topology discovery (replSetGetStatus) | 0.0 | 0.0 | 0.0 | 4.1 |
+| Topology parsing and member selection | 0.0 | 0.0 | 0.0 | 5.9 |
+| Connection checkout wait | 0.2 | 0.4 | 0.4 | 0.5 |
+| Command preparation | 0.9 | 5.7 | 5.8 | 4.3 |
+| Operation command → reply | 3.8 | 3.5 | 3.6 | 2.8 |
+| Reply → result returned | 1.5 | 1.3 | 1.3 | 1.1 |
+| Other handler work | 0.0 | 0.0 | 0.0 | 0.0 |
+| **Total** | **158.3** | **118.7** | **116.5** | **161.5** |
 
 ### Average write phase times
 
-| Phase | Native MongoDB (n=200) | No plugin (n=200) | No plugin · lucky (n=73) | No plugin · 2 connections (n=127) | aws-ssm · cached topology (n=200) | aws-ssm · no cached topology (n=200) |
+| Phase | Native MongoDB (n=200) | No plugin (n=200) | No plugin · 1 connection (n=66) | No plugin · 2 connections (n=134) | aws-ssm · cached topology (n=200) | aws-ssm · no cached topology (n=200) |
 |---|---:|---:|---:|---:|---:|---:|
-| Cluster DNS · SRV + TXT | 4.8 | 2.2 | 2.3 | 2.2 | 0.0 | 2.2 |
-| Monitor handshakes · overlapping time counted once | 70.8 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Application host DNS | 3.8 | 8.0 | 6.0 | 9.1 | 4.5 | 7.0 |
-| TCP connection | 2.9 | 2.3 | 1.4 | 2.8 | 1.3 | 2.5 |
-| TLS handshake | 42.2 | 64.8 | 40.5 | 78.8 | 40.5 | 66.6 |
-| Initial hello | 3.7 | 10.4 | 8.4 | 11.5 | 8.0 | 11.0 |
-| Authentication | 11.5 | 14.3 | 11.8 | 15.7 | 11.2 | 14.3 |
-| Topology discovery | 0.0 | 2.8 | 0.0 | 4.5 | 0.0 | 4.8 |
-| Topology storage · SSM PutParameter | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 36.0 |
-| Additional hello commands | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Prepare/send operation | 1.0 | 0.7 | 1.1 | 0.5 | 1.1 | 0.6 |
-| Operation request → reply | 7.3 | 7.0 | 7.4 | 6.7 | 7.7 | 6.5 |
-| Other handler work / scheduling | 22.9 | 49.6 | 42.5 | 53.7 | 45.5 | 52.7 |
-| **Total** | **171.0** | **162.1** | **121.5** | **185.5** | **119.8** | **204.2** |
+| Setup before the first member connection | 21.3 | 36.9 | 37.4 | 36.7 | 35.4 | 36.3 |
+| ↳ Plugin topology read | — | — | — | — | ~0.2 | ~0.4 |
+| ↳ URI and option parsing | ~5 | ~8 | ~8 | ~8 | ~6 | ~8 |
+| ↳ SRV + TXT DNS | ~3 | ~2 | ~2 | ~2 | — | ~2 |
+| ↳ Client and topology construction | ~7 | ~6 | ~6 | ~6 | ~9 | ~6 |
+| ↳ No-monitoring module load | — | — | — | — | ~8 | — |
+| ↳ Driver runtime metadata | ~6 | ~22 | ~22 | ~21 | ~12 | ~21 |
+| SSM parameter request | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| SSM topology write | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 35.1 |
+| Monitor handshakes | 68.2 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| Host DNS | 4.3 | 7.1 | 4.6 | 8.4 | 4.9 | 6.4 |
+| TCP connect | 2.3 | 2.0 | 1.2 | 2.3 | 1.4 | 1.8 |
+| TLS handshake | 41.0 | 66.8 | 40.9 | 79.5 | 41.7 | 66.4 |
+| Initial hello | 5.5 | 10.0 | 8.1 | 10.9 | 7.9 | 9.8 |
+| Authentication | 11.8 | 19.1 | 16.3 | 20.4 | 15.8 | 19.0 |
+| Topology discovery (replSetGetStatus) | 0.0 | 2.7 | 0.0 | 4.1 | 0.0 | 4.1 |
+| Topology parsing and member selection | 0.0 | 6.4 | 0.0 | 9.6 | 0.0 | 8.8 |
+| Connection checkout wait | 1.0 | 0.5 | 0.4 | 0.5 | 0.4 | 0.5 |
+| Command preparation | 0.8 | 6.1 | 5.1 | 6.6 | 4.9 | 5.6 |
+| Operation command → reply | 7.7 | 7.0 | 7.6 | 6.7 | 8.0 | 6.6 |
+| Reply → result returned | 0.9 | 0.6 | 0.8 | 0.4 | 0.8 | 0.4 |
+| Other handler work | 1.5 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| **Total** | **166.4** | **165.0** | **122.4** | **186.0** | **121.1** | **200.7** |
 
-All durations are milliseconds from handler measurement entry through the operation result. Lambda INIT, including the completed SSM fetch, is excluded. The client is created lazily and retained for warm calls. Raw INIT and SSM measurements remain in samples.json.
+Durations are milliseconds from handler entry to the operation result. SSM retrieval during startup is excluded.
 
-Phase averages cover every invocation and add to the average handler total before rounding. Overlapping sockets are counted once. Without detailed probes, other handler work and scheduling is an elapsed remainder; its CPU, callback and internal code breakdown is not measured.
+Every phase comes from driver events (`commandStarted`, `connectionReady`, `serverHeartbeat*`, `topologyOpening`, checkout events) and socket events (`lookup`, `connect`, `secureConnect`, first reply). Nothing in the driver is patched. Each millisecond is counted once, in the order the table lists phases; overlapping sockets are not added.
 
-Mean confidence intervals use 10,000 percentile bootstrap resamples with a fixed seed, assuming independent observations within this run. SD is the sample standard deviation. These intervals do not measure variation between deployments or days. Write landing cohorts occur naturally and have unequal counts.
+Setup has no events inside it. The ↳ rows marked ~ split the measured setup in proportions from an earlier run with code probes; SRV + TXT DNS applies only where the pattern resolves the SRV record.
 
-Package: 4,950,399 bytes ZIP; identical for every case. Detailed execution/source probes: disabled. DNS/socket/command timers remain enabled.
+Confidence intervals use 10,000 bootstrap resamples with a fixed seed and describe this run only.
 
-8 separate warm checks verified environment and client reuse without another SSM request, cluster DNS or topology discovery. These checks are excluded from the cold distributions.
+8 warm checks verified client and socket reuse without another SSM request or discovery. They are excluded from the cold results.
 
-### Read connection breakdown
+### Read connection breakdowns
 
-![Measured read connection breakdown](read-latency.png)
+#### Native MongoDB
 
-### Write connection breakdown
+![Read · Native MongoDB](read-native.png)
 
-![Measured write connection breakdown](write-latency.png)
+#### No plugin
 
-Each panel shows a real invocation nearest the handler median. Connections occupy separate overlapping lanes; do not add their elapsed times. INIT, provisioning, caller transport and post-result reporting are outside the overview. LocalStack timings do not predict AWS performance.
+![Read · No plugin](read-no-plugin.png)
+
+#### aws-ssm · cached topology
+
+![Read · aws-ssm · cached topology](read-ssm.png)
+
+#### aws-ssm · no cached topology
+
+![Read · aws-ssm · no cached topology](read-ssm-uncached.png)
+
+
+### Write connection breakdowns
+
+#### Native MongoDB
+
+![Write · Native MongoDB](write-native.png)
+
+#### No plugin · 1 connection
+
+![Write · No plugin · 1 connection](write-no-plugin-1-connection.png)
+
+#### No plugin · 2 connections
+
+![Write · No plugin · 2 connections](write-no-plugin-2-connections.png)
+
+#### aws-ssm · cached topology
+
+![Write · aws-ssm · cached topology](write-ssm.png)
+
+#### aws-ssm · no cached topology
+
+![Write · aws-ssm · no cached topology](write-ssm-uncached.png)
+
+Each chart shows the sample nearest its cohort median. Sockets occupy separate overlapping rows; do not add their times.

@@ -16,8 +16,9 @@ Reads prefer a healthy secondary; writes go to the primary.
 
 ## Benchmark
 
-![Cold Lambda read routing and SSM topology reuse](benchmark/results/aws/read-latency.png)
-See the [Lambda benchmark](benchmark/LAMBDA.md), [recorded AWS results](benchmark/results/aws/results.md), [benchmark usage](benchmark/README.md) and the recorded [benchmark](BENCHMARK.md) for full details.
+![Cold read on AWS Lambda with cached topology](benchmark/results/aws/read-ssm.png)
+
+See the [AWS results](benchmark/results/aws/results.md), [local results](benchmark/results/local/results.md) and [how to run the benchmark](benchmark/README.md).
 
 ## Components
 

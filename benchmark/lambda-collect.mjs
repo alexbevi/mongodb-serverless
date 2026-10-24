@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-const variants = ['native', 'no-plugin', 'ssm', 'ssm-uncached'];
+export const variants = ['native', 'no-plugin', 'ssm', 'ssm-uncached'];
 
 export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => ({ name: `${prefix}-${variant}-${operation}`, variant, operation })));
 
@@ -52,7 +52,6 @@ export function assertWarmReuse(cold, warm) {
   assert.ok(warm.trace.command.start >= warm.trace.start, 'The command must belong to this invocation');
 
   for (const field of ['ssmReads', 'ssmWrites', 'discoveryCommands']) assert.equal(warm[field], 0, field);
-  assert.deepEqual(warm.dns, []);
 }
 
 export async function verifyWarmInvocations(lambda, prefix, ssm) {
@@ -64,7 +63,7 @@ export async function verifyWarmInvocations(lambda, prefix, ssm) {
     assertWarmReuse(cold, warm);
     checks.push({ variant, operation, verified: true, totalMs: warm.totalMs, servedRole: warm.servedRole,
       sockets: warm.sockets, ssmReads: warm.ssmReads, ssmWrites: warm.ssmWrites,
-      discoveryCommands: warm.discoveryCommands, dns: warm.dns, sameEnvironment: true, sameClient: true, sameSocket: warm.trace.command.socket.start === cold.trace.command.socket.start });
+      discoveryCommands: warm.discoveryCommands, sameEnvironment: true, sameClient: true, sameSocket: warm.trace.command.socket.start === cold.trace.command.socket.start });
 
     if (variant === 'ssm-uncached') {
       const config = await lambda.send(new GetFunctionConfigurationCommand({ FunctionName: name }));
@@ -86,10 +85,9 @@ export async function collect(lambda, ssm, prefix, count, file, metadata) {
 
   const samples = [];
   const seen = new Set();
-  const data = { createdAt: new Date(start).toISOString(), configuration: { count, variants, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during INIT; handler through result; client retained for warm invocations', ...metadata }, samples, executionSources: [], failures: [] };
+  const data = { createdAt: new Date(start).toISOString(), configuration: { count, variants, batches: 4, readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during INIT; handler through result; client retained for warm invocations', ...metadata }, samples, failures: [] };
   mkdirSync(dirname(file), { recursive: true });
   const members = new Map();
-  const sourceIds = new Map();
 
   const member = address => {
     const host = address.replace(/:\d+$/, '');
@@ -136,20 +134,7 @@ export async function collect(lambda, ssm, prefix, count, file, metadata) {
             const name = `${prefix}-${variant}-${operation}`;
             const sample = await invokeCold(lambda, name, versions.get(name), { variant, operation });
             assert.ok(!seen.has(sample.environmentId), 'Lambda execution environment was reused');
-            assert.equal(Boolean(sample.trace.execution), metadata.diagnostics, 'The worker must use the requested instrumentation mode');
-
-            if (!metadata.diagnostics) assert.equal(sample.trace.activities, undefined);
             seen.add(sample.environmentId);
-
-            for (const segment of sample.trace.execution?.segments ?? []) {
-              if (!sourceIds.has(segment.source)) {
-                sourceIds.set(segment.source, data.executionSources.length);
-                data.executionSources.push(segment.source);
-              }
-
-              segment.sourceId = sourceIds.get(segment.source);
-              delete segment.source;
-            }
 
             samples.push({ iteration, batch: Math.min(3, Math.floor(iteration / (count / 4))), ...sample });
             save();

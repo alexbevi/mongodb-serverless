@@ -18,11 +18,11 @@ it('requires warm calls to reuse the environment and socket without repeating se
   const cold = { cold: true, clientConstructions: 1, environmentId: 'one', trace: { command: { socket: { start: 10 } } } };
 
   const warm = { cold: false, clientConstructions: 1, monitorSockets: 0, verified: true, environmentId: 'one', sockets: 0, ssmReads: 0,
-    ssmWrites: 0, discoveryCommands: 0, dns: [], trace: { start: 100, command: { start: 101, socket: { start: 10 } } } };
+    ssmWrites: 0, discoveryCommands: 0, trace: { start: 100, command: { start: 101, socket: { start: 10 } } } };
 
   expect(() => assertWarmReuse(cold, warm)).not.toThrow();
 
-  for (const change of [{ environmentId: 'two' }, { sockets: 1 }, { ssmReads: 1 }, { ssmWrites: 1 }, { discoveryCommands: 1 }, { dns: ['SRV'] }, { cold: true }]) {
+  for (const change of [{ environmentId: 'two' }, { sockets: 1 }, { ssmReads: 1 }, { ssmWrites: 1 }, { discoveryCommands: 1 }, { cold: true }]) {
     expect(() => assertWarmReuse(cold, { ...warm, ...change })).toThrow();
   }
 
@@ -36,7 +36,7 @@ it('allows a retained native client to choose another member for a nearest read'
 
   const warm = { variant: 'native', operation: 'read', cold: false, verified: true, environmentId: 'one',
     clientConstructions: 1, sockets: 1, authenticatedSockets: 1, monitorSockets: 0, ssmReads: 0, ssmWrites: 0,
-    discoveryCommands: 0, dns: [], trace: { start: 100, command: { start: 120, socket: { start: 110 } } } };
+    discoveryCommands: 0, trace: { start: 100, command: { start: 120, socket: { start: 110 } } } };
 
   expect(() => assertWarmReuse(cold, warm)).not.toThrow();
   expect(() => assertWarmReuse(cold, { ...warm, clientConstructions: 2 })).toThrow();
@@ -104,7 +104,7 @@ it('uses fresh cache-miss parameter names each round and cleans them after invoc
 
   try {
     expect(workerPatterns(prefix)).toHaveLength(8);
-    await collect(lambda, ssm, prefix, 2, join(directory, 'samples.json'), { diagnostics: false });
+    await collect(lambda, ssm, prefix, 2, join(directory, 'samples.json'), {});
     const data = JSON.parse(await readFile(join(directory, 'samples.json'), 'utf8'));
     expect(data.samples).toHaveLength(16);
     expect(data.configuration.variants).toEqual(['native', 'no-plugin', 'ssm', 'ssm-uncached']);

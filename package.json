@@ -18,7 +18,7 @@
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish",
-    "benchmark": "npm run benchmark:build && node benchmark/dist/run.js",
+    "benchmark": "npm run benchmark:build && node benchmark/local.mjs",
     "benchmark:test": "npm run benchmark:build && vitest run --config vitest.benchmark.config.ts",
     "benchmark:build": "tsc --build benchmark",
     "benchmark:no-monitoring": "npm run build && tsx tools/benchmarks/no-monitoring.ts",

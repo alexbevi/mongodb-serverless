@@ -1,114 +1,91 @@
 # Cold connection benchmark
 
-Measure the first MongoDB read or write in a cold Lambda execution environment.
-The checked-in [local results](results/local/results.md) and
-[AWS results](results/aws/results.md) contain the latest complete run for each
-environment. Each report includes raw samples, summary statistics, and a detailed
-connection timeline.
+Measures the first MongoDB read or write after a cold start for four patterns:
+native MongoDB, the serverless driver without a plugin, and the serverless driver
+with the SSM plugin with and without cached topology. The checked-in
+[local results](results/local/results.md) and [AWS results](results/aws/results.md)
+are the latest complete run for each environment.
 
-## Install and run
+Both environments run the same handler (`lambda-worker.ts`). The URI, and for the
+SSM patterns the cached topology, are fetched from SSM at startup, before the
+measurement starts. The measurement runs from handler entry to the operation result.
 
-Requires Docker, Node 24, pnpm, Python, and zip. LocalStack is pinned to 4.14.0.
-Run these commands from the repository root:
+## Run locally
+
+Requires Docker, Node 24, pnpm and Python 3. From the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm benchmark:build
+pnpm benchmark --samples 40
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
+/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json
+```
+
+`pnpm benchmark` starts a three-member TLS replica set, DNS with SRV and TXT
+records, and LocalStack for SSM, all in Docker. Each sample is a fresh Node process
+in the client container. netem adds a 1.3 ms round trip between every pair of
+containers (`--rtt`), matching the TCP connect times measured on AWS. CI runs the
+same command with 40 samples per pattern and requires the cached SSM plugin to be
+at least 10% faster than native for both reads and writes.
+
+## Run on AWS
+
+Needs an AWS profile allowed to manage the benchmark resources, and an existing
+function whose `MONGODB_URI` is an SRV connection string. The script copies the
+URI into a SecureString parameter without logging it.
+
+```sh
+pnpm benchmark:build
 node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
-node benchmark/lambda-local.mjs --samples 40
-/tmp/mongodb-benchmark-report/bin/python benchmark/compact.py benchmark/results/local/samples.json
-/tmp/mongodb-benchmark-report/bin/python benchmark/lambda-report.py benchmark/results/local/samples.json
+AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 200 \
+  --source-function mongodb-serverless-prod-worker-1 --region ap-southeast-2
+/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/aws/samples.json
 ```
 
-[Lambda benchmark usage](LAMBDA.md) covers AWS deployment, SSM permissions,
-resource cleanup, and measurement verification. Refresh the raw samples, summary,
-report, and both latency images together for the environment being measured.
+It creates eight `mongodb-serverless-pattern-*` functions (Node 24, arm64, 1769 MB,
+no VPC), an IAM stack, and parameters under `/mongodb-serverless-pattern/`. Each
+round publishes a fresh version of every function and invokes it once, so every
+sample is a cold start. Measured versions are deleted after each round; the
+functions stay for later runs. To remove everything, delete the eight functions,
+their log groups, the parameters and the `mongodb-serverless-pattern-permissions`
+stack.
 
-## Read the timeline
+AWS needs 200 samples per pattern for stable medians because conditions vary
+between cold starts. Local runs vary much less, so 40 is enough there.
 
-The default overview starts at handler measurement entry and ends at the operation
-result. Lambda INIT, including the eager SSM fetch, is excluded. Each panel shows
-an actual trace nearest its handler median. Tables report means, medians, sample
-standard deviations, p95 values and bootstrap confidence intervals. Phase tables
-average every invocation. No-plugin writes include separate natural one- and
-two-connection cohorts.
+## Reading the charts
 
-The default package records DNS, TCP, TLS, hello, authentication, discovery,
-additional hello commands and operation exchanges. Stack capture, callback CPU
-profiling and injected source probes are disabled. Time outside protocol spans
-is reported as other handler work and scheduling, without inferring its cause.
-Use `node benchmark/build-lambda.mjs --diagnostics /path/to/worker` to build a
-package with detailed execution and source probes. The runners read and verify
-the package's mode.
+Each case has its own chart, showing the sample nearest the cohort median. Rows
+are the replica-set members the sample contacted, in the order it contacted them.
 
-Each socket has its own lane. Concurrent lanes overlap and must not be added.
-The summary accounts for every millisecond once, in this priority order:
-SSM and discovery/validation requests, the operation, application socket phases,
-cluster DNS, monitor activity, then remaining handler work. This elapsed-time
-accounting is not a CPU profile.
+Every timed phase comes from events: driver events (`serverHeartbeat*`,
+`connectionCreated`, `connectionReady`, checkout and command events) and socket
+events (`lookup`, `connect`, `secureConnect` and the first reply), observed
+through the `net.client.socket` diagnostics channel. Nothing in the driver is
+patched, and no stacks are captured.
 
-The handler creates its client lazily and retains it for warm invocations.
-SSM and INIT measurements remain in the raw JSON. Provisioning, invocation
-transport and reporting after the operation result are outside the timers.
-With detailed probes enabled, hatching identifies callbacks whose elapsed time
-exceeds their measured thread CPU by at least 2 ms; it does not locate individual
-scheduling pauses. [Trace encoding](TRACE_FORMAT.md) describes the diagnostic
-column format and how to expand it.
-
-For a read-only view that includes recorded Lambda INIT, use the deployment ZIP
-from the measurement run. The renderer verifies its SHA-256 against the samples
-before reporting its compressed and unpacked sizes.
-
-```sh
-/tmp/mongodb-benchmark-report/bin/python benchmark/cold-start-report.py \
-  benchmark/results/aws/samples.json \
-  --package /path/to/the/measured/lambda-worker.zip \
-  --output /tmp/mongodb-cold-start
-```
-
-This produces `cold-start.png`, `connection-details.png`, and `cold-start.json`.
-The overview accounts for INIT through the read result. The detail view places
-SSM, DNS, and each MongoDB socket on separate rows. Both use the same invocation,
-selected nearest the median of INIT plus measured read time. The SSM request is
-measured inside INIT; the rest of INIT has no internal phase breakdown. Provisioning, caller transport, and cleanup
-after the read are outside this view. All variants share a benchmark package
-containing both drivers and probes; its size is not a production bundle estimate.
-
-## Diagnostic harness and CI
-
-A separate Docker harness exercises native discovery and direct routing with
-controlled network delays. CI runs its 100-iteration performance gate without
-profiling, followed by a separate diagnostic run. Its output is disposable and
-does not replace the checked-in Lambda results.
-
-```sh
-pnpm benchmark --diagnostics --no-monitoring --samples 100 --output /tmp/mongodb-diagnostic/samples.json
-/tmp/mongodb-benchmark-report/bin/python benchmark/report.py /tmp/mongodb-diagnostic/samples.json --environment local
-/tmp/mongodb-benchmark-report/bin/python -m unittest discover -s benchmark/test -p '*report_test.py'
-/tmp/mongodb-benchmark-report/bin/python -m unittest discover -s benchmark/test -p results_test.py
-```
-
-The independent `plugin-aws-ssm` CI job tests the plugin against LocalStack 4.14
-SSM and KMS services. It checks parameter retrieval, decryption, topology writes,
-and cache behavior. The [Lambda benchmark](LAMBDA.md) remains an explicit local
-or AWS measurement run; CI runs its report tests without collecting Lambda
-performance samples.
+Setup runs from handler entry to the first member socket. It has no events
+inside it, so the chart splits it in proportions from an earlier run with code
+probes, marked `~`. Gaps between events are named by the event before them:
+command preparation after a connection is ready, topology parsing and member
+selection after discovery, and returning the result after the reply. "Waiting on
+another member" marks time when the operation's member is idle while another
+member's row is busy.
 
 ## Limitations
 
-CI jobs that start MongoDB 8 use Ubuntu 22.04 to avoid the hosted-runner kernel
-incompatibility tracked in [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912).
-Revisit this runner pin when the MongoDB image supports the current hosted kernels.
+Local medians are lower than on AWS. A cold Lambda TLS handshake takes about
+40 ms against about 4 ms locally, so native MongoDB's monitor handshakes cost
+proportionally less locally and the serverless reductions are smaller.
 
-Protocol timers add overhead; optional detailed probes add more. INIT and its
-SSM request are excluded from the default overview and retained in the JSON. Provisioning and invocation transport are
-outside both measurements. Clients stay open for warm calls.
+DNS queries cannot be observed through events, so the SRV and TXT time inside
+setup is an estimate. The benchmark reads with `nearest` and writes to the
+primary with majority acknowledgement. It does not measure tags, staleness,
+latency windows or elections; see [operation preferences](../docs/operation-preferences.md).
 
-LocalStack tests API behavior and Lambda execution locally. Its CPU allocation,
-network, and KMS emulation do not predict AWS performance. AWS measurements apply
-to the recorded region, cluster, runtime, and workload. Reads explicitly use
-`nearest`; writes require a primary and majority acknowledgement. This benchmark
-does not establish parity for tags, staleness, latency windows, preferred-mode
-fallback, or concurrent elections. See [operation preferences](../docs/operation-preferences.md).
+Each uncached SSM sample uses a fresh topology parameter, deleted outside the
+measurement, because SSM blocks recreating a deleted name for 30 seconds.
+
+CI jobs that start MongoDB 8 run on Ubuntu 22.04, because newer hosted kernels
+are incompatible ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)).

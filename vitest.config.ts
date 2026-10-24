@@ -14,7 +14,6 @@ export default defineConfig({
     include: ['{driver,plugins/*,benchmark}/test/**/*.test.ts', 'test/examples/**/*.test.ts'],
     exclude: [
       ...configDefaults.exclude,
-      'benchmark/test/live.test.ts',
       'plugins/*/test/localstack.test.ts',
       'test/examples/aws-ssm.integration.test.ts'
     ],

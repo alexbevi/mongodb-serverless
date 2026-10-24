@@ -44,6 +44,14 @@ services:
     volumes: [certs:/certs:ro]
     networks:
       bench: {ipv4_address: 172.30.91.10}
+  localstack:
+    image: localstack/localstack:4.14.0
+    ports: ["127.0.0.1:4566:4566"]
+    environment:
+      SERVICES: ssm
+      AWS_DEFAULT_REGION: ap-southeast-2
+    networks:
+      bench: {ipv4_address: 172.30.91.15, aliases: [localstack]}
 networks:
   bench:
     ipam:

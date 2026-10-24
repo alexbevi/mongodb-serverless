@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { diagnostics: { type: 'boolean', default: false } } });
+const { positionals } = parseArgs({ allowPositionals: true });
 
 const output = resolve(positionals[0] ?? 'benchmark/dist/lambda-package');
 
@@ -19,20 +19,18 @@ for (const path of ['driver', 'plugins/aws-ssm']) {
   cpSync(join(root, path, 'package.json'), join(output, path, 'package.json'));
 }
 
-const modules = ['lambda-worker', 'lambda-lifecycle', 'patterns', 'instrument', 'activities', 'execution', 'cpu', 'types', 'aws-diagnostics', 'source-probes'];
+const modules = ['lambda-worker', 'lambda-lifecycle', 'patterns', 'events'];
 
 mkdirSync(join(output, 'benchmark/dist'), { recursive: true });
 
 for (const module of modules) cpSync(join(root, 'benchmark/dist', `${module}.js`), join(output, 'benchmark/dist', `${module}.js`));
 
 writeFileSync(join(output, 'package.json'), JSON.stringify({
-  name: 'mongodb-pattern-benchmark', private: true, type: 'module', benchmarkDiagnostics: values.diagnostics,
+  name: 'mongodb-pattern-benchmark', private: true, type: 'module',
   dependencies: { mongodb: '7.7.0', 'mongodb-connection-string-url': '7.0.2', '@aws-sdk/client-ssm': '3.1146.0' }
 }, null, 2));
 
 execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: output, stdio: 'inherit' });
-
-if (values.diagnostics) execFileSync(process.execPath, ['benchmark/dist/source-probes.js'], { cwd: output });
 
 rmSync(resolve(output, '../lambda-worker.zip'), { force: true });
 

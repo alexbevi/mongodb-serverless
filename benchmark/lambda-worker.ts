@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setServers } from 'node:dns';
 import { GetParameterCommand, SSMClient, type SSMClientConfig } from '@aws-sdk/client-ssm';
-import { measureAwsOperation, measureProtocolOperation } from './aws-diagnostics.js';
+import { createRequire } from 'node:module';
+import { recordEvents } from './events.js';
 import { initializeLazyClient } from './lambda-lifecycle.js';
 import type { ServerlessClientOptions } from '../driver/src/client.js';
-import { activities } from './activities.js';
-import { instrument } from './instrument.js';
 import { verifyPattern, variants, type PatternOperation, type PatternVariant } from './patterns.js';
 import type { MongoClientOptions } from 'mongodb';
 
 if (process.env['BENCHMARK_DNS']) setServers([process.env['BENCHMARK_DNS']]);
 
-const telemetry = instrument(true);
+const events = recordEvents();
 
-const measureOperation = process.env['BENCHMARK_DIAGNOSTICS'] === 'true' ? measureAwsOperation : measureProtocolOperation;
+// SAFETY: Every npm package manifest has a string version field.
+const { version: driverVersion } = createRequire(import.meta.url)('mongodb/package.json') as { version: string };
 
 const { MongoClient } = await import('mongodb');
 
@@ -73,8 +73,6 @@ const environmentId = randomUUID();
 
 let invocations = 0;
 
-let discoveryCommands = 0;
-
 let clientConstructions = 0;
 
 const getClient = await initializeLazyClient(fetchConnectionString, uri => {
@@ -89,19 +87,18 @@ const getClient = await initializeLazyClient(fetchConnectionString, uri => {
 
   if (process.env['MONGODB_CA']) options.tlsCAFile = process.env['MONGODB_CA'];
 
-  const on = { commandStarted: (command: { commandName: string }) => {
-    if (command.commandName === 'replSetGetStatus') discoveryCommands += 1;
-  } };
+  if (variant !== 'native') {
+    // SAFETY: Each recorder listener accepts the driver's event objects; `on` attaches them to every native client.
+    const serverlessOptions: ServerlessClientOptions = { ...options, on: events.listeners as NonNullable<ServerlessClientOptions['on']>, disableMonitoring: true };
 
-  const serverlessOptions: ServerlessClientOptions = { ...options, on, disableMonitoring: true };
+    if (plugin) serverlessOptions.plugin = plugin;
 
-  if (plugin) serverlessOptions.plugin = plugin;
+    return new ServerlessClient(uri, serverlessOptions);
+  }
 
-  const client = activities.sync("Facade / client construction", () => variant === 'native'
-    ? new MongoClient(uri, options)
-    : new ServerlessClient(uri, serverlessOptions));
+  const client = new MongoClient(uri, options);
 
-  if (client instanceof MongoClient) client.on('commandStarted', on.commandStarted);
+  for (const [name, listener] of Object.entries(events.listeners)) client.on(name, listener);
 
   return client;
 });
@@ -117,46 +114,39 @@ export async function handler(
   assert.equal(event.variant, variant, 'The event must match the deployed function variant');
   assert.ok(['read', 'write'].includes(event.operation));
   invocations += 1;
-  discoveryCommands = 0;
-  telemetry.traces.length = 0;
-  telemetry.commands.length = 0;
-  telemetry.exchanges.length = 0;
-  telemetry.dns.length = 0;
   ssmCalls.length = 0;
   const cold = invocations === 1;
+  const start = performance.now();
+  events.reset(start);
+  const collection = getClient().db(process.env['DATABASE'] ?? 'bench').collection<{ _id: string; value: number }>('serverless_patterns');
 
-  const measurement = await measureOperation(async () => {
-    const collection = getClient().db(process.env['DATABASE'] ?? 'bench').collection<{ _id: string; value: number }>('serverless_patterns');
+  const result = event.operation === 'read'
+    ? await collection.findOne({ _id: 'seed' }, { readPreference: 'nearest' })
+    : await collection.updateOne({ _id: 'seed' }, { $inc: { value: 1 } }, { upsert: event.prepare === true });
 
-    return event.operation === 'read'
-      ? await collection.findOne({ _id: 'seed' }, { readPreference: 'nearest' })
-      : await collection.updateOne({ _id: 'seed' }, { $inc: { value: 1 } }, { upsert: event.prepare === true });
-  });
-
-  const { result, ...timing } = measurement;
-  const { start, end } = timing;
+  const end = performance.now();
+  const trace = events.trace(end);
   assert.ok(result);
 
   if ('matchedCount' in result) assert.equal(result.matchedCount + result.upsertedCount, 1);
   else assert.equal(result._id, 'seed');
 
-  const command = telemetry.commands.find(command => command.name === (event.operation === 'read' ? 'find' : 'update'));
-  assert.ok(command?.socket.authorized, 'MongoDB TLS must verify');
-  assert.ok(['PRIMARY', 'SECONDARY'].includes(command.socket.role ?? ''), 'Operations require a healthy replica-set member');
+  const { command } = trace;
+  assert.ok(command?.socket?.authorized, 'MongoDB TLS must verify');
+  assert.ok(['PRIMARY', 'SECONDARY'].includes(command.socket.role), 'Operations require a healthy replica-set member');
 
   if (event.operation === 'write') assert.equal(command.socket.role, 'PRIMARY');
 
-  const sockets = telemetry.traces.filter(socket => socket.hello);
-  const authenticated = sockets.filter(socket => socket.auth);
+  const authenticated = trace.sockets.filter(socket => socket.kind === 'application');
   const calls = [...(cold ? initialization.ssm : []), ...ssmCalls];
   const reads = calls.filter(call => call.command.startsWith('GetParameter'));
 
   const evidence = {
-    variant, operation: event.operation, servedRole: command.socket.role ?? 'UNKNOWN',
-    seedRole: authenticated[0]?.role ?? command.socket.role ?? 'UNKNOWN', sockets: sockets.length,
-    authenticatedSockets: authenticated.length, monitorSockets: sockets.length - authenticated.length,
-    dns: telemetry.dns.map(query => query.kind), discoveryCommands, ssmReads: reads.length,
-    ssmWrites: calls.length - reads.length, cold
+    variant, operation: event.operation, servedRole: command.socket.role,
+    seedRole: authenticated[0]?.role ?? command.socket.role, sockets: trace.sockets.length,
+    authenticatedSockets: authenticated.length, monitorSockets: trace.sockets.length - authenticated.length,
+    discoveryCommands: trace.commands.filter(command => command.name === 'replSetGetStatus').length,
+    ssmReads: reads.length, ssmWrites: calls.length - reads.length, cold
   };
 
   if (cold && !event.prepare) verifyPattern(evidence);
@@ -167,9 +157,7 @@ export async function handler(
     ...evidence, verified: true, totalMs: end - start,
     ssmMs: (cold ? initialization.ssm : []).reduce((sum, call) => sum + call.end - call.start, 0), ssmPhase: 'init',
     initialization: cold ? initialization : undefined,
-    environmentId, clientConstructions, nodeVersion: process.version, driverVersion: telemetry.version,
-    trace: { ...timing,
-      exchanges: [...telemetry.exchanges], dns: [...telemetry.dns], sockets, command, ssm: [...ssmCalls] },
-    connections: telemetry.connections().map(({ uri: _uri, ...connection }) => connection)
+    environmentId, clientConstructions, nodeVersion: process.version, driverVersion,
+    trace: { ...trace, ssm: [...ssmCalls] }
   };
 }

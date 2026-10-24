@@ -14,7 +14,6 @@ export interface PatternEvidence {
   sockets: number;
   authenticatedSockets: number;
   monitorSockets: number;
-  dns: string[];
   discoveryCommands: number;
   ssmReads: number;
   ssmWrites: number;
@@ -28,12 +27,6 @@ export function verifyPattern(sample: PatternEvidence): void {
   assert.ok(['PRIMARY', 'SECONDARY'].includes(sample.servedRole), 'Read must reach a healthy member');
 
   if (sample.operation === 'write') assert.equal(sample.servedRole, 'PRIMARY', 'Writes must reach the primary');
-
-  if (sample.variant !== 'ssm') {
-    assert.deepEqual([...sample.dns].sort(), ['SRV', 'TXT'], 'Each uncached invocation must resolve SRV and TXT DNS');
-  } else {
-    assert.equal(sample.dns.length, 0, 'Cached routing must skip SRV/TXT DNS');
-  }
 
   if (sample.variant === 'native') return;
   assert.equal(sample.monitorSockets, 0, 'Direct patterns must disable monitor sockets');

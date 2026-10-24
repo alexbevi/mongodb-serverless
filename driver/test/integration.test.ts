@@ -7,6 +7,7 @@ import { NoPrimaryError, SessionRoutingError } from '../src/errors.js';
 import {
   describeCluster,
   dockerAvailable,
+  failCommand,
   startCluster,
   type TestCluster
 } from '../../test/harness/cluster.js';
@@ -191,6 +192,48 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     expect(await plugin.read()).toMatchObject({
       members: expect.arrayContaining([expect.objectContaining({ name: cluster.primary, stateStr: 'PRIMARY' })])
     });
+  });
+
+  it('lets the native driver retry a write whose connection drops', async () => {
+    const appName = `retry-network-${Date.now()}`;
+    const marker = Date.now();
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], closeConnection: true, appName }, 1);
+
+    try {
+      const { client, commands } = connect(cluster.status, cluster.uri, { appName });
+      await client.db('itest').collection('native_retry').insertOne({ marker });
+
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+      expect(portsFor(commands, 'replSetGetStatus')).toEqual([]);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('native_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
+  });
+
+  it('replays on the refreshed primary after the native retry is also rejected', async () => {
+    const appName = `retry-layers-${Date.now()}`;
+    const marker = Date.now();
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], errorCode: 10107, appName }, 2);
+
+    try {
+      const { client, commands } = connect(cluster.status, cluster.uri, { appName });
+      await client.db('itest').collection('layered_retry').insertOne({ marker });
+
+      // The original attempt and the native retry are rejected; the wrapper
+      // refreshes topology and its replay succeeds.
+      expect(portsFor(commands, 'insert')).toEqual(Array(3).fill(portOf(cluster.primary)));
+      expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('layered_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
   });
 
   it('refreshes topology after a server-selection error with an undefined code', async () => {

@@ -1,5 +1,5 @@
 import { handshake } from './harness/handshake.js';
-import type { MongoClient } from 'mongodb';
+import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
 import { NoPrimaryError } from '../src/errors.js';
@@ -261,10 +261,27 @@ it('keeps routed connections direct even when native options request discovery',
 
   await pair.write();
 
-  expect(createClient).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-    directConnection: true, retryWrites: false
-  }));
+  expect(createClient).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ directConnection: true }));
   await pair.close();
+});
+
+it.each([
+  ['routed', pluginFor(singleNode)]
+])('leaves retryable writes to the native driver on %s connections', async (_path, plugin) => {
+  const hello = handshake('RSPrimary');
+  // SAFETY: This fake reports its handshake role and implements connection lifecycle.
+  const createClient = vi.fn((_uri: string, _options?: MongoClientOptions) => ({ on: hello.on, async connect() { hello.connected(); }, async close() {} } as never));
+
+  const defaults = new ClientPair({ uri: 'mongodb://a:27017/', plugin, createClient });
+  await defaults.write();
+  await defaults.close();
+
+  const optedOut = new ClientPair({ uri: 'mongodb://a:27017/', plugin, createClient, driverOptions: { retryWrites: false } });
+  await optedOut.write();
+  await optedOut.close();
+
+  expect(createClient.mock.calls[0]?.[1]).not.toHaveProperty('retryWrites');
+  expect(createClient.mock.calls[1]?.[1]).toMatchObject({ retryWrites: false });
 });
 
 it('waits for in-flight discovery on close and does not persist afterward', async () => {

@@ -242,7 +242,7 @@ export class ClientPair {
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.
     const pending = (async () => {
-      const client = this.#options.createClient(uri, { ...options, directConnection: true, retryWrites: false });
+      const client = this.#options.createClient(uri, { ...options, directConnection: true });
 
       try {
         const member = observeMember(client);

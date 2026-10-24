@@ -172,10 +172,9 @@ run for this client. Command monitoring and pool events still work. Pool sizes
 remain configurable; minimum-pool maintenance can open application connections.
 
 On a standalone native client, the monitoring patch reconnects to the same host
-and retains native retry rules. On the serverless wrapper, topology-related write
-failures also trigger the plugin refresh described below. The wrapper disables
-native write retries so it can bound its own retry count. Closing a patched
-client never reconnects to end sessions.
+and retains native retry rules. The serverless wrapper keeps those rules too;
+topology-related write failures also trigger the refresh described below.
+Closing a patched client never reconnects to end sessions.
 
 This experimental patch uses 7.7.0 as its verified baseline. It accepts stable
 versions in `>=7.7.0 <8.0.0` when the internal API checks pass. Those checks cannot
@@ -273,13 +272,16 @@ Topology-related write failures also refresh the cached members.
 
 ### Discovery and write recovery
 
-A topology-related write failure triggers one shared refresh per client after
+The native driver retries a retryable write once against the same member,
+unless `retryWrites` is `false`. That recovers a dropped connection. A
+topology-related write failure that remains triggers one shared refresh per client after
 100–249 ms of jittered backoff. An ordinary promise-returning write rejected with `NotWritablePrimary` or
 `NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
 A `NoWritesPerformed` label on a topology-related server error also permits replay.
 Explicit sessions, bulk builders, and cursors are excluded from automatic replay.
-Network failures and partial bulk failures refresh topology but are returned to
-the caller: their writes may already have run. Duplicate-key, validation, and
+Network failures that the native retry cannot recover, and partial bulk
+failures, refresh topology but are returned to the caller: their writes may
+already have run. Duplicate-key, validation, and
 authorization errors do not trigger discovery. A failed refresh preserves the
 original write error. The caller decides whether to retry again after an election.
 

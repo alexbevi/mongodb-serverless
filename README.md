@@ -7,8 +7,9 @@ An optional plugin shares topology across client instances.
 The driver discovers topology on first use through one direct member connection,
 retains that connection for operations, and opens another only when the required
 role differs. With a plugin, later cold starts can reuse cached topology.
-Topology-related write failures trigger a refresh and one bounded retry when the
-server confirms that the write was rejected before execution. No separate
+Native retryable writes stay on. Topology-related write failures also trigger a
+refresh and one replay on the new primary when the server confirms that the write
+was rejected before execution. No separate
 watcher process is needed.
 
 Reads prefer a healthy secondary; writes go to the primary.

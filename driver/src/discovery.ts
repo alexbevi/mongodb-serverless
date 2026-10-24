@@ -74,7 +74,7 @@ async function trySeeds<T>(
   const expectedSet = resolved.options?.replicaSet ?? new ConnectionString(uri).searchParams.get('replicaSet');
 
   const settings = {
-    serverSelectionTimeoutMS: 5000, ...resolved.options, retryWrites: false, directConnection: true
+    serverSelectionTimeoutMS: 5000, ...resolved.options, directConnection: true
   };
 
   let failure: unknown;

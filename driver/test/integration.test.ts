@@ -214,6 +214,32 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       .resolves.toBe(1);
   });
 
+  it('lets the native driver retry a dropped write on the bootstrap connection', async () => {
+    const appName = `retry-bootstrap-${Date.now()}`;
+    const marker = Date.now();
+    const commands: CommandStartedEvent[] = [];
+    const disable = await failCommand(cluster.primary, { failCommands: ['insert'], closeConnection: true, appName }, 1);
+
+    try {
+      // Seeding only the primary makes the bootstrap connection serve the write.
+      const client = new ServerlessMongoClient(`mongodb://${cluster.primary}/?replicaSet=${cluster.status.set}`, {
+        appName, monitorCommands: true, on: { commandStarted: event => commands.push(event) }
+      });
+
+      clients.push(client);
+      await client.db('itest').collection('bootstrap_retry').insertOne({ marker });
+
+      expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
+      expect(portsFor(commands, 'replSetGetStatus')).toEqual([]);
+    } finally {
+      await disable();
+    }
+
+    const { client: reader } = connect();
+    await expect(reader.db('itest').collection('bootstrap_retry').countDocuments({ marker }, { readPreference: 'primary' }))
+      .resolves.toBe(1);
+  });
+
   it('replays on the refreshed primary after the native retry is also rejected', async () => {
     const appName = `retry-layers-${Date.now()}`;
     const marker = Date.now();
@@ -299,6 +325,9 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       const { client, commands, plugin } = connect(cached, cluster.uri, {
         serverSelectionTimeoutMS: 1000,
         connectTimeoutMS: 250,
+        // Isolates the wrapper's handling of a wrapped network error. With
+        // native retries on, the retry fails server selection instead.
+        retryWrites: false,
         on: {
           commandStarted(event) {
             if (event.commandName === 'insert' && disconnected == null) {

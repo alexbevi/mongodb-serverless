@@ -111,9 +111,15 @@ sequenceDiagram
 
 ![Recovery diagram](assets/recovery.png)
 
-Native write retries are disabled underneath the wrapper to keep the total at
-two attempts. Ordinary promise-returning operations can replay only for a
+Direct clients keep the native `retryWrites` setting, which is on by default.
+The native retry goes back to the same member, so it recovers a dropped
+connection but not a primary change. After a failover the native retry is
+rejected too, and the wrapper's replay reaches the new primary: up to three
+attempts in total. With `retryWrites: false`, only the wrapper's replay remains.
+The wrapper replays ordinary promise-returning operations only for a
 `MongoServerError` with code 10107 or 13435, or a `NoWritesPerformed` label.
+When a native retry after a dropped connection is rejected, the native driver
+returns the network error, so the wrapper refreshes topology without replaying.
 Bulk builders and cursors never replay automatically, because earlier batches,
 results, or writes may already exist. Read failures do not trigger refresh.
 An election that outlasts this recovery attempt remains a caller-visible error.

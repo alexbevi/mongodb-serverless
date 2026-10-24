@@ -266,7 +266,8 @@ it('keeps routed connections direct even when native options request discovery',
 });
 
 it.each([
-  ['routed', pluginFor(singleNode)]
+  ['routed', pluginFor(singleNode)],
+  ['bootstrap', uncachedTopology]
 ])('leaves retryable writes to the native driver on %s connections', async (_path, plugin) => {
   const hello = handshake('RSPrimary');
   // SAFETY: This fake reports its handshake role and implements connection lifecycle.

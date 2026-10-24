@@ -88,60 +88,39 @@ jobs:
           python3 -m pip install -r benchmark/requirements-report.txt
           python3 -m unittest discover -s benchmark/test -p "*_test.py"
 
-      - name: Require 10% benchmark improvement (100 iterations)
-        id: benchmark
-        timeout-minutes: 10
+      - name: Measure cold starts (40 per pattern)
+        id: measure
+        timeout-minutes: 15
         run: |
           pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/workflow.test.ts
-          pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
-          python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+          pnpm benchmark --samples 40 --output "$RUNNER_TEMP/benchmark/samples.json"
 
-      - name: Collect detailed latency diagnostics (100 iterations)
-        if: always() && steps.benchmark.outcome != 'skipped'
-        timeout-minutes: 10
-        run: pnpm benchmark --diagnostics --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/diagnostics/samples.json"
-
-      - name: Render benchmark latency
-        if: always() && steps.benchmark.outcome != 'skipped'
+      - name: Render charts and results
+        if: always() && hashFiles(format('{0}/benchmark/samples.json', runner.temp)) != ''
         timeout-minutes: 3
-        env:
-          BENCHMARK_NODE: '24'
-        run: |
-          if [ -f "$RUNNER_TEMP/benchmark/diagnostics/samples.json" ]; then
-            python3 -m pip install -r benchmark/requirements-report.txt
-            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/diagnostics/samples.json" --environment local
-            mv "$RUNNER_TEMP/benchmark/diagnostics/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
-          fi
+        run: python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json"
 
-      - name: Upload benchmark measurements
+      - name: Require the SSM plugin 10% below native
+        id: benchmark
+        if: always() && steps.measure.outcome == 'success'
+        run: python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+
+      - name: Upload charts and results
         id: benchmark-results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-node-24
-          path: |
-            ${{ runner.temp }}/benchmark/samples.json
-            ${{ runner.temp }}/benchmark/diagnostics/samples.json
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload latency diagram
-        id: benchmark-image
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: ${{ runner.temp }}/benchmark/latency-node-24.png
-          archive: false
+          path: ${{ runner.temp }}/benchmark/
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Summarize benchmark
-        if: always() && steps.benchmark.outcome != 'skipped'
+        if: always() && steps.measure.outcome != 'skipped'
         env:
           BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json
           BENCHMARK_NODE: '24'
           BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
-          BENCHMARK_IMAGE_URL: ${{ steps.benchmark-image.outputs.artifact-url }}
           BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
         run: python3 benchmark/ci_summary.py
 

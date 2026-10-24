@@ -2,48 +2,57 @@
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+from statistics import median
 
-from performance import check_performance
+from performance import REQUIRED_REDUCTION, change, check_performance
 
 
-def render_summary(data, node_version, outcome, image_url, result_url):
+def local_tls_ms(data):
+    handshakes = [s['tls'][1] - s['tls'][0] for sample in data['samples'] for s in sample['trace']['sockets']
+                  if s['kind'] == 'application' and 'tls' in s]
+    return median(handshakes) if handshakes else None
+
+
+def note(data, aws_summary):
+    local = local_tls_ms(data)
+    aws = (aws_summary or {}).get('operations', {}).get('read', {}).get('ssm', {}).get('phaseMeansMs', {}).get('tls')
+    cost = (f'a cold TLS handshake costs ~{aws:.0f} ms against ~{local:.0f} ms here' if aws and local
+            else 'a cold TLS handshake costs several times more than it does here')
+    return (f'\\* Local medians are lower than on AWS Lambda, where {cost}. Native\'s monitor handshakes therefore '
+            'cost far less locally, so the serverless reductions are smaller. No-plugin writes that need a second '
+            'connection come out about even on AWS but slower locally.')
+
+
+def render_summary(data, node_version, outcome, result_url, aws_summary):
     lines = [f'## Cold-operation benchmark · Node {node_version}', '']
     try:
         if data is None:
             raise ValueError('No result JSON was produced; see the benchmark step log.')
-        results = check_performance(data)
-        passed = outcome == 'success' and all(row['passed'] for row in results)
-        lines.extend([
-            '**✅ Benchmark passed**' if passed else '**❌ Benchmark failed**', '',
-            '100 iterations per operation and client · median latency · required reduction **≥10%** for both operations.', '',
-            '| Operation | MongoDB | Serverless | Reduction | Gate |',
-            '| :--- | ---: | ---: | ---: | :---: |',
-        ])
-        for row in results:
-            lines.append(f"| {row['operation'].title()} | {row['nativeMedianMs']:.2f} ms | "
-                         f"{row['serverlessMedianMs']:.2f} ms | **{row['improvementPercent']:.2f}%** | "
-                         f"{'✅' if row['passed'] else '❌'} |")
+        rows = check_performance(data)
+        passed = outcome == 'success' and all(row['passed'] for row in rows)
+        lines += ['**✅ Benchmark passed**' if passed else '**❌ Benchmark failed**', '',
+                  f"{data['configuration']['count']} cold starts per pattern · median latency · the SSM plugin must be "
+                  f'**≥{REQUIRED_REDUCTION:.0%} reduced** for both operations.', '',
+                  '| Operation | Native | No plugin | SSM plugin | Gate |', '| :--- | ---: | ---: | ---: | :---: |']
+        for row in rows:
+            native = row['nativeMedianMs']
+            lines.append(f"| {row['operation'].title()} | {native:.2f} ms | "
+                         f"{row['noPluginMedianMs']:.2f} ms ({change(row['noPluginMedianMs'], native)}) | "
+                         f"{row['ssmMedianMs']:.2f} ms ({change(row['ssmMedianMs'], native)}) | {'✅' if row['passed'] else '❌'} |")
+        lines += ['', note(data, aws_summary)]
     except (ValueError, KeyError, TypeError) as error:
-        lines.extend(['**⚠️ Benchmark incomplete**', '', f'Invalid benchmark result: {error}'])
-    lines.append('')
-    if image_url:
-        image = urlparse(image_url)
-        if image.hostname == 'github.com' and '/actions/runs/' in image.path and '/artifacts/' in image.path:
-            lines.extend([f'[View latency diagram]({image_url})', ''])
-        else:
-            lines.extend([f'![Latency diagram]({image_url})', ''])
+        lines += ['**⚠️ Benchmark incomplete**', '', f'Invalid benchmark result: {error}']
     if result_url:
-        lines.extend([f'[Download result JSON]({result_url})', ''])
-    if image_url or result_url:
-        lines.append('Artifacts expire after 7 days; viewing them requires signing in to GitHub.')
+        lines += ['', f'[Download charts and results]({result_url})', '',
+                  'Artifacts expire after 7 days; downloading them requires signing in to GitHub.']
     return '\n'.join(lines) + '\n'
 
 
 if __name__ == '__main__':
     source = Path(os.environ['BENCHMARK_RESULT'])
-    data = json.loads(source.read_text()) if source.exists() else None
-    summary = render_summary(data, os.environ['BENCHMARK_NODE'], os.environ['BENCHMARK_OUTCOME'],
-                             os.environ.get('BENCHMARK_IMAGE_URL', ''), os.environ.get('BENCHMARK_RESULT_URL', ''))
+    aws = Path(__file__).with_name('results') / 'aws' / 'summary.json'
+    summary = render_summary(json.loads(source.read_text()) if source.exists() else None, os.environ['BENCHMARK_NODE'],
+                             os.environ['BENCHMARK_OUTCOME'], os.environ.get('BENCHMARK_RESULT_URL', ''),
+                             json.loads(aws.read_text()) if aws.exists() else None)
     with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as output:
         output.write(summary)

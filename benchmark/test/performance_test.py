@@ -45,5 +45,17 @@ class PerformanceTest(unittest.TestCase):
                 check_performance(invalid)
 
 
+class LoadTest(unittest.TestCase):
+    def test_gate_reads_plain_or_gzipped_samples(self):
+        import gzip, json, tempfile
+        from performance import load_samples
+        data = run(count=1)
+        with tempfile.TemporaryDirectory() as directory:
+            plain, packed = Path(directory) / 'samples.json', Path(directory) / 'samples.json.gz'
+            plain.write_text(json.dumps(data))
+            packed.write_bytes(gzip.compress(json.dumps(data).encode()))
+            self.assertEqual(load_samples(plain), load_samples(packed))
+
+
 if __name__ == '__main__':
     unittest.main()

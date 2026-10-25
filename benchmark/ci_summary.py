@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from statistics import median
 
-from performance import REQUIRED_REDUCTION, change, check_performance
+from performance import REQUIRED_REDUCTION, change, check_performance, load_samples
 
 
 def local_tls_ms(data):
@@ -63,7 +63,7 @@ def render_summary(data, node_version, outcome, result_url, aws_summary, chart_u
 if __name__ == '__main__':
     source = Path(os.environ['BENCHMARK_RESULT'])
     aws = Path(__file__).with_name('results') / 'aws' / 'summary.json'
-    summary = render_summary(json.loads(source.read_text()) if source.exists() else None, os.environ['BENCHMARK_NODE'],
+    summary = render_summary(load_samples(source) if source.exists() else None, os.environ['BENCHMARK_NODE'],
                              os.environ['BENCHMARK_OUTCOME'], os.environ.get('BENCHMARK_RESULT_URL', ''),
                              json.loads(aws.read_text()) if aws.exists() else None,
                              json.loads(os.environ.get('BENCHMARK_CHART_URLS') or '{}'))

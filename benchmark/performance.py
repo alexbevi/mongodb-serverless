@@ -1,4 +1,5 @@
 """Require the cached-topology plugin to cut median cold latency by 10% for reads and writes."""
+import gzip
 import json
 import math
 import sys
@@ -6,6 +7,11 @@ from pathlib import Path
 from statistics import median
 
 REQUIRED_REDUCTION = 0.10
+
+
+def load_samples(path):
+    """Reads samples from JSON, gzipped when the name ends in .gz."""
+    return json.loads(gzip.decompress(path.read_bytes()) if path.suffix == '.gz' else path.read_text())
 
 
 def cohort(data, operation, variant):
@@ -45,7 +51,7 @@ def change(value, native):
 
 if __name__ == '__main__':
     try:
-        rows = check_performance(json.loads(Path(sys.argv[1]).read_text()))
+        rows = check_performance(load_samples(Path(sys.argv[1])))
     except (ValueError, KeyError, TypeError) as error:
         sys.exit(f'Invalid benchmark result: {error}')
     for row in rows:

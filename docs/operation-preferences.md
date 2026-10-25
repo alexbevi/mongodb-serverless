@@ -6,8 +6,8 @@ assume an explicit operation option on a supported collection read. Other
 option locations and command types are listed separately.
 
 Role validation checks the selected member against cached topology. It does not
-implement all native read-preference semantics. The default secondary-first
-policy and the gaps below predate this PR.
+implement all native read-preference semantics: the default is secondary-first,
+and the gaps below remain.
 
 | Preference or option | Native MongoDB driver | ServerlessMongoClient |
 |---|---|---|
@@ -33,12 +33,6 @@ policy and the gaps below predate this PR.
 | Read preference on `runCursorCommand` | Use a `ReadPreference` object or `withReadPreference()`. In 7.7.0, a string in the constructor options is ignored and defaults to primary | Always classified onto the primary route |
 | Read preference on aggregation ending in `$out` / `$merge` | On supported servers, the read phase may run on a secondary and writes reach the primary | Classified onto the primary route; both differences were reproduced against the local server |
 
-The role check uses native server-description events. Matching roles add no
-explicit `hello`. A mismatch reruns discovery and awaits the plugin's write
-before selecting again; a second mismatch fails before the application command.
-With monitoring disabled, reused connections are not polled for role changes.
-An election can still occur between validation and execution.
-
 The wrapper also scans all operation arguments for `readPreference`; a query
 field with that name can be mistaken for an option. This remains a separate
 routing issue.
@@ -54,42 +48,11 @@ Sources: [read preferences](https://www.mongodb.com/docs/manual/core/read-prefer
 [read and write concern](https://specifications.readthedocs.io/en/latest/read-write-concern/read-write-concern/),
 and the pinned native driver's `ReadPreference` and command implementation.
 
-## Future work
-
-These differences are deferred compatibility work. They are reproduced concerns
-for applications that need these options, not new regressions from bootstrap reuse.
-The Lambda benchmark deliberately permits reads from any healthy member and
-requires writes to reach the primary. It does not claim full preference parity.
-
 ## Tests
 
-`driver/test/preferences/integration.test.ts` runs 82 scenarios against a real
-three-member replica set. Each has a native-driver baseline and wrapper checks
-with monitoring enabled and disabled: 246 checks in total. Command events prove
-which member receives the operation and which read/write concerns reach the wire.
-The cases cover all five read modes as strings and objects; URI, client, database,
-collection, cursor, and operation settings; inserts, updates, deletes; generic
-commands; and aggregation with `$out` or `$merge`.
-
-`driver/test/preferences/selection.test.ts` compares 45 deterministic topology
-scenarios with the pinned native driver's actual server selector. It covers
-missing primaries and secondaries, ordered tags, staleness, and latency windows.
-Synthetic server descriptions avoid changing the live cluster's timing or
-replication state. These checks validate selection, not network behavior.
-
-`driver/test/roles/integration.test.ts` exercises stale cached roles for all five
-read modes, with monitoring enabled and disabled. It verifies concurrent refresh,
-persistence, and the next cold start against real command destinations. Existing
-write-recovery tests cover a stale primary before an insert.
-
-The preference suites contain **73 expected failing assertions across 49
-scenarios**: 24 live scenarios fail in both monitoring modes, and 25 synthetic
-scenarios fail once. They assert native behavior using `it.fails`; an unexpected
-pass requires removing the known-gap marker. Fixture, connection, and
-authentication errors are checked separately so they cannot satisfy a known gap.
-These tests document incomplete parity, not completed fixes.
-
-Run the matrix normally:
+The preference suites assert native behaviour for every row above, against a real
+replica set and the pinned driver's own server selector. Known gaps are marked
+`it.fails`, so a gap that closes fails the run until its marker is removed.
 
 ```sh
 pnpm exec vitest run driver/test/preferences driver/test/roles/integration.test.ts
@@ -100,7 +63,3 @@ To reproduce every known difference as a failing assertion:
 ```sh
 MONGODB_NATIVE_PARITY=1 pnpm exec vitest run driver/test/preferences
 ```
-
-The strict run currently reports 264 passes and 73 failures. All native baselines
-pass; the failures are wrapper differences. The normal run reports the same 337
-checks as satisfied, including those 73 expected failures.

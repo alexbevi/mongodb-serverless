@@ -47,7 +47,7 @@ through to the real driver unchanged.
 
 With `disableMonitoring: true` and a pool limit of one, healthy bootstrap opens
 one socket when the chosen member can serve the operation, or two when another
-member is needed. See [the bootstrap diagrams and configuration](docs/bootstrap.md)
+member is needed. See [the connection diagrams and configuration](docs/architecture.md#connections)
 for the supported authentication modes and connection-count limits.
 
 The optional local plugin stores discovered topology in the current process

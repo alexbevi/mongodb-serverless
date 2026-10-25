@@ -35,8 +35,8 @@ for (const version of ['7.7.0', '^7.7.0']) {
 
     await writeFile(join(directory, 'example.cjs'), `(async () => {\n${prefix}${commonjs}\n})().catch(error => { console.error(error); process.exitCode = 1; });\n`);
 
-    const bootstrapDoc = await readFile(join(root, 'docs/bootstrap.md'), 'utf8');
-    const bootstrap = bootstrapDoc.match(/```js\n([\s\S]*?)```/)?.[1];
+    const architecture = await readFile(join(root, 'docs/architecture.md'), 'utf8');
+    const bootstrap = architecture.match(/```js\n([\s\S]*?)```/)?.[1];
 
     if (!bootstrap) throw new Error('No bootstrap example');
     await writeFile(join(directory, 'bootstrap.mjs'), prefix + bootstrap);

@@ -35,19 +35,30 @@ through `client` to configure an endpoint or share an existing SDK client.
 The default parameter names are `/mongodb-serverless/connection-string` and
 `/mongodb-serverless/topology`.
 
-See [integration tests](TESTING.md) for running the plugin against LocalStack.
-
 ## Limitations
 
-Discovery and refresh overwrite only the topology parameter. Writes are enabled
-by default; pass `writable: false` for a pre-populated read-only store. The caller
-needs `ssm:PutParameter` on the topology ARN when writes are enabled.
+- Discovery and refresh overwrite only the topology parameter. Writes are on by
+  default; pass `writable: false` for a store populated some other way.
+- Permissions: `ssm:GetParameters` on both parameters, `ssm:PutParameter` on the
+  topology parameter when writable, and `kms:Decrypt` with a customer-managed key.
+- Topology holds only the set name, each member's name, role and health, and the
+  resolved authentication mechanism and source. Credentials stay in the separate
+  SecureString.
+- The topology must fit the 4096-byte Standard parameter limit.
+- Concurrent writers are last-write-wins, because SSM has no compare-and-swap.
+- Settings are cached for the plugin's lifetime, so a rotated connection string
+  needs a new plugin. Failed requests are not cached.
 
-Topology stores only the set name, member names/roles/health, and resolved
-authentication mechanism/source. Credentials remain in the separate SecureString.
-The compact topology must fit the 4096-byte Standard parameter limit. Concurrent
-Lambda writers use last-write-wins; SSM provides no compare-and-swap here.
-The caller needs `ssm:GetParameters` on both parameter ARNs and `kms:Decrypt`
-when using a customer-managed key. Cached settings last for the plugin instance;
-create a new instance to reload a rotated connection string. Failed requests are
-not cached. The response is matched by parameter name because SSM sorts results.
+## Development
+
+The LocalStack integration tests send real AWS SDK requests to an emulator; CI
+runs them in the `plugin-aws-ssm` job. Locally, start LocalStack 4.14.0 and run
+the suite from the repository root:
+
+```sh
+docker run --rm --publish 127.0.0.1:4566:4566 --env SERVICES=ssm,kms localstack/localstack:4.14.0
+SSM_ENDPOINT=http://127.0.0.1:4566 pnpm --filter @mongodb-serverless/plugin-aws-ssm test:integration
+```
+
+LocalStack checks API behaviour, not production IAM or KMS policy, AWS latency,
+or routing. The driver's replica-set tests and the benchmark cover those.

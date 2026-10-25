@@ -65,30 +65,11 @@ so neither is its default database. Credentials
 remain in the plugin's connection-string store; topology documents contain no
 copy of them.
 
-On a cache miss, the native driver's URI parser and SRV/TXT resolver produce the
-seed list and connection settings. The wrapper tries seeds in random order,
-connecting directly to one member at a time. It retains a successful connection
-for operations targeting that member. Cached routing and refresh through known
-members perform no SRV or TXT lookups. Discovery uses the initial handshake for
-replica-set identity and member address checks; it sends no additional `hello`.
-
-SRV resolution uses an internal driver API, verified against `mongodb@7.7.0`.
-It requires a stable version in `>=7.7.0 <8.0.0`; recheck DNS and authentication
-behavior on driver upgrades.
-
-Discovery stores the authentication mechanism and the native driver's resolved
-`authSource` alongside topology. Direct read, write, and refresh connections reuse
-that source, including when another wrapper reads the cached topology. Explicit
-`authSource` in the URI or constructor options takes precedence. Passwords,
-certificates, tokens, and provider callbacks come from each wrapper's original
-configuration; they are never stored in topology. TLS remains enabled by default
-for SRV URIs; an explicit `tls: false` or `ssl: false` constructor option is
-preserved for bootstrap and cached connections.
-
-Use separate topology records for different clusters or authentication defaults.
-Changing the authentication mechanism triggers native discovery again. Older
-records without authentication metadata still work with explicit `authSource`;
-clear them once to discover a source supplied only by DNS TXT.
+Discovery resolves SRV and TXT records with the native driver's own parser, and
+stores the resolved authentication mechanism and source with the topology, never
+credentials. An explicit `authSource`, `tls` or `ssl` option always wins. Keep
+separate topology records for different clusters or authentication defaults.
+[Driver discovery and plugin contract](../docs/architecture.md) has the details.
 
 ## Routing
 
@@ -110,26 +91,11 @@ primary or secondary, including the bootstrap connection. This permits either
 role but does not implement latency, tag, or staleness filtering; use it only when
 any healthy member is acceptable. Other preferences retain the limitations below.
 
-Without a plugin, the native handshake identifies the connected member's role.
-If it can serve the operation, the wrapper returns the result without running
-`replSetGetStatus`. Later operations reuse that connection while its reported
-role remains suitable. An operation needing another role first discovers
-topology on the existing connection, then connects to the required member.
-Discovery failures affect only operations that need discovery; later calls can
-retry. Role mismatches and eligible write failures trigger the recovery below.
-
-Plugin cache misses still discover and persist before executing operations.
-The bootstrap connection is reused for its member; other connections open on
-first use. When reads fall back to the primary, one client serves both.
-`close()` closes every client it opened.
-
-Before returning a routed client, the wrapper checks the role reported by the
-native driver against the cached topology. A mismatch triggers one discovery
-refresh, awaits the plugin's topology write, and selects the member again. A
-second mismatch fails before sending the application operation. Matching roles
-need no extra `hello` command. The check uses native server-description events;
-with monitoring disabled, it does not poll reused connections for role changes.
-An election can still occur between validation and execution.
+Without a plugin, an operation runs on the first connection when that member's
+role can serve it, and discovers topology only when it needs another member.
+Before using a member, the driver checks its reported role against the topology
+and refreshes once on a mismatch. `close()` closes every client it opened. See
+[the connection diagrams](../docs/architecture.md#connections).
 
 ### Disable monitoring
 
@@ -164,7 +130,7 @@ operations open one socket if the selected member can serve the operation, or
 two if another member is needed. No plugin is required. The first connection is
 retained; later reads prefer an already connected healthy secondary. Failed
 seeds, elections, and replacement of idle connections can increase the count.
-See [the bootstrap diagrams](../docs/bootstrap.md).
+See [the connection diagrams](../docs/architecture.md#connections).
 
 The first socket completes the native handshake and authentication, then enters
 the application pool. No heartbeat or RTT sockets, timers, or heartbeat events

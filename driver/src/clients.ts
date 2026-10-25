@@ -6,6 +6,7 @@ import type { MemberConnection } from './member.js';
 import type { ReplSetGetStatus, TopologyPlugin } from './plugin.js';
 import { chooseHost, serves, type ReadRoute, type Route } from './selection.js';
 import { parseTopology, type Topology } from './topology.js';
+import { withoutSrvOptions } from './uri.js';
 
 export type { ClientFactory } from './connector.js';
 
@@ -241,9 +242,7 @@ export class ClientPair {
   }
 
   #connectionOptions(topology: Topology | undefined): MongoClientOptions {
-    const options = { ...this.#options.driverOptions };
-    delete options.srvServiceName;
-    delete options.srvMaxHosts;
+    const options: MongoClientOptions = withoutSrvOptions(this.#options.driverOptions ?? {});
 
     if (topology?.authentication?.mechanism === this.#authenticationMechanism() &&
         options.authSource == null && !this.#uri.searchParams.has('authSource')) {

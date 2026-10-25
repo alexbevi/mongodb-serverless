@@ -1,13 +1,15 @@
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { requireMongo, assertVersion } from './native.js';
 import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
+import { withoutSrvOptions } from './uri.js';
 
 export interface Seedlist {
   hosts: string[];
   options: MongoClientOptions;
 }
 
-export async function resolveSeeds(uri: string, options: MongoClientOptions = {}): Promise<Seedlist> {
+/** Resolves the seed list in random order, so clients spread their first connections across members. */
+export async function resolveSeeds(uri: string, options: MongoClientOptions = {}, random: () => number = Math.random): Promise<Seedlist> {
   const connectionString: {
     parseOptions: OptionsParser;
     resolveSRVRecord: SrvResolver;
@@ -35,23 +37,26 @@ export async function resolveSeeds(uri: string, options: MongoClientOptions = {}
     throw new ServerlessDriverError('Load-balanced clusters are unsupported. Discovery requires a replica set.');
   }
 
-  const settings = { ...options, tls: parsed.tls };
-  delete settings.srvServiceName;
-  delete settings.srvMaxHosts;
+  const settings: MongoClientOptions = { ...withoutSrvOptions(options), tls: parsed.tls };
 
   if (parsed.credentials) settings.authSource = parsed.credentials.source;
 
   if (parsed.replicaSet) settings.replicaSet = parsed.replicaSet;
 
-  const candidates = hosts.map(String);
+  return { hosts: shuffle(hosts.map(String), random), options: settings };
+}
 
-  for (let index = candidates.length - 1; index > 0; index--) {
-    const selected = Math.floor(Math.random() * (index + 1));
+/** A Fisher–Yates shuffle into a new array. */
+export function shuffle<T>(items: readonly T[], random: () => number = Math.random): T[] {
+  const shuffled = [...items];
 
-    [candidates[index], candidates[selected]] = [candidates[selected]!, candidates[index]!];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const selected = Math.floor(random() * (index + 1));
+
+    [shuffled[index], shuffled[selected]] = [shuffled[selected]!, shuffled[index]!];
   }
 
-  return { hosts: candidates, options: settings };
+  return shuffled;
 }
 
 type SrvResolver = (options: MongoClient['options']) => Promise<MongoClient['options']['hosts']>;

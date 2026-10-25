@@ -53,3 +53,10 @@ export function directUri(uri: string, hostPort: string, options: MongoClientOpt
 function hasAnyOf(url: ConnectionString, options: string[]): boolean {
   return options.some(option => url.searchParams.has(option));
 }
+
+/** Copies driver options without the SRV-only settings a direct connection rejects. */
+export function withoutSrvOptions<T extends MongoClientOptions>(options: T): Omit<T, 'srvServiceName' | 'srvMaxHosts'> {
+  const { srvServiceName: _service, srvMaxHosts: _hosts, ...direct } = options;
+
+  return direct;
+}

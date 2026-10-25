@@ -1,7 +1,7 @@
 import { reportRole } from './harness/handshake.js';
 import { MongoClient, type MongoClientOptions } from 'mongodb';
 import { afterEach, expect, it, vi } from 'vitest';
-import { discoverTopology } from '../src/discovery.js';
+import { Connector } from '../src/connector.js';
 import { stubSrvRecords } from '../../test/harness/srv.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -39,7 +39,7 @@ it('uses native SRV and TXT rules before connecting directly with certificate au
     return native;
   });
 
-  await expect(discoverTopology(uri, createClient, options)).resolves.toEqual({ ...status, authentication: { mechanism: 'MONGODB-X509', source: '$external' } });
+  await expect(new Connector({ uri, createClient }).status({ options })).resolves.toEqual({ ...status, authentication: { mechanism: 'MONGODB-X509', source: '$external' } });
   expect(dns).toHaveBeenCalledWith('_custom._tcp.cluster.localhost', 'SRV');
   expect(createClient).toHaveBeenCalledTimes(1);
   expect(connect).toHaveBeenCalledTimes(1);

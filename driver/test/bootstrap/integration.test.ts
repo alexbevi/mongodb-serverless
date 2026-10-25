@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { ServerlessMongoClient } from '../../src/client.js';
-import { openDiscovery } from '../../src/discovery.js';
+import { Connector } from '../../src/connector.js';
 import * as uriTools from '../../src/uri.js';
 import { startCluster, describeCluster, stepDownPrimary, waitForPreferredPrimary } from '../../../test/harness/cluster.js';
 
@@ -362,10 +362,11 @@ it('uses handshake identity for discovery without another hello', async () => {
 
   try {
     for (const disableMonitoring of [false, true]) {
-      const discovered = await openDiscovery(
-        `mongodb://${cluster.primary}/bootstrap?replicaSet=${cluster.status.set}`,
-        createClient, { monitorCommands: true, maxPoolSize: 1 }, undefined, disableMonitoring
-      );
+      const connector = new Connector({
+        uri: `mongodb://${cluster.primary}/bootstrap?replicaSet=${cluster.status.set}`, createClient, disableMonitoring
+      });
+
+      const discovered = await connector.discover({ options: { monitorCommands: true, maxPoolSize: 1 } });
 
       try {
         expect(discovered.host).toBe(cluster.primary);

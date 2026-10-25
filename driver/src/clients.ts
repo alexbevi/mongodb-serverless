@@ -1,15 +1,17 @@
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
+import { Connector, readTopology, type ClientFactory } from './connector.js';
 import { ServerlessDriverError } from './errors.js';
-import type { TopologyPlugin } from './plugin.js';
+import type { MemberConnection } from './member.js';
+import type { ReplSetGetStatus, TopologyPlugin } from './plugin.js';
+import { chooseHost, serves, type Route } from './selection.js';
 import { parseTopology, type Topology } from './topology.js';
-import { discoverTopology, openDiscovery, openSeed, readTopology } from './discovery.js';
-import { directUri } from './uri.js';
-import { observeMember, type MemberConnection } from './member.js';
 
-/** Builds a real client. Injectable so tests observe the uri without connecting. */
-export type ClientFactory = (uri: string, options?: MongoClientOptions) => MongoClient;
+export type { ClientFactory } from './connector.js';
+
+/** A random pause before rediscovering, so clients that fail together do not all discover at once. */
+const REFRESH_BACKOFF_MS = { minimum: 100, spread: 150 };
 
 export interface ClientPairOptions {
   uri: string;
@@ -30,118 +32,47 @@ export interface ClientPairOptions {
  */
 export class ClientPair {
   readonly #options: ClientPairOptions;
-  #parsedUri: ConnectionString | undefined;
+  readonly #connector: Connector;
   readonly #clients = new Map<string, Promise<MemberConnection>>();
+  #parsedUri: ConnectionString | undefined;
   #topology: Promise<Topology> | undefined;
   #bootstrap: Promise<MemberConnection> | undefined;
-  #topologyFailed = false;
-  #closed = false;
   #refresh: Promise<void> | undefined;
   #generation = 0;
+  #closed = false;
 
   constructor(options: ClientPairOptions) {
     this.#options = options;
+    this.#connector = new Connector({ uri: options.uri, createClient: options.createClient, disableMonitoring: options.disableMonitoring });
   }
 
   /** The client for operations that must reach the primary. */
   async write(): Promise<MongoClient> {
-    return this.#selectMember('write');
+    return this.#select('write');
   }
 
   /** The client for reads, targeting a secondary when one is healthy. */
   async read(anyMember = false): Promise<MongoClient> {
-    return this.#selectMember(anyMember ? 'any' : 'read');
-  }
-
-  async #selectMember(route: 'read' | 'write' | 'any', refreshed = false): Promise<MongoClient> {
-    this.#assertOpen();
-
-    if (this.#topologyFailed) {
-      this.#topology = undefined;
-      this.#topologyFailed = false;
-    }
-
-    if (!this.#options.plugin && !this.#topology) {
-      const member = await this.#connectBootstrap();
-      this.#assertOpen();
-
-      const suitable = route === 'any'
-        ? ['RSPrimary', 'RSSecondary'].includes(member.type)
-        : member.type === (route === 'write' ? 'RSPrimary' : 'RSSecondary');
-
-      if (suitable) return member.client;
-    }
-
-    const topology = await this.#resolveTopology();
-    const generation = this.#generation;
-    const secondary = topology.secondaries.find(host => this.#clients.has(host)) ?? topology.secondaries[0];
-
-    const connected = route === 'any'
-      ? [...this.#clients.keys()].find(host => host === topology.primary || topology.secondaries.includes(host))
-      : undefined;
-
-    const host = route === 'write' ? topology.primary : connected ?? secondary ?? topology.primary;
-    const expected = host === topology.primary ? 'RSPrimary' : 'RSSecondary';
-    const member = await this.#clientFor(host, topology);
-    this.#assertOpen();
-
-    if (member.type === expected) return member.client;
-
-    if (refreshed) {
-      throw new ServerlessDriverError(
-        `Member "${host}" reports ${member.type}, but refreshed topology expects ${expected}.`
-      );
-    }
-
-    await this.refreshTopology(generation);
-
-    return this.#selectMember(route, true);
-  }
-
-  async #connectBootstrap(): Promise<MemberConnection> {
-    this.#bootstrap ??= openSeed(
-      this.#options.uri, this.#options.createClient, this.#options.driverOptions, this.#options.disableMonitoring
-    ).then(async member => {
-      if (this.#closed) {
-        await member.client.close();
-        this.#assertOpen();
-      }
-
-      if (member.host) this.#clients.set(member.host, Promise.resolve(member));
-
-      return member;
-    }).catch(error => {
-      this.#bootstrap = undefined;
-      throw error;
-    });
-
-    return this.#bootstrap;
+    return this.#select(anyMember ? 'any' : 'read');
   }
 
   get generation(): number {
     return this.#generation;
   }
 
+  /** Rediscovers topology through the known members, once per generation however many callers ask. */
   async refreshTopology(generation: number): Promise<void> {
     this.#assertOpen();
 
     if (generation !== this.#generation) return;
 
     this.#refresh ??= (async () => {
-      await delay(100 + Math.floor(Math.random() * 150));
+      await delay(REFRESH_BACKOFF_MS.minimum + Math.floor(Math.random() * REFRESH_BACKOFF_MS.spread));
       this.#assertOpen();
-      const known = this.#topologyFailed ? undefined : await this.#topology;
-
+      const known = await this.#topology?.catch(() => undefined);
       const seeds = known ? [known.primary, ...known.secondaries] : undefined;
-
-      const status = await discoverTopology(
-        this.#options.uri, this.#options.createClient, this.#connectionOptions(known), seeds, this.#options.disableMonitoring
-      );
-
-      this.#assertOpen();
-      await this.#options.plugin?.write(status);
-      this.#topology = Promise.resolve(parseTopology(status));
-      this.#topologyFailed = false;
+      const discovered = await this.#connector.discover({ options: this.#connectionOptions(known), seeds });
+      this.#topology = Promise.resolve(await this.#adopt(discovered.status, discovered, false));
       this.#generation += 1;
     })().finally(() => { this.#refresh = undefined; });
 
@@ -162,66 +93,122 @@ export class ClientPair {
     );
   }
 
-  /** Read once and reuse, but never cache a failure. */
+  async #select(route: Route): Promise<MongoClient> {
+    this.#assertOpen();
+
+    // Without a plugin, the first connection may already be able to serve the operation.
+    if (!this.#options.plugin && !this.#topology) {
+      const member = await this.#connectBootstrap();
+      this.#assertOpen();
+
+      if (serves(route, member.type)) return member.client;
+    }
+
+    // A member whose reported role disagrees with the topology triggers one refresh.
+    for (let attempt = 0; ; attempt++) {
+      const topology = await this.#resolveTopology();
+      const generation = this.#generation;
+      const host = chooseHost(route, topology, this.#clients.keys());
+      const expected = host === topology.primary ? 'RSPrimary' : 'RSSecondary';
+      const member = await this.#clientFor(host, topology);
+      this.#assertOpen();
+
+      if (member.type === expected) return member.client;
+
+      if (attempt > 0) {
+        throw new ServerlessDriverError(`Member "${host}" reports ${member.type}, but refreshed topology expects ${expected}.`);
+      }
+
+      await this.refreshTopology(generation);
+    }
+  }
+
+  async #connectBootstrap(): Promise<MemberConnection> {
+    this.#bootstrap ??= this.#connector.seed({ options: this.#options.driverOptions }).then(async member => {
+      if (this.#closed) {
+        await member.client.close();
+        this.#assertOpen();
+      }
+
+      if (member.host) this.#clients.set(member.host, Promise.resolve(member));
+
+      return member;
+    }).catch(error => {
+      this.#bootstrap = undefined;
+      throw error;
+    });
+
+    return this.#bootstrap;
+  }
+
+  /** Loads topology once and shares it; a failure is not cached, so the next call tries again. */
   async #resolveTopology(): Promise<Topology> {
     this.#assertOpen();
 
-    this.#topology ??= (async () => {
-      const plugin = this.#options.plugin;
-
-      if (!plugin) {
-        const member = await this.#connectBootstrap();
-        this.#assertOpen();
-
-        return parseTopology(await readTopology(member));
-      }
-
-      const status = await plugin.read();
-      this.#assertOpen();
-
-      if (status != null) {
-        const topology = parseTopology(status);
-
-        if (!topology.authentication || topology.authentication.mechanism === this.#authenticationMechanism()) {
-          return topology;
-        }
-      }
-
-      await plugin.setup();
-      this.#assertOpen();
-
-      const discovered = await openDiscovery(
-        this.#options.uri, this.#options.createClient, this.#options.driverOptions,
-        undefined, this.#options.disableMonitoring
-      );
-
-      let retained = false;
-
-      try {
-        this.#assertOpen();
-        await plugin.write(discovered.status);
-        this.#assertOpen();
-        const topology = parseTopology(discovered.status);
-        const { host, client } = discovered;
-
-        if (client.options.directConnection && host &&
-            (host === topology.primary || topology.secondaries.includes(host))) {
-          this.#clients.set(host, Promise.resolve(discovered));
-          retained = true;
-        }
-
-        return topology;
-      } finally {
-        if (!retained) await discovered.client.close().catch(() => {});
-      }
-    })().catch(
-      error => {
-        this.#topologyFailed = true;
-        throw error;
-      }
-    );
+    if (!this.#topology) {
+      const pending = this.#loadTopology();
+      this.#topology = pending;
+      pending.catch(() => {
+        if (this.#topology === pending) this.#topology = undefined;
+      });
+    }
 
     return this.#topology;
+  }
+
+  async #loadTopology(): Promise<Topology> {
+    const plugin = this.#options.plugin;
+
+    if (!plugin) {
+      // Read through the connection already open rather than opening another.
+      const member = await this.#connectBootstrap();
+      this.#assertOpen();
+
+      return this.#adopt(await readTopology(member), undefined, false);
+    }
+
+    const status = await plugin.read();
+    this.#assertOpen();
+
+    if (status != null) {
+      const topology = parseTopology(status);
+
+      if (!topology.authentication || topology.authentication.mechanism === this.#authenticationMechanism()) {
+        return topology;
+      }
+    }
+
+    await plugin.setup();
+    this.#assertOpen();
+    const discovered = await this.#connector.discover({ options: this.#options.driverOptions });
+
+    return this.#adopt(discovered.status, discovered, true);
+  }
+
+  /**
+   * Persists discovered topology, then keeps the discovery connection if it can
+   * serve later operations and closes it otherwise.
+   */
+  async #adopt(status: ReplSetGetStatus, connection: MemberConnection | undefined, retain: boolean): Promise<Topology> {
+    let retained = false;
+
+    try {
+      this.#assertOpen();
+      await this.#options.plugin?.write(status);
+      this.#assertOpen();
+      const topology = parseTopology(status);
+      const host = connection?.host;
+
+      if (retain && connection?.client.options.directConnection && host &&
+          (host === topology.primary || topology.secondaries.includes(host))) {
+        this.#clients.set(host, Promise.resolve(connection));
+        retained = true;
+      }
+
+      return topology;
+    } finally {
+      if (connection && !retained) await connection.client.close().catch(() => {});
+    }
   }
 
   /**
@@ -239,30 +226,9 @@ export class ClientPair {
 
     if (existing != null) return existing;
 
-    const options = this.#connectionOptions(topology);
-    const uri = directUri(this.#options.uri, hostPort, options);
-
     // Memoise the promise, not the client, so concurrent callers share one
     // connect() instead of racing to create a second client.
-    const pending = (async () => {
-      const client = this.#options.createClient(uri, { ...options, directConnection: true });
-
-      try {
-        const member = observeMember(client);
-
-        if (this.#options.disableMonitoring) {
-          const { disableMonitoring } = await import('./no-monitoring/index.js');
-          disableMonitoring(client);
-        }
-
-        await client.connect();
-
-        return member;
-      } catch (error) {
-        await client.close().catch(() => {});
-        throw error;
-      }
-    })().catch(error => {
+    const pending = this.#connector.member(hostPort, this.#connectionOptions(topology)).catch(error => {
       this.#clients.delete(hostPort);
       throw error;
     });

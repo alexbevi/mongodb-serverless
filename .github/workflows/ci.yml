@@ -96,7 +96,7 @@ jobs:
           pnpm benchmark --samples 40 --output "$RUNNER_TEMP/benchmark/samples.json"
 
       - name: Render charts and results
-        if: always() && hashFiles(format('{0}/benchmark/samples.json', runner.temp)) != ''
+        if: always() && steps.measure.outcome == 'success'
         timeout-minutes: 3
         run: python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json"
 

@@ -19,6 +19,10 @@ it('measures once and derives the gate, charts and summary from that one run', (
   expect(benchmark).not.toMatch(/\b(?:needs|strategy|matrix):/);
   expect(benchmark).toMatch(/node-version: ['"]?24['"]?\s/);
   expect(benchmark).toContain('python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json"');
+  // hashFiles() only sees the workspace, so it cannot gate on files under runner.temp.
+  const render = benchmark!.split(/^      - /m).find(step => step.includes('benchmark/report.py'));
+  expect(render).toContain("if: always() && steps.measure.outcome == 'success'");
+  expect(benchmark).not.toContain('hashFiles(');
   expect(benchmark).toContain('python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"');
   expect(benchmark).toContain('BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json');
   expect(benchmark).toContain('python3 benchmark/ci_summary.py');

@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { MongoClient as MongoServerlessClient } from '@mongodb-serverless/driver';
+import { SsmPlugin } from '@mongodb-serverless/plugin-aws-ssm';
 
 interface Document {
   _id: string;
@@ -10,11 +11,12 @@ type ErrorResponse = {
   error: string;
 };
 
+// With MONGODB_URI set, the client discovers topology itself and keeps it for this
+// execution environment. Without it, the SSM plugin supplies the connection string
+// and shares discovered topology across cold starts.
 const uri = process.env['MONGODB_URI'];
 
-if (!uri) throw new Error('MONGODB_URI is required');
-
-const client = new MongoServerlessClient(uri);
+const client = uri ? new MongoServerlessClient(uri) : MongoServerlessClient.fromPlugin(new SsmPlugin());
 
 const documents = client
   .db(process.env['MONGODB_DATABASE'] ?? 'app')
@@ -27,6 +29,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
       if (!isValidId(id)) return json(400, { error: 'id must contain 1–100 URL-safe characters' });
 
+      // nearest accepts any healthy member, so a cold start reuses whichever member it reached first.
       const document = await documents.findOne({ _id: id }, { readPreference: 'nearest' });
 
       return json(document ? 200 : 404, document ?? { error: 'not found' });

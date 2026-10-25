@@ -6,14 +6,14 @@ import { parseManifest } from '../../driver/test/harness/package-manifest.js';
 
 const examples = resolve(dirname(fileURLToPath(import.meta.url)), '../../examples');
 
-it('keeps only the two minimal AWS examples', async () => {
+it('keeps one minimal AWS example', async () => {
   const entries = await readdir(examples, { withFileTypes: true });
 
   expect(entries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort())
-    .toEqual(['aws-no-cache', 'aws-ssm']);
+    .toEqual(['aws-lambda']);
   expect(entries.filter(entry => entry.isFile()).map(entry => entry.name)).toEqual([]);
 
-  for (const name of ['aws-no-cache', 'aws-ssm']) {
+  for (const name of ['aws-lambda']) {
     const files = await readdir(resolve(examples, name), { withFileTypes: true });
 
     expect(files.filter(entry => entry.isFile()).map(entry => entry.name).sort())
@@ -23,7 +23,7 @@ it('keeps only the two minimal AWS examples', async () => {
 });
 
 it('references published packages rather than workspace-only dependency ranges', async () => {
-  for (const name of ['aws-no-cache', 'aws-ssm']) {
+  for (const name of ['aws-lambda']) {
     const manifest = parseManifest(await readFile(resolve(examples, name, 'package.json'), 'utf8'));
 
     const dependencies = manifest.dependencies ?? {};

@@ -1,5 +1,5 @@
 {
-  "name": "mongodb-serverless-example-aws-no-cache",
+  "name": "mongodb-serverless-example-aws-lambda",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mongodb-serverless/driver": "^0.2.0",
+    "@mongodb-serverless/plugin-aws-ssm": "^0.1.0",
     "mongodb": "^7.7.0"
   },
   "devDependencies": {

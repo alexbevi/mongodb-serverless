@@ -205,10 +205,8 @@ it('reports connection-string provider failures from connect', async () => {
     plugin: { ...stub(), async getConnectionString() { throw failure; } }
   });
 
-  const closing = client.close().catch(() => {});
-
   await expect(client.connect()).rejects.toBe(failure);
-  await closing;
+  await client.close();
 });
 
 it('defers credential lookup until the client is used', async () => {

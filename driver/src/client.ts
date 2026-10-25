@@ -33,6 +33,8 @@ export class ServerlessMongoClient {
   #defaultDb: string | undefined;
   readonly #plugin: () => Promise<TopologyPlugin>;
   readonly #pair: () => Promise<ClientPair>;
+  #openPair: Promise<ClientPair> | undefined;
+  #closed = false;
 
   constructor(plugin: TopologyPlugin);
   constructor(options: ServerlessClientOptions);
@@ -60,9 +62,11 @@ export class ServerlessMongoClient {
 
     this.#uri = uri;
     let resolvedPlugin: Promise<TopologyPlugin> | undefined;
-    let pair: Promise<ClientPair> | undefined;
     this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin, uri == null ? undefined : uncachedTopology);
-    this.#pair = () => pair ??= this.#plugin().then(
+    this.#pair = () => {
+      if (this.#closed) return Promise.reject(new ServerlessDriverError('This client is closed; create a new one to reconnect.'));
+
+      return this.#openPair ??= this.#plugin().then(
       async resolved => {
         const connectionString = uri ?? await resolved.getConnectionString?.();
 
@@ -86,10 +90,11 @@ export class ServerlessMongoClient {
           disableMonitoring
         });
       }
-    ).catch(error => {
-      pair = undefined;
-      throw error;
-    });
+      ).catch(error => {
+        this.#openPair = undefined;
+        throw error;
+      });
+    };
   }
 
   get options(): Readonly<MongoClientOptions> {
@@ -101,10 +106,7 @@ export class ServerlessMongoClient {
     return this.#plugin();
   }
 
-  /**
-   * Present for drop-in compatibility. Real connections open on first
-   * operation, so there is nothing to do here.
-   */
+  /** Resolves the plugin and connection string, so configuration errors surface early. Opens no connection. */
   async connect(): Promise<this> {
     await this.#pair();
 
@@ -130,8 +132,16 @@ export class ServerlessMongoClient {
     );
   }
 
+  /** Closes the connections this client opened. An unused client has nothing to close. */
   async close(): Promise<void> {
-    await (await this.#pair()).close();
+    this.#closed = true;
+    const pair = this.#openPair;
+    this.#openPair = undefined;
+
+    // A lookup that failed opened nothing, so there is nothing to close.
+    const opened = await pair?.catch(() => undefined);
+
+    if (opened) await opened.close();
   }
 
   watch(): never {

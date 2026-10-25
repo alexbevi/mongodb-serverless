@@ -8,7 +8,7 @@ it('measures once and derives the gate, charts and summary from that one run', (
 
   expect(benchmark, 'dedicated benchmark job').toBeDefined();
 
-  for (const name of ['test:', 'benchmark:']) {
+  for (const name of ['test:', 'benchmark:', 'plugin-aws-ssm:']) {
     expect(jobs.find(job => job.startsWith(name)), 'MongoDB 8 needs a compatible runner kernel').toContain('runs-on: ubuntu-22.04');
   }
 

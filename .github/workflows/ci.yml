@@ -217,7 +217,8 @@ jobs:
 
   plugin-aws-ssm:
     name: plugin-aws-ssm
-    runs-on: ubuntu-latest
+    # Starts MongoDB 8 for the example test, so it needs the same kernel pin.
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     services:
       localstack:

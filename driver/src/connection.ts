@@ -51,9 +51,15 @@ export class ConnectionSettings {
     return new ConnectionSettings(undefined, () => resolvePlugin(plugin), options);
   }
 
-  /** The plugin, resolved once; undefined when a connection string was given without one. */
+  /**
+   * The plugin, resolved once; undefined when a connection string was given without
+   * one. A failed resolution is not kept, so the next call retries, as with `uri()`.
+   */
   plugin(): Promise<TopologyPlugin | undefined> {
-    this.#plugin ??= this.#resolvePlugin();
+    this.#plugin ??= this.#resolvePlugin().catch(error => {
+      this.#plugin = undefined;
+      throw error;
+    });
 
     return this.#plugin;
   }

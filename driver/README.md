@@ -230,7 +230,6 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 | `PluginConfigurationError` | A plugin's store holds settings it cannot use, such as a missing or malformed value |
 | `PluginNotInstalledError` | A plugin named by string could not be resolved |
 | `InvalidPluginError` | The plugin is missing required members, which the message names |
-| `NoTopologyError` | The plugin returned no topology |
 | `InvalidTopologyError` | The topology document is malformed |
 | `NoPrimaryError` | No member reports `PRIMARY` |
 | `SessionRoutingError` | A session was passed to an operation that routes to the secondary |

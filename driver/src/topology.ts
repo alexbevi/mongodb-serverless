@@ -1,6 +1,6 @@
 import { isResolvedAuthentication, type ResolvedAuthentication } from '../../plugins/shared/src/index.js';
 import type { ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
-import { InvalidTopologyError, NoPrimaryError, NoTopologyError } from './errors.js';
+import { InvalidTopologyError, NoPrimaryError } from './errors.js';
 
 export interface Topology {
   setName: string | undefined;
@@ -32,13 +32,7 @@ const STATE_NAMES = new Map<number, string>([
 const HOST_PORT = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d{1,5})$/;
 
 /** Reads the routing targets out of a `replSetGetStatus` document. */
-export function parseTopology(status: ReplSetGetStatus | null | undefined): Topology {
-  if (status == null) {
-    throw new NoTopologyError(
-      'The plugin returned no topology. Check that it is configured and populated.'
-    );
-  }
-
+export function parseTopology(status: ReplSetGetStatus): Topology {
   if (!Array.isArray(status.members)) {
     throw new InvalidTopologyError(
       'Topology has no members array; it must be a replSetGetStatus document'

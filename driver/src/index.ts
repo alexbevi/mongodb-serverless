@@ -19,7 +19,6 @@ export {
   MissingPluginError,
   PluginNotInstalledError,
   InvalidPluginError,
-  NoTopologyError,
   InvalidTopologyError,
   NoPrimaryError,
   SessionRoutingError,

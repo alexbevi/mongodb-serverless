@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseTopology } from '../src/topology.js';
-import { InvalidTopologyError, NoPrimaryError, NoTopologyError } from '../src/errors.js';
+import { InvalidTopologyError, NoPrimaryError } from '../src/errors.js';
 
 const member = (name: string, stateStr: string, health = 1) => ({ name, stateStr, health });
 
@@ -99,10 +99,6 @@ describe('parseTopology', () => {
     expect(() => parseTopology({ members: [member('a:27017', 'PRIMARY', 0)] })).toThrow(
       NoPrimaryError
     );
-  });
-
-  it('throws NoTopologyError on a null status', () => {
-    expect(() => parseTopology(null)).toThrow(NoTopologyError);
   });
 
   it('throws InvalidTopologyError when members is not an array', () => {

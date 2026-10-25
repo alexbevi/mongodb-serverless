@@ -1,5 +1,8 @@
 import { GetParametersCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { assertStatus, parseStatus, PluginReadOnlyError, type ReplSetGetStatus, type ReplSetGetStatusMember, type TopologyPlugin } from '../../shared/src/index.js';
+import {
+  assertStatus, parseStatus, PluginConfigurationError, ServerlessPlugin,
+  type PluginConfig, type ReplSetGetStatus, type ReplSetGetStatusMember
+} from '../../shared/src/index.js';
 
 export interface SsmPluginOptions {
   client?: SSMClient;
@@ -13,26 +16,36 @@ interface Settings {
   topology: ReplSetGetStatus | null;
 }
 
-export class SsmPlugin implements TopologyPlugin {
-  readonly writable: boolean;
+/** The topology parameter is the base `clusterTopologyVariableName`; this adds the connection string's. */
+export interface SsmPluginConfig extends PluginConfig {
+  connectionStringParameter: string;
+}
+
+export class SsmPlugin extends ServerlessPlugin<SsmPluginConfig> {
   readonly name = 'AWS SSM Parameter Store';
   readonly version = '0.1.0';
   readonly author = 'MongoDB Serverless contributors';
   readonly #client: SSMClient;
-  readonly #uriParameter: string;
-  readonly #topologyParameter: string;
   #settings: Promise<Settings> | undefined;
   #fetchDurationMs: number | undefined;
 
   constructor(options: SsmPluginOptions = {}) {
-    this.writable = options.writable ?? true;
+    const connectionStringParameter = options.connectionStringParameter ?? '/mongodb-serverless/connection-string';
+    super(options.writable === undefined ? { connectionStringParameter } : { connectionStringParameter, writable: options.writable });
+    this.set('clusterTopologyVariableName', options.topologyParameter ?? '/mongodb-serverless/topology');
     this.#client = options.client ?? new SSMClient({});
-    this.#uriParameter = options.connectionStringParameter ?? '/mongodb-serverless/connection-string';
-    this.#topologyParameter = options.topologyParameter ?? '/mongodb-serverless/topology';
 
     if (!this.#uriParameter || !this.#topologyParameter || this.#uriParameter === this.#topologyParameter) {
       throw new TypeError('Connection string and topology require distinct, nonempty SSM parameter names');
     }
+  }
+
+  get #uriParameter(): string {
+    return this.get('connectionStringParameter');
+  }
+
+  get #topologyParameter(): string {
+    return this.get('clusterTopologyVariableName');
   }
 
   async getConnectionString(): Promise<string> {
@@ -54,17 +67,21 @@ export class SsmPlugin implements TopologyPlugin {
   }
 
   async write(status: ReplSetGetStatus): Promise<void> {
-    if (!this.writable) throw new PluginReadOnlyError('SSM topology writes are disabled');
+    this.assertWritable();
     assertStatus(status);
     const topology = routingTopology(status);
     const value = JSON.stringify(topology);
 
     if (Buffer.byteLength(value, 'utf8') > 4096) throw new RangeError('Topology exceeds the SSM Standard parameter limit of 4096 bytes');
-    const settings = await this.#load();
+    const loaded = this.#settings;
     await this.#client.send(new PutParameterCommand({
       Name: this.#topologyParameter, Value: value, Type: 'String', Tier: 'Standard', Overwrite: true
     }));
-    settings.topology = topology;
+
+    // Keep cached settings current, without fetching settings nothing has needed yet.
+    const settings = await loaded?.catch(() => undefined);
+
+    if (settings) settings.topology = topology;
   }
 
   #load(): Promise<Settings> {
@@ -89,7 +106,7 @@ export class SsmPlugin implements TopologyPlugin {
     const topology = result.Parameters?.find(parameter => parameter.Name === this.#topologyParameter);
 
     if (!uri?.Value || uri.Type !== 'SecureString') {
-      throw new Error(`SSM parameter "${this.#uriParameter}" must contain a SecureString connection string`);
+      throw new PluginConfigurationError(`SSM parameter "${this.#uriParameter}" must contain a SecureString connection string`);
     }
 
     return { uri: uri.Value, topology: topology?.Value === undefined ? null : parseStatus(topology.Value) };

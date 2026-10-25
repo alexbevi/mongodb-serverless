@@ -53,15 +53,18 @@ The driver calls `read()` first, `setup()` on a miss, and `write()` after discov
 or topology-related write failure. `setup()` must be idempotent. `verify()` is an
 explicit diagnostic hook and is not called automatically.
 
-## Read-only by default
+## Writable by default
 
-A plugin refuses to write unless constructed with `{ writable: true }`. Call
-`assertWritable()` at the top of `write()`, before touching the store, so a
-refused write changes nothing.
+Driver discovery writes topology on a cache miss, so a plugin can write unless
+constructed with `{ writable: false }`, for a store that is populated some other
+way. Call `assertWritable()` at the top of `write()`, before touching the store,
+so a refused write changes nothing.
 
 `set()` is allowed either way, since it configures the plugin rather than the
-store. Plugins used for discovery must enable writes in their constructor;
-package-name resolution constructs that class with no arguments.
+store.
+
+Throw `PluginConfigurationError` when the store holds settings the plugin cannot
+use, such as a missing or malformed value.
 
 See [the plugin overview](..) for the default values.
 
@@ -74,7 +77,7 @@ interface MyConfig extends PluginConfig {
 
 class MyPlugin extends ServerlessPlugin<MyConfig> {
   constructor() {
-    super({ region: 'us-east-1', writable: true });   // base defaults still apply
+    super({ region: 'us-east-1' });   // base defaults still apply
   }
 }
 ```

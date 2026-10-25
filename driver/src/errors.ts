@@ -27,5 +27,6 @@ export {
   PluginNotInstalledError,
   InvalidPluginError,
   PluginReadOnlyError,
+  PluginConfigurationError,
   ServerlessError
 } from '../../plugins/shared/src/index.js';

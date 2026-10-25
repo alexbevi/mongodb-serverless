@@ -1,13 +1,18 @@
-import { assertStatus, ServerlessPlugin, type ReplSetGetStatus } from '../../shared/src/index.js';
+import { assertStatus, PluginConfigurationError, ServerlessPlugin, type PluginConfig, type ReplSetGetStatus } from '../../shared/src/index.js';
 
-/** Reads cluster topology from a process environment variable. */
-export class LocalPlugin extends ServerlessPlugin {
+export interface LocalPluginConfig extends PluginConfig {
+  /** The environment variable holding the connection string. */
+  connectionStringVariableName: string;
+}
+
+/** Reads cluster topology, and optionally the connection string, from process environment variables. */
+export class LocalPlugin extends ServerlessPlugin<LocalPluginConfig> {
   readonly name = 'Local Environment';
   readonly version = '0.0.0';
   readonly author = 'MongoDB';
 
-  constructor(options: { writable?: boolean } = {}) {
-    super({ writable: true, ...options });
+  constructor(options: { writable?: boolean; connectionStringVariableName?: string } = {}) {
+    super({ connectionStringVariableName: '__MONGODB_CONNECTION_STRING', ...options });
   }
 
   async getConnectionString(): Promise<string | undefined> {
@@ -42,7 +47,7 @@ export class LocalPlugin extends ServerlessPlugin {
     const raw = process.env[name];
 
     if (raw == null || raw === '') {
-      throw new Error(
+      throw new PluginConfigurationError(
         `${name} is not set. Populate it with the output of replSetGetStatus, ` +
           `for example: export ${name}="$(mongosh --quiet --eval 'JSON.stringify(rs.status())')"`
       );
@@ -58,13 +63,13 @@ export class LocalPlugin extends ServerlessPlugin {
     try {
       parsed = JSON.parse(raw);
     } catch (cause) {
-      throw new Error(`${name} does not contain valid JSON`, { cause });
+      throw new PluginConfigurationError(`${name} does not contain valid JSON`, { cause });
     }
 
     try {
       assertStatus(parsed);
     } catch (cause) {
-      throw new Error(`${name} must hold a replSetGetStatus document: ${String(cause)}`, { cause });
+      throw new PluginConfigurationError(`${name} must hold a replSetGetStatus document: ${String(cause)}`, { cause });
     }
 
     return parsed;

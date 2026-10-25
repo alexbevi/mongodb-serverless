@@ -21,5 +21,6 @@ export {
   MissingPluginError,
   PluginNotInstalledError,
   InvalidPluginError,
-  PluginReadOnlyError
+  PluginReadOnlyError,
+  PluginConfigurationError
 } from './errors.js';

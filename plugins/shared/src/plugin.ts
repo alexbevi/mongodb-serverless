@@ -22,12 +22,10 @@ export interface TopologyPlugin {
 export interface PluginConfig {
   /** Names where the topology document lives. Each plugin interprets it. */
   clusterTopologyVariableName: string;
-  connectionStringVariableName: string;
 }
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
-  clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY',
-  connectionStringVariableName: '__MONGODB_CONNECTION_STRING'
+  clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY'
 };
 
 /**
@@ -46,14 +44,14 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   /**
    * @param options Config keys a subclass adds on top of {@link PluginConfig},
-   * plus `writable` to permit writes.
+   * plus `writable: false` for a store the driver must not write to.
    */
   constructor(options?: { writable?: boolean } & Omit<C, keyof PluginConfig>) {
     if (new.target === ServerlessPlugin) {
       throw new TypeError('ServerlessPlugin is abstract and cannot be constructed directly');
     }
 
-    const { writable = false, ...defaults } = options ?? {};
+    const { writable = true, ...defaults } = options ?? {};
 
     this.#writable = writable;
     // SAFETY: Subclasses supply C's added keys in options; the base keys come from DEFAULT_PLUGIN_CONFIG.
@@ -61,9 +59,8 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   }
 
   /**
-   * Whether this plugin may write to its store.
-   *
-   * Subclasses used for driver discovery must opt into writes.
+   * Whether this plugin may write to its store. True unless constructed with
+   * `writable: false`, because driver discovery writes topology on a cache miss.
    */
   get writable(): boolean {
     return this.#writable;
@@ -73,8 +70,8 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   protected assertWritable(): void {
     if (!this.#writable) {
       throw new PluginReadOnlyError(
-        `Plugin "${this.name}" is read-only. Construct it with { writable: true } to ` +
-          'allow driver discovery and topology refresh.'
+        `Plugin "${this.name}" was constructed with { writable: false }, so driver ` +
+          'discovery and topology refresh cannot store topology through it.'
       );
     }
   }

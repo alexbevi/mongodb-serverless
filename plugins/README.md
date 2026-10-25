@@ -19,9 +19,9 @@ setDefaultPlugin(new LocalPlugin());   // once at startup
 **The driver depends on no plugin package**, not even optionally, so publishing
 a plugin never requires a driver release.
 
-**The driver reads and writes topology.** Local plugins are writable by default.
-A plugin extending `ServerlessPlugin` must opt into writes with
-`super({ writable: true })` and call `assertWritable()` before changing its store.
+**The driver reads and writes topology.** Plugins are writable by default; pass
+`{ writable: false }` for a store populated some other way. A plugin extending
+`ServerlessPlugin` calls `assertWritable()` before changing its store.
 
 **A plugin does not have to extend anything.** The driver checks that `setup`,
 `verify`, `read`, and `write` are functions and that `name`, `version`, and
@@ -36,12 +36,12 @@ Read and change them with `get()` and `set()`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `connectionStringVariableName` | `__MONGODB_CONNECTION_STRING` | Names where the cluster URI and credentials live |
 | `clusterTopologyVariableName` | `__MONGODB_CLUSTER_TOPOLOGY` | Names where the topology document lives |
 
-`clusterTopologyVariableName` means an environment variable for
-`plugin-local`, and would be a parameter path, secret id, or cache key for
-other plugins.
+`clusterTopologyVariableName` means an environment variable for `plugin-local`
+and a parameter path for `plugin-aws-ssm`. A plugin that supplies the connection
+string adds its own key for where that lives, such as `plugin-local`'s
+`connectionStringVariableName`.
 
 ## Available plugins
 
@@ -64,8 +64,6 @@ export class MyPlugin extends ServerlessPlugin {
   readonly name = 'My Store';
   readonly version = '1.0.0';
   readonly author = 'you';
-
-  constructor() { super({ writable: true }); }
 
   async setup(): Promise<void> {}                      // prepare the store
   async verify(): Promise<void> {}                     // throw if unusable

@@ -76,3 +76,53 @@ it('creates missing topology without rewriting credentials and reuses it on the 
     client.destroy();
   }
 });
+
+function fakeSsm(parameters: Record<string, { Type: string; Value: string }>, actions: string[]) {
+  return new SSMClient({
+    region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+    requestHandler: { async handle(request) {
+      const action = request.headers['x-amz-target']!.split('.').at(-1)!;
+      actions.push(action);
+
+      const body = action === 'PutParameter' ? { Version: 1 }
+        : { Parameters: Object.entries(parameters).map(([Name, parameter]) => ({ Name, ...parameter })) };
+
+      return { response: { statusCode: 200, headers: { 'content-type': 'application/x-amz-json-1.1' }, body: Buffer.from(JSON.stringify(body)) } };
+    } }
+  });
+}
+
+it('writes topology without first fetching the settings it has not needed', async () => {
+  const actions: string[] = [];
+  const client = fakeSsm({}, actions);
+
+  try {
+    await new SsmPlugin({ client, connectionStringParameter: '/test/uri', topologyParameter: '/test/topology' }).write(status);
+    expect(actions).toEqual(['PutParameter']);
+  } finally {
+    client.destroy();
+  }
+});
+
+it('reports a connection string that is not a SecureString with a named error', async () => {
+  const client = fakeSsm({ '/test/uri': { Type: 'String', Value: 'mongodb://a/db' } }, []);
+
+  try {
+    await expect(new SsmPlugin({ client, connectionStringParameter: '/test/uri', topologyParameter: '/test/topology' }).getConnectionString())
+      .rejects.toMatchObject({ name: 'PluginConfigurationError' });
+  } finally {
+    client.destroy();
+  }
+});
+
+it('refuses writes when read-only', async () => {
+  const actions: string[] = [];
+  const client = fakeSsm({}, actions);
+
+  try {
+    await expect(new SsmPlugin({ client, writable: false }).write(status)).rejects.toMatchObject({ name: 'PluginReadOnlyError' });
+    expect(actions).toEqual([]);
+  } finally {
+    client.destroy();
+  }
+});

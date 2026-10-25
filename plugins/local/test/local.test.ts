@@ -30,6 +30,19 @@ describe('LocalPlugin', () => {
     await expect(plugin.getConnectionString()).resolves.toBe('mongodb://user:secret@seed/db');
   });
 
+  it('reads the connection string from an overridden variable', async () => {
+    process.env['MY_URI'] = 'mongodb://seed/other';
+    const plugin = new LocalPlugin({ connectionStringVariableName: 'MY_URI' });
+
+    await expect(plugin.getConnectionString()).resolves.toBe('mongodb://seed/other');
+  });
+
+  it('reports unusable settings with a named error', async () => {
+    process.env[VAR] = 'not json';
+
+    await expect(new LocalPlugin().verify()).rejects.toMatchObject({ name: 'PluginConfigurationError' });
+  });
+
   it('reports its static details', () => {
     const plugin = new LocalPlugin();
 

@@ -226,7 +226,8 @@ So a property that only exists once the cursor does, such as `cursor.id` or
 
 | Error | Cause |
 |---|---|
-| `MissingPluginError` | Neither a URI nor a plugin supplied by option or `setDefaultPlugin` |
+| `MissingPluginError` | `MongoClient.fromPlugin()` was given no plugin, and none was set with `setDefaultPlugin` |
+| `PluginConfigurationError` | A plugin's store holds settings it cannot use, such as a missing or malformed value |
 | `PluginNotInstalledError` | A plugin named by string could not be resolved |
 | `InvalidPluginError` | The plugin is missing required members, which the message names |
 | `NoTopologyError` | The plugin returned no topology |

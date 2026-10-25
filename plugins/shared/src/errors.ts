@@ -22,3 +22,6 @@ export class InvalidPluginError extends ServerlessError {}
 
 /** A write was attempted through a plugin that was not made writable. */
 export class PluginReadOnlyError extends ServerlessError {}
+
+/** A plugin's store holds settings it cannot use, such as a missing or malformed value. */
+export class PluginConfigurationError extends ServerlessError {}

@@ -24,5 +24,6 @@ export {
   NoPrimaryError,
   SessionRoutingError,
   UnsupportedOperationError,
-  PluginReadOnlyError
+  PluginReadOnlyError,
+  PluginConfigurationError
 } from './errors.js';

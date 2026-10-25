@@ -68,3 +68,13 @@ it('resolves seeds without collecting handshake metadata for an unused client', 
 
   expect(platform).not.toHaveBeenCalled();
 });
+
+it('shuffles seeds with an injectable random source', async () => {
+  const { resolveSeeds, shuffle } = await import('../src/seeds.js');
+
+  // Fisher–Yates swaps each position with a chosen earlier one; random() = 0 always picks the first.
+  expect(shuffle(['a', 'b', 'c'], () => 0)).toEqual(['b', 'c', 'a']);
+  expect(shuffle(['a', 'b', 'c'], () => 0.999)).toEqual(['a', 'b', 'c']);
+  await expect(resolveSeeds('mongodb://a:27017,b:27017,c:27017/', {}, () => 0.999))
+    .resolves.toMatchObject({ hosts: ['a:27017', 'b:27017', 'c:27017'] });
+});

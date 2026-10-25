@@ -236,32 +236,11 @@ detected before routing does refresh it. With monitoring disabled, a reused
 connection is not polled, so later role changes can remain unnoticed.
 Topology-related write failures also refresh the cached members.
 
-### Discovery and write recovery
+### Write recovery
 
-The native driver retries a retryable write once against the same member,
-unless `retryWrites` is `false`. That recovers a dropped connection. A
-topology-related write failure that remains triggers one shared refresh per client, which
-rediscovers immediately. An ordinary promise-returning write rejected with `NotWritablePrimary` or
-`NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
-A `NoWritesPerformed` label on a topology-related server error also permits replay.
-Explicit sessions, bulk builders, and cursors are excluded from automatic replay.
-Network failures that the native retry cannot recover, and partial bulk
-failures, refresh topology but are returned to the caller: their writes may
-already have run. Duplicate-key, validation, and
-authorization errors do not trigger discovery. A failed refresh preserves the
-original write error. The caller decides whether to retry again after an election.
-
-Bulk builders and cursors also refresh topology on topology-related failures,
-but their state is not replayed automatically. A bulk may have committed earlier
-batches, and a cursor may already have returned results or performed writes.
-Create a new operation after handling the error. If async iteration and cursor
-cleanup both fail, the original iteration error is returned.
-
-Refresh tries the cached members, so losing the original seed does not prevent
-recovery. Each attempt uses a temporary direct client and closes it afterward.
-The default server-selection timeout is five seconds per seed during initial
-discovery or refresh. An explicit
-`serverSelectionTimeoutMS` overrides it.
-
-See [architecture and plugin sequences](../docs/architecture.md) for the storage
-contract, migration notes, and concurrency limits.
+Native retryable writes stay on and recover a dropped connection. A
+topology-related write failure also refreshes topology, and an ordinary write the
+server confirms it rejected is replayed once on the new primary. Bulk builders,
+cursors and explicit sessions are never replayed, because their earlier batches
+or results may already exist. [Write failure and refresh](../docs/architecture.md#write-failure-and-refresh)
+has the full rules.

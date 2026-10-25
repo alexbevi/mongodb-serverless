@@ -12,7 +12,7 @@ function lookupPlugin(getConnectionString: () => Promise<string>): TopologyPlugi
 
 it('closes an unused client without looking up its connection string', async () => {
   const getConnectionString = vi.fn(async () => { throw new Error('SSM unavailable'); });
-  const client = new ServerlessMongoClient(lookupPlugin(getConnectionString));
+  const client = ServerlessMongoClient.fromPlugin(lookupPlugin(getConnectionString));
 
   await expect(client.close()).resolves.toBeUndefined();
   expect(getConnectionString).not.toHaveBeenCalled();
@@ -20,7 +20,7 @@ it('closes an unused client without looking up its connection string', async () 
 
 it('rejects use after close instead of reconnecting', async () => {
   const getConnectionString = vi.fn(async () => 'mongodb://a:27017/');
-  const client = new ServerlessMongoClient(lookupPlugin(getConnectionString));
+  const client = ServerlessMongoClient.fromPlugin(lookupPlugin(getConnectionString));
   await client.close();
 
   await expect(client.connect()).rejects.toThrow(/closed/i);
@@ -39,4 +39,11 @@ it('reports no plugin when only a connection string was given', async () => {
   const client = new ServerlessMongoClient('mongodb://a:27017/');
 
   await expect(client.plugin()).resolves.toBeUndefined();
+});
+
+it('fails on first use, not construction, when JavaScript omits the connection string', async () => {
+  // Constructs with no arguments, as JavaScript can; the constructor's types would reject this.
+  const client: ServerlessMongoClient = Reflect.construct(ServerlessMongoClient, []);
+
+  await expect(client.connect()).rejects.toThrow(/connection string/i);
 });

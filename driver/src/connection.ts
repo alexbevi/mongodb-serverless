@@ -1,38 +1,90 @@
-import type { MongoClientOptions } from 'mongodb';
+import { MongoClient, type MongoClientEvents, type MongoClientOptions } from 'mongodb';
 import { ClientPair, type ClientFactory } from './clients.js';
 import { ServerlessDriverError } from './errors.js';
 import { resolveOptionalPlugin, resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
 import type { TopologyPlugin } from './plugin.js';
 
-export interface ConnectionSettings {
-  uri: string | undefined;
-  plugin: PluginSource | undefined;
-  createClient: ClientFactory;
-  driverOptions: MongoClientOptions;
-  disableMonitoring: boolean;
+export interface ServerlessClientOptions extends MongoClientOptions {
+  /** A plugin, or the name of a package exporting one. */
+  plugin?: PluginSource;
+  /** Disable SDAM monitoring for the underlying direct connections. Requires mongodb >=7.7.0 <8.0.0. */
+  disableMonitoring?: boolean;
+  /** Listeners attached to each native client before it connects. */
+  on?: Partial<MongoClientEvents> & ThisType<MongoClient>;
+  /** Builds the real clients. For tests. */
+  createClient?: ClientFactory;
 }
 
+const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, options);
+
 /**
- * Resolves the plugin and connection string on first use, then owns the client
- * pair until closed. Nothing is resolved or opened before something needs it.
+ * What a client connects with: its plugin and connection string, both resolved
+ * when first needed, and the options for every native client. Built only through
+ * `fromUri` and `fromPlugin`; not part of the public API.
  */
-export class Connection {
-  readonly uri: string | undefined;
-  readonly #settings: ConnectionSettings;
+export class ConnectionSettings {
+  /** The connection string when given directly; a plugin's is not known until resolved. */
+  readonly knownUri: string | undefined;
+  readonly createClient: ClientFactory;
+  readonly driverOptions: MongoClientOptions;
+  readonly disableMonitoring: boolean;
+  readonly #resolvePlugin: () => Promise<TopologyPlugin | undefined>;
   #plugin: Promise<TopologyPlugin | undefined> | undefined;
+  #uri: Promise<string> | undefined;
+
+  private constructor(knownUri: string | undefined, resolve: () => Promise<TopologyPlugin | undefined>, options: ServerlessClientOptions) {
+    const { plugin: _plugin, createClient = defaultFactory, on = {}, disableMonitoring = false, ...driverOptions } = options;
+    this.knownUri = knownUri;
+    this.#resolvePlugin = resolve;
+    this.createClient = withListeners(createClient, on);
+    this.driverOptions = driverOptions;
+    this.disableMonitoring = disableMonitoring;
+  }
+
+  /** A connection string, with an optional plugin to share topology between clients. */
+  static fromUri(uri: string, options: ServerlessClientOptions = {}): ConnectionSettings {
+    return new ConnectionSettings(uri, () => resolveOptionalPlugin(options.plugin), options);
+  }
+
+  /** A plugin that supplies the connection string, such as one reading a secret store. */
+  static fromPlugin(plugin: PluginSource, options: Omit<ServerlessClientOptions, 'plugin'> = {}): ConnectionSettings {
+    return new ConnectionSettings(undefined, () => resolvePlugin(plugin), options);
+  }
+
+  /** The plugin, resolved once; undefined when a connection string was given without one. */
+  plugin(): Promise<TopologyPlugin | undefined> {
+    this.#plugin ??= this.#resolvePlugin();
+
+    return this.#plugin;
+  }
+
+  /** The connection string, resolved once. A failed lookup is not kept, so the next call retries. */
+  uri(): Promise<string> {
+    this.#uri ??= this.#lookUpUri().catch(error => {
+      this.#uri = undefined;
+      throw error;
+    });
+
+    return this.#uri;
+  }
+
+  async #lookUpUri(): Promise<string> {
+    const uri = this.knownUri ?? await (await this.plugin())?.getConnectionString?.();
+
+    if (!uri) throw new ServerlessDriverError('Supply a connection string or a plugin with getConnectionString().');
+
+    return uri;
+  }
+}
+
+/** Owns the client pair: opened on first use, closed with what it opened. */
+export class Connection {
+  readonly settings: ConnectionSettings;
   #clients: Promise<ClientPair> | undefined;
   #closed = false;
 
   constructor(settings: ConnectionSettings) {
-    this.#settings = settings;
-    this.uri = settings.uri;
-  }
-
-  /** Without a connection string the plugin must supply one; with it, a plugin is optional. */
-  plugin(): Promise<TopologyPlugin | undefined> {
-    this.#plugin ??= this.uri == null ? resolvePlugin(this.#settings.plugin) : resolveOptionalPlugin(this.#settings.plugin);
-
-    return this.#plugin;
+    this.settings = settings;
   }
 
   /** The client pair, created once. A failed attempt is not kept, so the next call retries. */
@@ -60,13 +112,23 @@ export class Connection {
   }
 
   async #open(): Promise<ClientPair> {
-    const plugin = await this.plugin();
-    const uri = this.uri ?? await plugin?.getConnectionString?.();
+    const { settings } = this;
+    const uri = await settings.uri();
 
-    if (!uri) throw new ServerlessDriverError('Supply a connection string or a plugin with getConnectionString().');
-
-    const { createClient, driverOptions, disableMonitoring } = this.#settings;
-
-    return new ClientPair({ uri, plugin, createClient, driverOptions, disableMonitoring });
+    return new ClientPair({ uri, plugin: await settings.plugin(), createClient: settings.createClient,
+      driverOptions: settings.driverOptions, disableMonitoring: settings.disableMonitoring });
   }
+}
+
+/** Attaches the caller's event listeners to every native client before it connects. */
+function withListeners(createClient: ClientFactory, on: NonNullable<ServerlessClientOptions['on']>): ClientFactory {
+  return (uri, options) => {
+    const client = createClient(uri, options);
+
+    for (const [event, listener] of Object.entries(on)) {
+      if (listener) client.on(event, listener);
+    }
+
+    return client;
+  };
 }

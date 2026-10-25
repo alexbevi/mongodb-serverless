@@ -11,7 +11,7 @@ type ErrorResponse = {
   error: string;
 };
 
-const client = new MongoServerlessClient(new SsmPlugin());
+const client = MongoServerlessClient.fromPlugin(new SsmPlugin());
 
 const documents = client
   .db(process.env['MONGODB_DATABASE'] ?? 'app')

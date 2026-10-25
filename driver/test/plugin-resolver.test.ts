@@ -201,9 +201,7 @@ it('reports connection-string provider failures from connect', async () => {
   const { ServerlessMongoClient } = await import('../src/client.js');
   const failure = new Error('secret store unavailable');
 
-  const client = new ServerlessMongoClient({
-    plugin: { ...stub(), async getConnectionString() { throw failure; } }
-  });
+  const client = ServerlessMongoClient.fromPlugin({ ...stub(), async getConnectionString() { throw failure; } });
 
   await expect(client.connect()).rejects.toBe(failure);
   await client.close();
@@ -219,7 +217,7 @@ it('defers credential lookup until the client is used', async () => {
     return 'mongodb://seed/db';
   } };
 
-  const client = new ServerlessMongoClient(plugin);
+  const client = ServerlessMongoClient.fromPlugin(plugin);
 
   await Promise.resolve();
 
@@ -229,11 +227,11 @@ it('defers credential lookup until the client is used', async () => {
   await client.close();
 });
 
-it('validates a direct plugin argument after overload selection', async () => {
+it('validates the plugin given to fromPlugin', async () => {
   const { ServerlessMongoClient } = await import('../src/client.js');
   const plugin = stub();
   Object.defineProperty(plugin, 'read', { value: undefined });
-  const client = new ServerlessMongoClient(plugin);
+  const client = ServerlessMongoClient.fromPlugin(plugin);
 
   await expect(client.plugin()).rejects.toThrow(InvalidPluginError);
 });

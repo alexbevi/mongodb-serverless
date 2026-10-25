@@ -22,7 +22,7 @@ const plugin = new SsmPlugin({
   topologyParameter: '/my-app/mongodb/topology'
 });
 
-const client = new MongoClient(plugin);
+const client = MongoClient.fromPlugin(plugin);
 await client.db('app').collection('users').findOne({ name: 'Ada' });
 const ssmMs = plugin.fetchDurationMs;
 ```

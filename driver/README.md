@@ -57,11 +57,11 @@ a URI: topology stays in memory for that client and is not persisted. There is
 no environment variable for choosing a plugin, though a plugin may read the
 environment for its own configuration.
 
-When the plugin implements `getConnectionString()`, omit the explicit URI with
-`new MongoClient(plugin)`. If other driver options are needed, use
-`new MongoClient({ plugin, ...options })`. Pass a database name to `db(name)` in
-this form: the plugin resolves asynchronously, so its default database is not
-available when `db()` is called. An explicit URI takes precedence. Credentials
+When the plugin implements `getConnectionString()`, create the client with
+`MongoClient.fromPlugin(plugin, options)` instead of a URI. The plugin fetches the
+connection string on first use, not at construction. Pass a database name to
+`db(name)` in this form: the connection string is not known when `db()` is called,
+so neither is its default database. Credentials
 remain in the plugin's connection-string store; topology documents contain no
 copy of them.
 

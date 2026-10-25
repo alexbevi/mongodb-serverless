@@ -23,7 +23,15 @@ def note(data, aws_summary):
             'connection come out about even on AWS but slower locally.')
 
 
-def render_summary(data, node_version, outcome, result_url, aws_summary):
+CHARTS = {
+    'read-native': 'Read · native', 'read-no-plugin': 'Read · no plugin', 'read-ssm': 'Read · SSM plugin',
+    'read-ssm-uncached': 'Read · SSM plugin, uncached', 'write-native': 'Write · native',
+    'write-no-plugin-1-connection': 'Write · no plugin, 1 connection', 'write-no-plugin-2-connections': 'Write · no plugin, 2 connections',
+    'write-ssm': 'Write · SSM plugin', 'write-ssm-uncached': 'Write · SSM plugin, uncached',
+}
+
+
+def render_summary(data, node_version, outcome, result_url, aws_summary, chart_urls=None):
     lines = [f'## Cold-operation benchmark · Node {node_version}', '']
     try:
         if data is None:
@@ -42,9 +50,13 @@ def render_summary(data, node_version, outcome, result_url, aws_summary):
         lines += ['', note(data, aws_summary)]
     except (ValueError, KeyError, TypeError) as error:
         lines += ['**⚠️ Benchmark incomplete**', '', f'Invalid benchmark result: {error}']
+    charts = [f'[{label}]({chart_urls[slug]})' for slug, label in CHARTS.items() if (chart_urls or {}).get(slug)]
+    if charts:
+        lines += ['', 'Latency diagrams: ' + ' · '.join(charts)]
     if result_url:
-        lines += ['', f'[Download charts and results]({result_url})', '',
-                  'Artifacts expire after 7 days; downloading them requires signing in to GitHub.']
+        lines += ['', f'[Download charts and results]({result_url})']
+    if charts or result_url:
+        lines += ['', 'Artifacts expire after 7 days; downloading them requires signing in to GitHub.']
     return '\n'.join(lines) + '\n'
 
 
@@ -53,6 +65,7 @@ if __name__ == '__main__':
     aws = Path(__file__).with_name('results') / 'aws' / 'summary.json'
     summary = render_summary(json.loads(source.read_text()) if source.exists() else None, os.environ['BENCHMARK_NODE'],
                              os.environ['BENCHMARK_OUTCOME'], os.environ.get('BENCHMARK_RESULT_URL', ''),
-                             json.loads(aws.read_text()) if aws.exists() else None)
+                             json.loads(aws.read_text()) if aws.exists() else None,
+                             json.loads(os.environ.get('BENCHMARK_CHART_URLS') or '{}'))
     with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as output:
         output.write(summary)

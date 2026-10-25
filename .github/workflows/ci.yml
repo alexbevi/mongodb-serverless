@@ -115,6 +115,96 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload read-native chart
+        id: chart-read-native
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-native.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-no-plugin chart
+        id: chart-read-no-plugin
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-no-plugin.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-ssm chart
+        id: chart-read-ssm
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-ssm.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-ssm-uncached chart
+        id: chart-read-ssm-uncached
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-ssm-uncached.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-native chart
+        id: chart-write-native
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-native.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-no-plugin-1-connection chart
+        id: chart-write-no-plugin-1-connection
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-no-plugin-1-connection.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-no-plugin-2-connections chart
+        id: chart-write-no-plugin-2-connections
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-no-plugin-2-connections.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-ssm chart
+        id: chart-write-ssm
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-ssm.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-ssm-uncached chart
+        id: chart-write-ssm-uncached
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-ssm-uncached.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Summarize benchmark
         if: always() && steps.measure.outcome != 'skipped'
         env:
@@ -122,6 +212,7 @@ jobs:
           BENCHMARK_NODE: '24'
           BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
           BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
+          BENCHMARK_CHART_URLS: '{"read-native": "${{ steps.chart-read-native.outputs.artifact-url }}", "read-no-plugin": "${{ steps.chart-read-no-plugin.outputs.artifact-url }}", "read-ssm": "${{ steps.chart-read-ssm.outputs.artifact-url }}", "read-ssm-uncached": "${{ steps.chart-read-ssm-uncached.outputs.artifact-url }}", "write-native": "${{ steps.chart-write-native.outputs.artifact-url }}", "write-no-plugin-1-connection": "${{ steps.chart-write-no-plugin-1-connection.outputs.artifact-url }}", "write-no-plugin-2-connections": "${{ steps.chart-write-no-plugin-2-connections.outputs.artifact-url }}", "write-ssm": "${{ steps.chart-write-ssm.outputs.artifact-url }}", "write-ssm-uncached": "${{ steps.chart-write-ssm-uncached.outputs.artifact-url }}"}'
         run: python3 benchmark/ci_summary.py
 
   plugin-aws-ssm:

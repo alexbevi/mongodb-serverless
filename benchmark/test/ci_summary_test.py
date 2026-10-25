@@ -25,6 +25,14 @@ class CiSummaryTest(unittest.TestCase):
         self.assertIn('~7 ms', summary)
         self.assertIn('[Download charts and results](https://example.com/artifact)', summary)
 
+    def test_summary_links_each_case_chart(self):
+        from ci_summary import render_summary
+        charts = {'read-native': 'https://example.com/read-native', 'write-no-plugin-2-connections': 'https://example.com/w2'}
+        summary = render_summary(run(count=4, totals={('ssm', 'read'): 50.0, ('ssm', 'write'): 50.0}), '24', 'success', '', AWS, charts)
+        self.assertIn('Latency diagrams: [Read · native](https://example.com/read-native) · '
+                      '[Write · no plugin, 2 connections](https://example.com/w2)', summary)
+        self.assertNotIn('Read · no plugin](', summary)
+
     def test_summary_reports_a_failed_gate_and_an_incomplete_run(self):
         from ci_summary import render_summary
         data = run(count=4, totals={('ssm', 'write'): 95.0})

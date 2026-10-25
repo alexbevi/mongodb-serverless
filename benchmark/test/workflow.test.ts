@@ -27,6 +27,21 @@ it('measures once and derives the gate, charts and summary from that one run', (
   expect(workflow).toContain("node: ['20.19', '24']");
 });
 
+it('uploads each case chart on its own so the summary can link it', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const steps = workflow.split(/^      - /m);
+  const summary = steps.find(step => step.includes('name: Summarize benchmark'));
+
+  for (const chart of ['read-native', 'read-no-plugin', 'read-ssm', 'read-ssm-uncached', 'write-native',
+    'write-no-plugin-1-connection', 'write-no-plugin-2-connections', 'write-ssm', 'write-ssm-uncached']) {
+    const upload = steps.find(step => step.includes(`id: chart-${chart}\n`));
+
+    expect(upload, chart).toContain(`path: \${{ runner.temp }}/benchmark/${chart}.png`);
+    expect(upload, chart).toContain('archive: false');
+    expect(summary, chart).toContain(`"${chart}": "\${{ steps.chart-${chart}.outputs.artifact-url }}"`);
+  }
+});
+
 it('checks the AWS SSM plugin against LocalStack alongside the other jobs', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const job = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('plugin-aws-ssm:'));

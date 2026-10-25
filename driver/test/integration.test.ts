@@ -104,14 +104,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
   });
 
   it('discovers and stores topology on first use, then reuses it', async () => {
-    let stored: typeof cluster.status | null = null;
-
-    const plugin = {
-      name: 'discovery', version: '1', author: 'test',
-      async setup() {}, async verify() {},
-      async read() { return stored; },
-      async write(status: typeof cluster.status) { stored = status; }
-    };
+    const plugin = new TestPlugin(null);
 
     const commands: CommandStartedEvent[] = [];
 
@@ -125,7 +118,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       await client.db('itest').collection('discovery').insertOne({ run });
     }
 
-    expect(stored).toMatchObject({ set: cluster.status.set });
+    expect(plugin.stored).toMatchObject({ set: cluster.status.set });
     expect(portsFor(commands, 'replSetGetStatus')).toHaveLength(1);
     expect(portsFor(commands, 'insert')).toEqual([portOf(cluster.primary), portOf(cluster.primary)]);
   });
@@ -140,15 +133,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
       await native.close();
     }
 
-    let stored: typeof cluster.status | null = null;
-
-    const plugin = {
-      name: 'discovery', version: '1', author: 'test',
-      async setup() {}, async verify() {},
-      async read() { return stored; },
-      async write(status: typeof cluster.status) { stored = status; }
-    };
-
+    const plugin = new TestPlugin(null);
     const commands: CommandStartedEvent[] = [];
 
     const client = new ServerlessMongoClient(uri, {
@@ -161,7 +146,7 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
     clients.push(client);
 
     await expect(client.db('admin').command({ ping: 1 })).rejects.toThrow();
-    expect(stored).toBeNull();
+    expect(plugin.stored).toBeNull();
     expect(portsFor(commands, 'ping')).toEqual([]);
   });
 

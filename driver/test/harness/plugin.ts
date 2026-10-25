@@ -14,17 +14,23 @@ export class TestPlugin implements TopologyPlugin {
 
   reads = 0;
 
-  #status: ReplSetGetStatus;
+  #status: ReplSetGetStatus | null;
 
-  constructor(status: ReplSetGetStatus) {
+  /** Start with no topology to make the driver discover and store one. */
+  constructor(status: ReplSetGetStatus | null) {
     this.#status = status;
+  }
+
+  /** What the driver last stored, without counting as a read. */
+  get stored(): ReplSetGetStatus | null {
+    return this.#status;
   }
 
   async setup(): Promise<void> {}
 
   async verify(): Promise<void> {}
 
-  async read(): Promise<ReplSetGetStatus> {
+  async read(): Promise<ReplSetGetStatus | null> {
     this.reads += 1;
 
     return this.#status;

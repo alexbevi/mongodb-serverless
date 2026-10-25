@@ -17,7 +17,7 @@ it('rejects unsupported authentication before connecting', () => {
 });
 
 it('accepts stable releases from the baseline through major version 7', async () => {
-  const { assertVersion } = await import('../../src/no-monitoring/adapter.js');
+  const { assertVersion } = await import('../../src/native.js');
 
   for (const version of ['7.7.0', '7.7.1', '7.8.0', '7.20.0', '7.7.0+build.1']) {
     expect(() => assertVersion(version)).not.toThrow();

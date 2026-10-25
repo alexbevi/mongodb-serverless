@@ -22,4 +22,3 @@ export function assertVersion(version: string): void {
     );
   }
 }
-

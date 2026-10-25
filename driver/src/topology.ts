@@ -1,4 +1,4 @@
-import { isResolvedAuthentication, type ResolvedAuthentication } from '../../plugins/shared/src/index.js';
+import { assertStatus, type ResolvedAuthentication } from '../../plugins/shared/src/index.js';
 import type { ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
 import { InvalidTopologyError, NoPrimaryError } from './errors.js';
 
@@ -33,18 +33,15 @@ const HOST_PORT = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d{1,5})$/;
 
 /** Reads the routing targets out of a `replSetGetStatus` document. */
 export function parseTopology(status: ReplSetGetStatus): Topology {
-  if (!Array.isArray(status.members)) {
-    throw new InvalidTopologyError(
-      'Topology has no members array; it must be a replSetGetStatus document'
-    );
+  // A plugin may return anything at runtime, so check structure with the shared contract first.
+  try {
+    assertStatus(status);
+  } catch (cause) {
+    throw new InvalidTopologyError(`Topology must be a replSetGetStatus document: ${String(cause)}`, { cause });
   }
 
   if (status.members.length === 0) {
     throw new InvalidTopologyError('Topology reports no members');
-  }
-
-  if (status.authentication !== undefined && !isResolvedAuthentication(status.authentication)) {
-    throw new InvalidTopologyError('Topology authentication must contain a mechanism and source');
   }
 
   const primaries: string[] = [];

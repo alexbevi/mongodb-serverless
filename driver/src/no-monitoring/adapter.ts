@@ -1,10 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { Document, MongoClient } from 'mongodb';
 import { UnsupportedOperationError } from '../errors.js';
-
 import { requireMongo, assertVersion } from '../native.js';
-
-export { assertVersion, MONGODB_BASELINE } from '../native.js';
 
 export function verifyDriver(): void {
   const manifest: { version: string } = requireMongo('../package.json');

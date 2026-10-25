@@ -274,8 +274,8 @@ Topology-related write failures also refresh the cached members.
 
 The native driver retries a retryable write once against the same member,
 unless `retryWrites` is `false`. That recovers a dropped connection. A
-topology-related write failure that remains triggers one shared refresh per client after
-100–249 ms of jittered backoff. An ordinary promise-returning write rejected with `NotWritablePrimary` or
+topology-related write failure that remains triggers one shared refresh per client, which
+rediscovers immediately. An ordinary promise-returning write rejected with `NotWritablePrimary` or
 `NotPrimaryNoSecondaryOk` is attempted once more against the refreshed primary.
 A `NoWritesPerformed` label on a topology-related server error also permits replay.
 Explicit sessions, bulk builders, and cursors are excluded from automatic replay.

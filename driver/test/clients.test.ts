@@ -345,3 +345,14 @@ it('does not bootstrap a no-plugin client after it has closed', async () => {
   await expect(pair.write()).rejects.toThrow(/closed/i);
   expect(createClient).not.toHaveBeenCalled();
 });
+
+it('rediscovers as soon as a refresh is requested', async () => {
+  // SAFETY: This fake implements the lifecycle discovery uses; it can never connect.
+  const createClient = vi.fn(() => ({ on() {}, async connect() { throw new Error('unreachable'); }, async close() {} } as never));
+  const pair = new ClientPair({ uri: 'mongodb://a:27017/', plugin: pluginFor(threeNode), createClient });
+  const started = performance.now();
+
+  await expect(pair.refreshTopology(pair.generation)).rejects.toThrow('unreachable');
+  expect(performance.now() - started).toBeLessThan(50);
+  expect(createClient).toHaveBeenCalledOnce();
+});

@@ -1,5 +1,4 @@
 import { ConnectionString } from 'mongodb-connection-string-url';
-import { setTimeout as delay } from 'node:timers/promises';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { Connector, readTopology, type ClientFactory } from './connector.js';
 import { ServerlessDriverError } from './errors.js';
@@ -9,9 +8,6 @@ import { chooseHost, serves, type Route } from './selection.js';
 import { parseTopology, type Topology } from './topology.js';
 
 export type { ClientFactory } from './connector.js';
-
-/** A random pause before rediscovering, so clients that fail together do not all discover at once. */
-const REFRESH_BACKOFF_MS = { minimum: 100, spread: 150 };
 
 export interface ClientPairOptions {
   uri: string;
@@ -67,8 +63,6 @@ export class ClientPair {
     if (generation !== this.#generation) return;
 
     this.#refresh ??= (async () => {
-      await delay(REFRESH_BACKOFF_MS.minimum + Math.floor(Math.random() * REFRESH_BACKOFF_MS.spread));
-      this.#assertOpen();
       const known = await this.#topology?.catch(() => undefined);
       const seeds = known ? [known.primary, ...known.secondaries] : undefined;
       const discovered = await this.#connector.discover({ options: this.#connectionOptions(known), seeds });

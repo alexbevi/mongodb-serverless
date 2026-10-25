@@ -74,7 +74,7 @@ and authorization errors return directly. Calls in the same wrapper that fail
 against the same topology generation share one refresh. Different Lambda
 instances can discover concurrently; this contract provides no distributed lock.
 
-A refresh waits 100–249 ms, tries cached members once each, validates the resulting
+A refresh starts at once, tries cached members once each, validates the resulting
 status, and awaits persistence before switching routes. The default selection
 timeout is five seconds per seed during initial discovery or refresh. An
 explicit `serverSelectionTimeoutMS` overrides that timeout.
@@ -91,7 +91,7 @@ sequenceDiagram
     App->>Driver: Write
     Driver->>Old: Attempt 1
     Old-->>Driver: Topology-related error
-    Note over Driver: Share refresh and back off 100–249 ms
+    Note over Driver: Share one refresh per client
     Driver->>Member: Direct hello and replSetGetStatus
     Member-->>Driver: Validated topology
     Driver->>Member: Close discovery connection
@@ -108,8 +108,6 @@ sequenceDiagram
     end
     Note over Driver,App: Discovery or persistence failure returns the original write error
 ```
-
-![Recovery diagram](assets/recovery.png)
 
 Direct clients keep the native `retryWrites` setting, which is on by default.
 The native retry goes back to the same member, so it recovers a dropped

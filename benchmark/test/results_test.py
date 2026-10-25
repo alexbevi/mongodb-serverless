@@ -6,6 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
+from report import load
+
 ROOT = Path(__file__).parents[1] / 'results'
 CASES = ['read-native', 'read-no-plugin', 'read-ssm', 'read-ssm-uncached', 'write-native',
          'write-no-plugin-1-connection', 'write-no-plugin-2-connections', 'write-ssm', 'write-ssm-uncached']
@@ -17,8 +19,8 @@ class ResultsTest(unittest.TestCase):
         for environment in ['local', 'aws']:
             directory = ROOT / environment
             self.assertEqual({p.name for p in directory.iterdir()},
-                             {'samples.json', 'summary.json', 'results.md', *(f'{case}.png' for case in CASES)}, environment)
-            text = (directory / 'samples.json').read_text()
+                             {'samples.json.gz', 'summary.json', 'results.md', *(f'{case}.png' for case in CASES)}, environment)
+            text = json.dumps(load(directory / 'samples.json.gz'))
             self.assertNotIn('.mongodb.net', text)
             self.assertNotIn('mongodb+srv://', text)
             results = (directory / 'results.md').read_text()
@@ -28,7 +30,7 @@ class ResultsTest(unittest.TestCase):
 
     def test_summaries_match_complete_verified_cohorts(self):
         for environment in ['local', 'aws']:
-            data = json.loads((ROOT / environment / 'samples.json').read_text())
+            data = load(ROOT / environment / 'samples.json.gz')
             summary = json.loads((ROOT / environment / 'summary.json').read_text())
             self.assertFalse(data['failures'])
             count = data['configuration']['count']
@@ -43,7 +45,7 @@ class ResultsTest(unittest.TestCase):
 
     def test_settings_are_fetched_at_startup_and_warm_calls_reuse_clients(self):
         for environment in ['local', 'aws']:
-            data = json.loads((ROOT / environment / 'samples.json').read_text())
+            data = load(ROOT / environment / 'samples.json.gz')
             checks = data['configuration']['warmVerification']
             self.assertEqual(len(checks), 2 * len(data['configuration']['variants']))
             for check in checks:

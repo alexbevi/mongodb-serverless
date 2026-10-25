@@ -4,7 +4,7 @@ import { Connector, readTopology, type ClientFactory } from './connector.js';
 import { ServerlessDriverError } from './errors.js';
 import type { MemberConnection } from './member.js';
 import type { ReplSetGetStatus, TopologyPlugin } from './plugin.js';
-import { chooseHost, serves, type Route } from './selection.js';
+import { chooseHost, serves, type ReadRoute, type Route } from './selection.js';
 import { parseTopology, type Topology } from './topology.js';
 
 export type { ClientFactory } from './connector.js';
@@ -47,9 +47,9 @@ export class ClientPair {
     return this.#select('write');
   }
 
-  /** The client for reads, targeting a secondary when one is healthy. */
-  async read(anyMember = false): Promise<MongoClient> {
-    return this.#select(anyMember ? 'any' : 'read');
+  /** The client for reads: a healthy secondary when one exists, or any member for `any`. */
+  async read(route: ReadRoute = 'read'): Promise<MongoClient> {
+    return this.#select(route);
   }
 
   get generation(): number {

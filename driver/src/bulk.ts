@@ -140,7 +140,7 @@ export function createBulkProxy(source: BulkSource, label: string, executeWrite?
               return callMethod(builder, 'execute', args, `${label}: the mongodb driver has no execute() to replay.`);
             };
 
-            return executeWrite ? executeWrite(operation, false) : operation();
+            return executeWrite ? executeWrite(operation, 'never') : operation();
           };
         }
 

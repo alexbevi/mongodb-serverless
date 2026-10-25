@@ -1,8 +1,8 @@
-import type { MongoClient } from 'mongodb';
+import type { MongoClient, ServerType } from 'mongodb';
 
 export interface MemberConnection {
   client: MongoClient;
-  type: string;
+  type: ServerType;
   setName: string | null;
   host: string | undefined;
 }

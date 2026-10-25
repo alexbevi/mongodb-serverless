@@ -3,6 +3,9 @@ import type { Topology } from './topology.js';
 /** What an operation needs: the primary, a secondary if healthy, or any healthy member. */
 export type Route = 'read' | 'write' | 'any';
 
+/** The routes a read can take. */
+export type ReadRoute = Exclude<Route, 'write'>;
+
 /** Whether a member reporting this server type can serve the route. */
 export function serves(route: Route, type: string): boolean {
   if (route === 'any') return type === 'RSPrimary' || type === 'RSSecondary';

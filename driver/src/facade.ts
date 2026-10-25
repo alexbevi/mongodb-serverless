@@ -10,6 +10,7 @@ import {
 import { COLLECTION_ROUTES, DB_ROUTES, routeFor, readPreferenceMode, type Route } from './routing.js';
 import { createCursorProxy } from './cursor.js';
 import { createBulkProxy } from './bulk.js';
+import type { ReadRoute } from './selection.js';
 
 /**
  * Methods that hand back a cursor synchronously, so they cannot await the
@@ -29,7 +30,8 @@ const BULK_METHODS = new Set(['initializeOrderedBulkOp', 'initializeUnorderedBul
 
 /** Hands back the client an operation should run on. */
 export interface Router {
-  read(anyMember?: boolean): Promise<MongoClient>;
+  /** `any` accepts either role, for `nearest` reads; `read` prefers a secondary. */
+  read(route?: ReadRoute): Promise<MongoClient>;
   write(): Promise<MongoClient>;
 }
 
@@ -123,7 +125,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
       );
     }
 
-    const client = () => (route === 'read' ? router.read(readPreferenceMode(args) === 'nearest') : router.write());
+    const client = () => (route === 'read' ? router.read(readPreferenceMode(args) === 'nearest' ? 'any' : 'read') : router.write());
 
     if (CURSOR_METHODS.has(method)) {
       return createCursorProxy(async () => {
@@ -146,7 +148,7 @@ function routedMethod(router: Router, routes: Routes, method: string, owner: Own
     const operation = () => invoke(client(), owner, method, args);
 
     return route === 'write' && executeWrite
-      ? executeWrite(operation, !hasSession(args))
+      ? executeWrite(operation, hasSession(args) ? 'never' : 'ifRejectedBeforeWrite')
       : operation();
   };
 }

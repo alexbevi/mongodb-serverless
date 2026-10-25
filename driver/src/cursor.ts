@@ -112,7 +112,7 @@ export function createCursorProxy<T>(source: CursorSource<T>, label: string, exe
       return callMethod(cursor, method, args, `${label} cursor has no ${method}().`);
     };
 
-    return executeWrite && method !== 'close' ? executeWrite(operation, false) : operation();
+    return executeWrite && method !== 'close' ? executeWrite(operation, 'never') : operation();
   };
 
   const proxy = new Proxy(
@@ -127,24 +127,26 @@ export function createCursorProxy<T>(source: CursorSource<T>, label: string, exe
               return;
             }
 
-            let iterator: AsyncGenerator<T, void, void> | undefined;
+            // Each step runs through recovery, so a topology failure while iterating refreshes routing.
+            const iterator = await executeWrite(async () => (await resolve())[Symbol.asyncIterator](), 'never');
+            let failed = false;
 
-            const recovering: AsyncIterableIterator<T, void, void> = {
-              [Symbol.asyncIterator]() { return this; },
-              next: () => executeWrite(async () => {
-                iterator ??= (await resolve())[Symbol.asyncIterator]();
+            try {
+              for (;;) {
+                const step = await executeWrite(() => iterator.next(), 'never');
 
-                return iterator.next();
-              }, false),
-              return: async () => iterator?.return() ?? { done: true, value: undefined },
-              throw: async error => {
-                if (iterator) return iterator.throw(error);
+                if (step.done) return;
 
-                throw error;
+                yield step.value;
               }
-            };
-
-            yield* recovering;
+            } catch (error) {
+              failed = true;
+              // Keep the iteration error if closing the cursor fails as well.
+              await iterator.return().catch(() => {});
+              throw error;
+            } finally {
+              if (!failed) await iterator.return();
+            }
           };
         }
 

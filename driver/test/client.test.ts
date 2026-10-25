@@ -49,23 +49,14 @@ it('fails on first use, not construction, when JavaScript omits the connection s
 });
 
 it('retries plugin resolution after a failure instead of caching it', async () => {
-  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
-  const { tmpdir } = await import('node:os');
-  const { join } = await import('node:path');
-  const { pathToFileURL } = await import('node:url');
-  const directory = await mkdtemp(join(tmpdir(), 'plugin-retry-'));
-  const module = pathToFileURL(join(directory, 'plugin.mjs')).href;
-  const client = ServerlessMongoClient.fromPlugin(module);
+  let ready = false;
+  const plugin = lookupPlugin(async () => 'mongodb://a:27017/');
+  const read = plugin.read;
+  // read is missing on the first resolution, so validation fails, and present afterwards.
+  Object.defineProperty(plugin, 'read', { get: () => (ready ? read : undefined) });
+  const client = ServerlessMongoClient.fromPlugin(plugin);
 
-  try {
-    await expect(client.plugin()).rejects.toThrow();
-    await writeFile(join(directory, 'plugin.mjs'), `export default class {
-      name = 'late'; version = '1'; author = 'test';
-      async setup() {} async verify() {} async read() { return null; } async write() {}
-    }`);
-
-    await expect(client.plugin()).resolves.toMatchObject({ name: 'late' });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  await expect(client.plugin()).rejects.toThrow(/read/);
+  ready = true;
+  await expect(client.plugin()).resolves.toBe(plugin);
 });

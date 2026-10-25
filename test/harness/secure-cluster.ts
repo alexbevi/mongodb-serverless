@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, X509Certificate } from 'node:crypto';
 import { MongoClient } from 'mongodb';
+import { removeExited } from './cluster.js';
 
 const exec = promisify(execFile);
 
@@ -75,6 +76,7 @@ async function start(): Promise<{ uri: string; ca: string }> {
     return start();
   }
 
+  await removeExited(container);
   await exec('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
     '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1',
     '-keyout', join(directory, 'key.pem'), '-out', ca]);

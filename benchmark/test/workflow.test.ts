@@ -31,6 +31,15 @@ it('measures once and derives the gate, charts and summary from that one run', (
   expect(workflow).toContain("node: ['20.19', '24']");
 });
 
+it('runs the README examples against the packed packages once', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const test = workflow.split(/^  (?=[\w-]+:\s*$)/m).find(job => job.startsWith('test:'));
+  const step = test!.split(/^      - /m).find(step => step.includes('pnpm test:no-monitoring:package'));
+
+  // The check runs on the current Node and fetches 20.19 itself, so one matrix entry covers both.
+  expect(step).toContain("if: matrix.node == '24'");
+});
+
 it('uploads each case chart on its own so the summary can link it', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const steps = workflow.split(/^      - /m);

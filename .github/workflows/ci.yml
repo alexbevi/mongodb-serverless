@@ -39,6 +39,10 @@ jobs:
       # start their own replica set rather than skipping.
       - run: pnpm test
 
+      - name: Run the README examples against the packed packages
+        if: matrix.node == '24'
+        run: pnpm test:no-monitoring:package
+
       - name: Check the packages are installable
         run: |
           set -euo pipefail

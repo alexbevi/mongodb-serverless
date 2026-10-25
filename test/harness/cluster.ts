@@ -66,9 +66,7 @@ export async function startCluster(): Promise<void> {
     // A container from before failpoints were needed; rebuild it once.
     await stopCluster();
   } else {
-    // A stopped container keeps the name, so `docker run` below would report
-    // "already in use" and this would wait on a container that never starts.
-    await removeExited();
+    await removeExited(CONTAINER);
   }
 
   const launch = PORTS.map(
@@ -147,11 +145,17 @@ export async function startCluster(): Promise<void> {
   }, 'the replica set to elect a primary and sync both secondaries');
 }
 
-const removeExited = async (): Promise<void> => {
-  const exited = await docker(['ps', '-a', '--filter', `name=^${CONTAINER}$`, '--filter', 'status=exited', '--format', '{{.Names}}']);
+/**
+ * Removes a container that holds a harness name but is not running: stopped,
+ * or created and never started. Otherwise
+ * `docker run` reports "already in use" and the harness waits on a container
+ * that never starts.
+ */
+export async function removeExited(name: string): Promise<void> {
+  const exited = await docker(['ps', '-a', '--filter', `name=^${name}$`, '--filter', 'status=exited', '--filter', 'status=created', '--format', '{{.Names}}']);
 
-  if (exited === CONTAINER) await stopCluster();
-};
+  if (exited === name) await docker(['rm', '-f', name]);
+}
 
 const testCommandsEnabled = async (): Promise<boolean> => {
   const out = await mongosh(
@@ -272,11 +276,13 @@ export const STANDALONE_PORT = 29200;
 /**
  * Starts a single mongod with no replica set.
  *
- * Needed to prove the watcher rejects a server that has no topology. A direct
- * connection to one replica set member is not a substitute: it still reports
- * `setName`, so it passes the check it is meant to fail.
+ * Needed to prove discovery rejects a server that is not a replica-set member.
+ * A direct connection to one replica set member is not a substitute: it still
+ * reports `setName`, so it passes the check it is meant to fail.
  */
 export async function startStandalone(): Promise<void> {
+  await removeExited(STANDALONE);
+
   try {
     await docker([
       'run',

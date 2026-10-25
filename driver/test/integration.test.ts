@@ -9,6 +9,7 @@ import {
   dockerAvailable,
   failCommand,
   startCluster,
+  waitForPreferredPrimary,
   type TestCluster
 } from '../../test/harness/cluster.js';
 import { TestPlugin } from './harness/plugin.js';
@@ -29,6 +30,9 @@ describe.skipIf(!hasDocker)('against a real replica set', () => {
 
   beforeAll(async () => {
     await startCluster();
+    // An election in an earlier suite can leave another member primary until the
+    // preferred one takes over again, which would make this snapshot stale mid-suite.
+    await waitForPreferredPrimary();
     cluster = await describeCluster();
   }, 180_000);
 

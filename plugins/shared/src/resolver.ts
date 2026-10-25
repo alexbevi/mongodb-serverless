@@ -41,9 +41,14 @@ export function clearDefaultPlugin(): void {
   defaultPlugin = undefined;
 }
 
+/** Resolves a plugin from an explicit source, else the configured default, or none when neither exists. */
+export async function resolveOptionalPlugin(source?: PluginSource): Promise<TopologyPlugin | undefined> {
+  return source == null && defaultPlugin == null ? undefined : resolvePlugin(source);
+}
+
 /** Resolves a plugin from an explicit source, else the configured default. */
-export async function resolvePlugin(source?: PluginSource, fallback?: TopologyPlugin): Promise<TopologyPlugin> {
-  const chosen = source ?? defaultPlugin ?? fallback;
+export async function resolvePlugin(source?: PluginSource): Promise<TopologyPlugin> {
+  const chosen = source ?? defaultPlugin;
 
   if (chosen == null) {
     throw new MissingPluginError(

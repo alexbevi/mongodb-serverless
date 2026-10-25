@@ -4,8 +4,8 @@ import { ClientPair, type ClientFactory } from './clients.js';
 import { ServerlessDriverError, UnsupportedOperationError } from './errors.js';
 import { createDbFacade } from './facade.js';
 import { createWriteExecutor } from './recovery.js';
-import { resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
-import { uncachedTopology, type TopologyPlugin } from './plugin.js';
+import { resolveOptionalPlugin, resolvePlugin, type PluginSource } from '../../plugins/shared/src/index.js';
+import type { TopologyPlugin } from './plugin.js';
 
 export interface ServerlessClientOptions extends MongoClientOptions {
   /** A plugin, or the name of a package exporting one. */
@@ -31,7 +31,7 @@ const defaultFactory: ClientFactory = (uri, options) => new MongoClient(uri, opt
 export class ServerlessMongoClient {
   readonly #uri: string | undefined;
   #defaultDb: string | undefined;
-  readonly #plugin: () => Promise<TopologyPlugin>;
+  readonly #plugin: () => Promise<TopologyPlugin | undefined>;
   readonly #pair: () => Promise<ClientPair>;
   #openPair: Promise<ClientPair> | undefined;
   #closed = false;
@@ -61,14 +61,15 @@ export class ServerlessMongoClient {
     const { plugin, createClient, on = {}, disableMonitoring = false, ...driverOptions } = clientOptions;
 
     this.#uri = uri;
-    let resolvedPlugin: Promise<TopologyPlugin> | undefined;
-    this.#plugin = () => resolvedPlugin ??= resolvePlugin(plugin, uri == null ? undefined : uncachedTopology);
+    let resolvedPlugin: Promise<TopologyPlugin | undefined> | undefined;
+    // Without a connection string, the plugin has to supply one; with it, a plugin is optional.
+    this.#plugin = () => resolvedPlugin ??= uri == null ? resolvePlugin(plugin) : resolveOptionalPlugin(plugin);
     this.#pair = () => {
       if (this.#closed) return Promise.reject(new ServerlessDriverError('This client is closed; create a new one to reconnect.'));
 
       return this.#openPair ??= this.#plugin().then(
       async resolved => {
-        const connectionString = uri ?? await resolved.getConnectionString?.();
+        const connectionString = uri ?? await resolved?.getConnectionString?.();
 
         if (!connectionString) {
           throw new ServerlessDriverError('Supply a connection string or a plugin with getConnectionString().');
@@ -101,8 +102,8 @@ export class ServerlessMongoClient {
     return Object.freeze({});
   }
 
-  /** The plugin, once resolved. Resolution is deferred to first use. */
-  async plugin(): Promise<TopologyPlugin> {
+  /** The plugin, once resolved, or undefined when none is configured. Resolution is deferred to first use. */
+  async plugin(): Promise<TopologyPlugin | undefined> {
     return this.#plugin();
   }
 

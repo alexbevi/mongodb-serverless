@@ -2,7 +2,7 @@ import { ConnectionString } from 'mongodb-connection-string-url';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { ServerlessDriverError } from './errors.js';
-import { uncachedTopology, type TopologyPlugin } from './plugin.js';
+import type { TopologyPlugin } from './plugin.js';
 import { parseTopology, type Topology } from './topology.js';
 import { discoverTopology, openDiscovery, openSeed, readTopology } from './discovery.js';
 import { directUri } from './uri.js';
@@ -13,7 +13,8 @@ export type ClientFactory = (uri: string, options?: MongoClientOptions) => Mongo
 
 export interface ClientPairOptions {
   uri: string;
-  plugin: TopologyPlugin;
+  /** Shares topology between clients. Without one, topology is discovered and kept in memory. */
+  plugin?: TopologyPlugin | undefined;
   createClient: ClientFactory;
   driverOptions?: MongoClientOptions;
   disableMonitoring?: boolean;
@@ -60,7 +61,7 @@ export class ClientPair {
       this.#topologyFailed = false;
     }
 
-    if (this.#options.plugin === uncachedTopology && !this.#topology) {
+    if (!this.#options.plugin && !this.#topology) {
       const member = await this.#connectBootstrap();
       this.#assertOpen();
 
@@ -138,7 +139,7 @@ export class ClientPair {
       );
 
       this.#assertOpen();
-      await this.#options.plugin.write(status);
+      await this.#options.plugin?.write(status);
       this.#topology = Promise.resolve(parseTopology(status));
       this.#topologyFailed = false;
       this.#generation += 1;
@@ -166,14 +167,16 @@ export class ClientPair {
     this.#assertOpen();
 
     this.#topology ??= (async () => {
-      if (this.#options.plugin === uncachedTopology) {
+      const plugin = this.#options.plugin;
+
+      if (!plugin) {
         const member = await this.#connectBootstrap();
         this.#assertOpen();
 
         return parseTopology(await readTopology(member));
       }
 
-      const status = await this.#options.plugin.read();
+      const status = await plugin.read();
       this.#assertOpen();
 
       if (status != null) {
@@ -184,7 +187,7 @@ export class ClientPair {
         }
       }
 
-      await this.#options.plugin.setup();
+      await plugin.setup();
       this.#assertOpen();
 
       const discovered = await openDiscovery(
@@ -196,7 +199,7 @@ export class ClientPair {
 
       try {
         this.#assertOpen();
-        await this.#options.plugin.write(discovered.status);
+        await plugin.write(discovered.status);
         this.#assertOpen();
         const topology = parseTopology(discovered.status);
         const { host, client } = discovered;

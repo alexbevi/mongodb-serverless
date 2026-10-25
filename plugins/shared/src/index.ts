@@ -8,6 +8,7 @@ export {
 export { assertStatus, parseStatus, isResolvedAuthentication, type ResolvedAuthentication, type ReplSetGetStatus, type ReplSetGetStatusMember } from './status.js';
 
 export {
+  resolveOptionalPlugin,
   resolvePlugin,
   setDefaultPlugin,
   clearDefaultPlugin,

@@ -3,7 +3,7 @@ import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
 import { NoPrimaryError } from '../src/errors.js';
-import { uncachedTopology, type ReplSetGetStatus, type TopologyPlugin } from '../src/plugin.js';
+import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
 
 const threeNode: ReplSetGetStatus = {
   set: 'rs0',
@@ -267,7 +267,7 @@ it('keeps routed connections direct even when native options request discovery',
 
 it.each([
   ['routed', pluginFor(singleNode)],
-  ['bootstrap', uncachedTopology]
+  ['bootstrap', undefined]
 ])('leaves retryable writes to the native driver on %s connections', async (_path, plugin) => {
   const hello = handshake('RSPrimary');
   // SAFETY: This fake reports its handshake role and implements connection lifecycle.
@@ -339,7 +339,7 @@ it('closes a routed client when connection fails', async () => {
 
 it('does not bootstrap a no-plugin client after it has closed', async () => {
   const createClient = vi.fn(() => { throw new Error('unexpected connection'); });
-  const pair = new ClientPair({ uri: 'mongodb://a:27017/', plugin: uncachedTopology, createClient });
+  const pair = new ClientPair({ uri: 'mongodb://a:27017/', createClient });
   await pair.close();
 
   await expect(pair.write()).rejects.toThrow(/closed/i);

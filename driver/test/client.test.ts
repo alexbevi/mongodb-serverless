@@ -34,3 +34,9 @@ it('can be closed more than once', async () => {
   await client.close();
   await expect(client.close()).resolves.toBeUndefined();
 });
+
+it('reports no plugin when only a connection string was given', async () => {
+  const client = new ServerlessMongoClient('mongodb://a:27017/');
+
+  await expect(client.plugin()).resolves.toBeUndefined();
+});

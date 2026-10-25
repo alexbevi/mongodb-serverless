@@ -43,7 +43,14 @@ export interface EventTrace {
   commands: CommandTiming[];
   /** The last find or update: the measured operation. */
   command: CommandTiming | undefined;
-  checkouts: Interval[];
+  /** Waits for a pooled connection, with the `host:port` of the member's pool. */
+  checkouts: CheckoutTiming[];
+}
+
+export interface CheckoutTiming {
+  address: string;
+  start: number;
+  end: number;
 }
 
 /** A native MongoClient; listeners receive it as `this`. */
@@ -241,7 +248,9 @@ export function recordEvents(now: () => number = () => performance.now()) {
         sockets: [...timings.values()].filter(socket => inWindow(socket.start)).sort((a, b) => a.start - b.start),
         commands: recorded,
         command: recorded.findLast(command => command.name === 'find' || command.name === 'update'),
-        checkouts: checkouts.flatMap(checkout => checkout.end !== undefined && inWindow(checkout.start) ? [[checkout.start, checkout.end] satisfies Interval] : [])
+        checkouts: checkouts.flatMap(checkout => checkout.end !== undefined && inWindow(checkout.start)
+          ? [{ address: checkout.address, start: checkout.start, end: checkout.end }]
+          : [])
       };
     },
 

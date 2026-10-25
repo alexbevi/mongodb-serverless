@@ -133,6 +133,15 @@ class RowTest(unittest.TestCase):
         native = member_rows(slow, ['member-1', 'member-2', 'member-3'])[0]
         self.assertIn(('waiting', 23, 25), native['spans'])
 
+    def test_a_checkout_is_drawn_on_the_member_it_waited_for(self):
+        from report import member_rows
+        discovered = sample('no-plugin', 'write', two_connections=True)
+        # The discovery command's checkout, after member-2's connection is ready.
+        discovered['trace']['checkouts'].append({'address': 'member-2:27017', 'start': 1030.25, 'end': 1030.5})
+        operation_row, first_row = member_rows(discovered, ['member-1', 'member-2'])
+        self.assertIn(('checkout', 30.25, 30.5), first_row['spans'])
+        self.assertNotIn(('checkout', 30.25, 30.5), operation_row['spans'])
+
     def test_only_contacted_members_get_a_row(self):
         from report import contacted_members
         members = ['member-1', 'member-2', 'member-3']
@@ -144,6 +153,18 @@ class RowTest(unittest.TestCase):
 
 CASES = ['read-native', 'read-no-plugin', 'read-ssm', 'read-ssm-uncached', 'write-native',
          'write-no-plugin-1-connection', 'write-no-plugin-2-connections', 'write-ssm', 'write-ssm-uncached']
+
+
+class LoadTest(unittest.TestCase):
+    def test_samples_load_from_plain_or_gzipped_json(self):
+        import gzip, json
+        from report import load
+        data = run(count=1)
+        with tempfile.TemporaryDirectory() as directory:
+            plain, packed = Path(directory) / 'samples.json', Path(directory) / 'samples.json.gz'
+            plain.write_text(json.dumps(data))
+            packed.write_bytes(gzip.compress(json.dumps(data).encode()))
+            self.assertEqual(load(plain), load(packed))
 
 
 class RenderTest(unittest.TestCase):

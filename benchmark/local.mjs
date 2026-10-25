@@ -6,15 +6,14 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { DeleteParametersCommand, PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-import { assertWarmReuse, topologyParameterFor, variants, workerPatterns } from './lambda-collect.mjs';
+import { assertWarmReuse, topologyParameterFor, variants, workerPatterns, writeSamples } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: {
   samples: { type: 'string', default: '40' },
-  output: { type: 'string', default: 'benchmark/results/local/samples.json' },
+  output: { type: 'string', default: 'benchmark/results/local/samples.json.gz' },
   // A Lambda outside a VPC reaches every Atlas member at about the same
   // latency; AWS TCP connects take 1.2–1.3 ms to every member.
   rtt: { type: 'string', default: '1.3' }
@@ -95,10 +94,7 @@ const samples = [];
 const data = { createdAt: new Date(started).toISOString(), configuration: { count, variants, environment: 'Local Docker', rttMs: rtt,
   readPreference: 'nearest', writes: 'primary / majority', timing: 'SSM fetched during process startup; handler through result', overview: 'handler' }, samples, failures: [] };
 
-const save = () => {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify({ ...data, elapsedMs: Date.now() - started }, null, 2) + '\n');
-};
+const save = () => writeSamples(file, JSON.stringify({ ...data, elapsedMs: Date.now() - started }, null, 2) + '\n');
 
 try {
   compose('build');

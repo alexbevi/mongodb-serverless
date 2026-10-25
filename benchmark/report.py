@@ -5,6 +5,7 @@ Usage: python3 benchmark/report.py <samples.json>
 Writes summary.json, results.md and one chart per case beside it.
 """
 import argparse
+import gzip
 import json
 import math
 from collections import Counter
@@ -89,21 +90,22 @@ def intervals(sample):
     def relative(interval):
         return interval[0] - start, interval[1] - start
 
+    # (phase, start, end, member); member is set only where the phase belongs to one member's row.
     result = []
     for call in trace.get('ssm', []):
         phase = 'topologyStore' if call.get('command') == 'PutParameterCommand' else 'ssm'
-        result.append((phase, *relative((call['start'], call['end']))))
-    result += [('discovery', *relative((c['start'], c['end']))) for c in trace['commands'] if c['name'] == 'replSetGetStatus']
-    result.append(('operation', *relative((command['start'], command['end']))))
+        result.append((phase, *relative((call['start'], call['end'])), None))
+    result += [('discovery', *relative((c['start'], c['end'])), None) for c in trace['commands'] if c['name'] == 'replSetGetStatus']
+    result.append(('operation', *relative((command['start'], command['end'])), None))
     applications = [s for s in trace['sockets'] if s['kind'] == 'application']
     applications.sort(key=lambda s: s['start'] != command['socket']['start'])
-    result += [(phase, *relative(s[phase])) for s in applications for phase in SOCKET_PHASES if phase in s]
+    result += [(phase, *relative(s[phase]), None) for s in applications for phase in SOCKET_PHASES if phase in s]
     setup = setup_interval(sample)
     if setup:
-        result.append(('setup', *setup))
-    result += [('monitor', *relative(s[phase])) for s in trace['sockets'] if s['kind'] == 'monitor'
+        result.append(('setup', *setup, None))
+    result += [('monitor', *relative(s[phase]), None) for s in trace['sockets'] if s['kind'] == 'monitor'
                for phase in SOCKET_PHASES if phase in s]
-    result += [('checkout', *relative(c)) for c in trace.get('checkouts', [])]
+    result += [('checkout', *relative((c['start'], c['end'])), c['address'].rsplit(':', 1)[0]) for c in trace.get('checkouts', [])]
     return result
 
 
@@ -128,11 +130,10 @@ def accounting_segments(sample):
     total = sample['totalMs']
     timed = intervals(sample)
     markers = gap_markers(sample)
-    boundaries = sorted({0, total, *(max(0, min(total, t)) for _, a, b in timed for t in (a, b))})
+    boundaries = sorted({0, total, *(max(0, min(total, t)) for _, a, b, _member in timed for t in (a, b))})
     segments = []
     for a, b in zip(boundaries, boundaries[1:]):
-        phase = next((phase for phase, left, right in timed if left <= a and b <= right), None)
-        member = None
+        phase, member = next(((phase, owner) for phase, left, right, owner in timed if left <= a and b <= right), (None, None))
         if phase is None:
             phase, member = next(((label, host) for at, label, host in reversed(markers) if at <= a + 1e-9), ('other', None))
         if segments and segments[-1]['phase'] == phase and segments[-1].get('member') == member:
@@ -281,11 +282,12 @@ def member_rows(sample, members):
                       if c['name'] == 'replSetGetStatus' and c['socket'] and c['socket']['start'] == socket['start']]
         operation = selected['host'] == member
         segments = accounting_segments(sample)
-        # Command preparation belongs to the connection that just became ready.
-        spans += [('prepare', s['start'], s['end']) for s in segments if s['phase'] == 'prepare' and s.get('member') == member]
+        # Command preparation and checkout waits belong to the member they were for.
+        spans += [(s['phase'], s['start'], s['end']) for s in segments if s['phase'] in ('prepare', 'checkout') and s.get('member') == member]
         if operation:
             spans.append(('operation', trace['command']['start'] - start, trace['command']['end'] - start))
-            spans += [(s['phase'], s['start'], s['end']) for s in segments if s['phase'] in ('checkout', 'routing', 'result', 'other')]
+            spans += [(s['phase'], s['start'], s['end']) for s in segments
+                      if s['phase'] in ('routing', 'result', 'other') or (s['phase'] == 'checkout' and not s.get('member'))]
             setup_end = (setup_interval(sample) or (0, 0))[1]
             spans += [('waiting', left, right) for left, right in uncovered(spans, setup_end, sample['totalMs'])]
         rows.append({'member': member, 'spans': sorted(spans, key=lambda span: span[1]), 'operation': operation})
@@ -443,11 +445,16 @@ def render_case(data, case, members, output):
     plt.close(figure)
 
 
+def load(path):
+    """Reads samples from JSON, gzipped when the name ends in .gz."""
+    return json.loads(gzip.decompress(path.read_bytes()) if path.suffix == '.gz' else path.read_text())
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('samples', type=Path)
     args = parser.parse_args()
-    data = json.loads(args.samples.read_text())
+    data = load(args.samples)
     summary = summarize(data)
     render(data, summary, args.samples.parent)
     args.samples.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')

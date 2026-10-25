@@ -2,10 +2,17 @@ import assert from 'node:assert/strict';
 import { DeleteParametersCommand } from '@aws-sdk/client-ssm';
 import { UpdateFunctionConfigurationCommand, GetFunctionConfigurationCommand, PublishVersionCommand, InvokeCommand, DeleteFunctionCommand, waitUntilFunctionUpdatedV2 } from '@aws-sdk/client-lambda';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export const variants = ['native', 'no-plugin', 'ssm', 'ssm-uncached'];
+
+/** Writes samples as JSON, gzipped when the file name ends in .gz. */
+export function writeSamples(file, text) {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, file.endsWith('.gz') ? gzipSync(text) : text);
+}
 
 export const workerPatterns = prefix => variants.flatMap(variant => ['read', 'write'].map(operation => ({ name: `${prefix}-${variant}-${operation}`, variant, operation })));
 
@@ -107,7 +114,7 @@ export async function collect(lambda, ssm, prefix, count, file, metadata) {
     return value;
   };
 
-  const save = () => writeFileSync(file, JSON.stringify({ ...data, elapsedMs: Date.now() - start }, publicData, 2) + '\n');
+  const save = () => writeSamples(file, JSON.stringify({ ...data, elapsedMs: Date.now() - start }, publicData, 2) + '\n');
 
   try {
     for (let iteration = 0; iteration < count; iteration += 1) {

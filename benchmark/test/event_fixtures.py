@@ -39,7 +39,7 @@ def sample(variant, operation, iteration=0, total=100.0, two_connections=False):
     if variant == 'ssm-uncached':
         ssm.append({'command': 'PutParameterCommand', 'start': connect + 26, 'end': connect + 30, 'attempts': 1})
     trace = {'start': base, 'end': base + total, 'sockets': sockets,
-             'commands': commands, 'command': command, 'checkouts': [[connect - 1, connect + 22]], 'ssm': ssm}
+             'commands': commands, 'command': command, 'checkouts': [{'address': 'member-1:27017', 'start': connect - 1, 'end': connect + 22}], 'ssm': ssm}
     application_sockets = [s for s in sockets if s['kind'] == 'application']
     return {'variant': variant, 'operation': operation, 'iteration': iteration, 'totalMs': total,
             'verified': True, 'cold': True, 'sockets': len(sockets), 'authenticatedSockets': len(application_sockets),

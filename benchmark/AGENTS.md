@@ -2,7 +2,7 @@
 
 Keep exactly two checked-in result folders: `results/local/` and `results/aws/`.
 Each contains the latest complete measurement for that environment:
-`samples.json`, `summary.json`, `results.md`, and one chart per case. Refresh
+`samples.json.gz`, `summary.json`, `results.md`, and one chart per case. Refresh
 them together with `report.py`. A local run must not replace AWS results.
 
 Checked-in results state the last measured performance: date, runtime, workload,

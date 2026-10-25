@@ -77,7 +77,7 @@ it('times an application connection from driver and socket events alone', () => 
     kind: 'application', host: 'mongo-a.test', port: 27017, role: 'PRIMARY', authorized: true, protocol: 'TLSv1.3',
     start: 7, lookup: [7, 9], tcp: [9, 12], tls: [12, 30], hello: [30, 34], auth: [34, 41]
   })]);
-  expect(trace.checkouts).toEqual([[5, 42]]);
+  expect(trace.checkouts).toEqual([{ address, start: 5, end: 42 }]);
   expect(trace.command).toMatchObject({ name: 'update', start: 43, end: 50, socket: expect.objectContaining({ start: 7 }) });
 });
 

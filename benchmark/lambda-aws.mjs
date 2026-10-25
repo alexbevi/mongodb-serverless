@@ -10,7 +10,7 @@ import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
 import { collect, invokeCold, workerPatterns, topologyParameterFor, verifyWarmInvocations } from './lambda-collect.mjs';
 
 const { values } = parseArgs({ options: {
-  samples: { type: 'string', default: '100' }, output: { type: 'string', default: 'benchmark/results/aws/samples.json' },
+  samples: { type: 'string', default: '100' }, output: { type: 'string', default: 'benchmark/results/aws/samples.json.gz' },
   package: { type: 'string', default: '/tmp/mongodb-pattern-runtime/worker' },
   region: { type: 'string', default: 'ap-southeast-2' },
   'source-function': { type: 'string', default: 'mongodb-serverless-prod-worker-1' },

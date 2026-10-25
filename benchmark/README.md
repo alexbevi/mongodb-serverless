@@ -19,7 +19,7 @@ pnpm install --frozen-lockfile
 pnpm benchmark --samples 40
 python3 -m venv /tmp/mongodb-benchmark-report
 /tmp/mongodb-benchmark-report/bin/pip install -r benchmark/requirements-report.txt
-/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json
+/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/local/samples.json.gz
 ```
 
 `pnpm benchmark` starts a three-member TLS replica set, DNS with SRV and TXT
@@ -40,7 +40,7 @@ pnpm benchmark:build
 node benchmark/build-lambda.mjs /tmp/mongodb-pattern-runtime/worker
 AWS_PROFILE=personal node benchmark/lambda-aws.mjs --samples 200 \
   --source-function mongodb-serverless-prod-worker-1 --region ap-southeast-2
-/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/aws/samples.json
+/tmp/mongodb-benchmark-report/bin/python benchmark/report.py benchmark/results/aws/samples.json.gz
 ```
 
 It creates eight `mongodb-serverless-pattern-*` functions (Node 24, arm64, 1769 MB,

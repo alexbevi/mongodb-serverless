@@ -12,7 +12,10 @@ type ErrorResponse = {
 };
 
 // The SSM plugin supplies the connection string and shares discovered topology across cold starts.
-const client = MongoServerlessClient.fromPlugin(new SsmPlugin());
+const client = MongoServerlessClient.fromPlugin(new SsmPlugin({
+  connectionStringParameter: process.env['MONGODB_CONNECTION_STRING_PARAMETER'] ?? '/example/mongo/connectionString',
+  topologyParameter: process.env['MONGODB_TOPOLOGY_PARAMETER'] ?? '/example/mongo/topology'
+}));
 
 const documents = client
   .db(process.env['MONGODB_DATABASE'] ?? 'app')

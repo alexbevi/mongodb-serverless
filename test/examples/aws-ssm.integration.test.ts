@@ -7,9 +7,9 @@ const endpoint = process.env['SSM_ENDPOINT'];
 
 if (!endpoint) throw new Error('Set SSM_ENDPOINT to the LocalStack endpoint before running this integration test');
 
-const connectionStringParameter = '/mongodb-serverless/connection-string';
+const connectionStringParameter = '/example/mongo/connectionString';
 
-const topologyParameter = '/mongodb-serverless/topology';
+const topologyParameter = '/example/mongo/topology';
 
 const settings = {
   endpoint, region: 'us-east-1', maxAttempts: 1,

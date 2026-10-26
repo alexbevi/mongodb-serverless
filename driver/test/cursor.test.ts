@@ -1,3 +1,4 @@
+import { handshake } from './harness/handshake.js';
 import type { Document, MongoClient, Sort } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
@@ -82,6 +83,7 @@ const setup = (docs: CursorDocument[] = [{ a: 1 }, { a: 2 }]) => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+    const hello = handshake(host.startsWith('primary:') ? 'RSPrimary' : 'RSSecondary');
 
     const makeCursor = () => {
       const cursor = new FakeCursor(host, docs);
@@ -92,6 +94,7 @@ const setup = (docs: CursorDocument[] = [{ a: 1 }, { a: 2 }]) => {
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       db: () => ({
         collection: () => ({
           find: vi.fn(makeCursor),
@@ -103,6 +106,8 @@ const setup = (docs: CursorDocument[] = [{ a: 1 }, { a: 2 }]) => {
         aggregate: vi.fn(makeCursor)
       }),
       connect: vi.fn(async function (this: MongoClient) {
+        hello.connected();
+
         return this;
       }),
       close: vi.fn(async () => {})

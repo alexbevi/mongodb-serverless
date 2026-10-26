@@ -16,9 +16,16 @@ export interface ReplSetGetStatusMember {
   [key: string]: StatusValue;
 }
 
+export type ResolvedAuthentication = {
+  mechanism: string;
+  source: string;
+};
+
 export interface ReplSetGetStatus {
   /** Replica set name. */
   set?: string;
+  /** Native authentication defaults for direct connections; contains no credentials. */
+  authentication?: ResolvedAuthentication;
   members: ReplSetGetStatusMember[];
   [key: string]: StatusValue;
 }
@@ -71,9 +78,19 @@ export function assertStatus(value: unknown): asserts value is ReplSetGetStatus 
     throw new TypeError('Topology set must be a string');
   }
 
+  if (value.authentication !== undefined && !isResolvedAuthentication(value.authentication)) {
+    throw new TypeError('Topology authentication must contain a mechanism and source');
+  }
+
   if (!Array.isArray(value.members)) throw new TypeError('Topology has no members array');
 
   if (!value.members.every(isMember)) throw new TypeError('Topology contains an invalid member');
+}
+
+export function isResolvedAuthentication(value: unknown): value is ResolvedAuthentication {
+  return value !== null && typeof value === 'object' &&
+    'mechanism' in value && isString(value.mechanism) && value.mechanism.length > 0 &&
+    'source' in value && isString(value.source) && value.source.length > 0;
 }
 
 function isString(value: unknown): value is string {

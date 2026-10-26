@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # MongoDB 8 rejects newer hosted kernels: SERVER-121912.
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +39,10 @@ jobs:
       # start their own replica set rather than skipping.
       - run: pnpm test
 
+      - name: Run the README examples against the packed packages
+        if: matrix.node == '24'
+        run: pnpm test:no-monitoring:package
+
       - name: Check the packages are installable
         run: |
           set -euo pipefail
@@ -45,24 +50,28 @@ jobs:
           # any test noticing, so pack and install for real.
           mkdir -p /tmp/packcheck && cd /tmp/packcheck
           npm init -y > /dev/null
-          npm pack "$GITHUB_WORKSPACE/driver" "$GITHUB_WORKSPACE/plugins/local" > /dev/null
+          npm pack "$GITHUB_WORKSPACE/driver" "$GITHUB_WORKSPACE/plugins/local" "$GITHUB_WORKSPACE/plugins/aws-ssm" > /dev/null
           npm install ./*.tgz mongodb@7 > /dev/null
           node -e "
             const assert = require('node:assert');
             Promise.all([
               import('@mongodb-serverless/driver'),
-              import('@mongodb-serverless/plugin-local')
-            ]).then(([driver, local]) => {
+              import('@mongodb-serverless/plugin-local'),
+              import('@mongodb-serverless/plugin-aws-ssm')
+            ]).then(([driver, local, ssm]) => {
               assert.equal(driver.MongoClient.name, 'ServerlessMongoClient');
               assert.equal(typeof local.LocalPlugin, 'function');
-              assert.equal(new local.LocalPlugin().writable, false);
+              assert.equal(typeof ssm.SsmPlugin, 'function');
+              assert.equal(new ssm.SsmPlugin().writable, true);
+              assert.equal(new local.LocalPlugin().writable, true);
+              assert.equal(new local.LocalPlugin({ writable: false }).writable, false);
               console.log('packed packages resolve');
             });
           "
 
   benchmark:
     name: benchmark (Node 24)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -78,61 +87,167 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Require 10% benchmark improvement (100 iterations)
-        id: benchmark
-        timeout-minutes: 10
+      - name: Check benchmark reports
+        run: |
+          python3 -m pip install -r benchmark/requirements-report.txt
+          python3 -m unittest discover -s benchmark/test -p "*_test.py"
+
+      - name: Measure cold starts (40 per pattern)
+        id: measure
+        timeout-minutes: 15
         run: |
           pnpm exec vitest run --config vitest.benchmark.config.ts benchmark/test/workflow.test.ts
-          python3 -m unittest discover -s benchmark/test -p performance_test.py
-          python3 -m unittest discover -s benchmark/test -p ci_summary_test.py
-          pnpm benchmark --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/samples.json"
-          python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+          pnpm benchmark --samples 40 --output "$RUNNER_TEMP/benchmark/samples.json"
 
-      - name: Collect detailed latency diagnostics (100 iterations)
-        if: always() && steps.benchmark.outcome != 'skipped'
-        timeout-minutes: 10
-        run: pnpm benchmark --diagnostics --no-monitoring --samples 100 --output "$RUNNER_TEMP/benchmark/diagnostics/samples.json"
-
-      - name: Render benchmark latency
-        if: always() && steps.benchmark.outcome != 'skipped'
+      - name: Render charts and results
+        if: always() && steps.measure.outcome == 'success'
         timeout-minutes: 3
-        env:
-          BENCHMARK_NODE: '24'
-        run: |
-          if [ -f "$RUNNER_TEMP/benchmark/diagnostics/samples.json" ]; then
-            python3 -m pip install -r benchmark/requirements-report.txt
-            python3 benchmark/report.py "$RUNNER_TEMP/benchmark/diagnostics/samples.json" --environment local
-            mv "$RUNNER_TEMP/benchmark/diagnostics/latency.png" "$RUNNER_TEMP/benchmark/latency-node-$BENCHMARK_NODE.png"
-          fi
+        run: python3 benchmark/report.py "$RUNNER_TEMP/benchmark/samples.json"
 
-      - name: Upload benchmark measurements
+      - name: Require the SSM plugin 10% below native
+        id: benchmark
+        if: always() && steps.measure.outcome == 'success'
+        run: python3 benchmark/performance.py "$RUNNER_TEMP/benchmark/samples.json"
+
+      - name: Upload charts and results
         id: benchmark-results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-node-24
-          path: |
-            ${{ runner.temp }}/benchmark/samples.json
-            ${{ runner.temp }}/benchmark/diagnostics/samples.json
+          path: ${{ runner.temp }}/benchmark/
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Upload latency diagram
-        id: benchmark-image
+      - name: Upload read-native chart
+        id: chart-read-native
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          path: ${{ runner.temp }}/benchmark/latency-node-24.png
+          path: ${{ runner.temp }}/benchmark/read-native.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-no-plugin chart
+        id: chart-read-no-plugin
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-no-plugin.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-ssm chart
+        id: chart-read-ssm
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-ssm.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload read-ssm-uncached chart
+        id: chart-read-ssm-uncached
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/read-ssm-uncached.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-native chart
+        id: chart-write-native
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-native.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-no-plugin-1-connection chart
+        id: chart-write-no-plugin-1-connection
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-no-plugin-1-connection.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-no-plugin-2-connections chart
+        id: chart-write-no-plugin-2-connections
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-no-plugin-2-connections.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-ssm chart
+        id: chart-write-ssm
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-ssm.png
+          archive: false
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload write-ssm-uncached chart
+        id: chart-write-ssm-uncached
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/benchmark/write-ssm-uncached.png
           archive: false
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Summarize benchmark
-        if: always() && steps.benchmark.outcome != 'skipped'
+        if: always() && steps.measure.outcome != 'skipped'
         env:
           BENCHMARK_RESULT: ${{ runner.temp }}/benchmark/samples.json
           BENCHMARK_NODE: '24'
           BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
-          BENCHMARK_IMAGE_URL: ${{ steps.benchmark-image.outputs.artifact-url }}
           BENCHMARK_RESULT_URL: ${{ steps.benchmark-results.outputs.artifact-url }}
+          BENCHMARK_CHART_URLS: '{"read-native": "${{ steps.chart-read-native.outputs.artifact-url }}", "read-no-plugin": "${{ steps.chart-read-no-plugin.outputs.artifact-url }}", "read-ssm": "${{ steps.chart-read-ssm.outputs.artifact-url }}", "read-ssm-uncached": "${{ steps.chart-read-ssm-uncached.outputs.artifact-url }}", "write-native": "${{ steps.chart-write-native.outputs.artifact-url }}", "write-no-plugin-1-connection": "${{ steps.chart-write-no-plugin-1-connection.outputs.artifact-url }}", "write-no-plugin-2-connections": "${{ steps.chart-write-no-plugin-2-connections.outputs.artifact-url }}", "write-ssm": "${{ steps.chart-write-ssm.outputs.artifact-url }}", "write-ssm-uncached": "${{ steps.chart-write-ssm-uncached.outputs.artifact-url }}"}'
         run: python3 benchmark/ci_summary.py
+
+  plugin-aws-ssm:
+    name: plugin-aws-ssm
+    # Starts MongoDB 8 for the example test, so it needs the same kernel pin.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    services:
+      localstack:
+        image: localstack/localstack:4.14.0
+        env:
+          SERVICES: ssm,kms
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "awslocal ssm describe-parameters"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SSM_ENDPOINT: http://127.0.0.1:4566
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mongodb-serverless/plugin-aws-ssm typecheck
+      - name: Test the plugin and example against LocalStack and MongoDB
+        run: pnpm --filter @mongodb-serverless/plugin-aws-ssm test:integration

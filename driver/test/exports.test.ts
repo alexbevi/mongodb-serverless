@@ -65,7 +65,7 @@ describe('export surface', () => {
       'MissingPluginError',
       'InvalidPluginError',
       'PluginNotInstalledError',
-      'NoTopologyError',
+      'PluginConfigurationError',
       'InvalidTopologyError',
       'NoPrimaryError',
       'SessionRoutingError',
@@ -73,6 +73,9 @@ describe('export surface', () => {
     ]) {
       expect(wrapper, name).toHaveProperty(name);
     }
+
+    // A missing topology now means "discover", so nothing throws this any more.
+    expect(wrapper).not.toHaveProperty('NoTopologyError');
   });
 
   it('constructs a MongoClient without connecting', () => {

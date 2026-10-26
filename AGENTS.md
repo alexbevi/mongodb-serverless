@@ -133,9 +133,15 @@ export parity test pins the version it was checked against. On upgrade, re-run
 it and re-verify:
 
 - `directConnection` rejections (SRV, host count, `loadBalanced`)
+- native `parseOptions` validating seed options without constructing a client
 - SRV turning TLS on by default
 - which operations declare no `Aspect`, since the search index operations
   declare none and would misroute as reads
 - `aggregate` detecting a write stage from the last pipeline stage only
 - the set of public methods on `Collection` and `Db`, which the routing
   exhaustiveness test covers
+
+## Benchmark work
+
+Read `benchmark/AGENTS.md` before changing benchmark code, results, documentation,
+or CI. It defines the two result folders and the required full timeline format.

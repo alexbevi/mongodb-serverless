@@ -3,9 +3,6 @@ import { ServerlessError } from '../../plugins/shared/src/index.js';
 /** Base for every error the driver raises, so callers can catch one type. */
 export class ServerlessDriverError extends ServerlessError {}
 
-/** The plugin returned nothing. */
-export class NoTopologyError extends ServerlessDriverError {}
-
 /** The topology document is present but unusable. */
 export class InvalidTopologyError extends ServerlessDriverError {}
 
@@ -27,5 +24,6 @@ export {
   PluginNotInstalledError,
   InvalidPluginError,
   PluginReadOnlyError,
+  PluginConfigurationError,
   ServerlessError
 } from '../../plugins/shared/src/index.js';

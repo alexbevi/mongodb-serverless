@@ -1,5 +1,8 @@
+import { handshake } from './harness/handshake.js';
 import { MongoClient } from 'mongodb';
+import { ConnectionString } from 'mongodb-connection-string-url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createDbFacade } from '../src/facade.js';
 import { ServerlessMongoClient } from '../src/client.js';
 import { SessionRoutingError, UnsupportedOperationError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
@@ -32,6 +35,7 @@ const fakeClients = () => {
 
   const create = vi.fn((uri: string) => {
     const host = new URL(uri.replace('mongodb://', 'http://')).host;
+    const hello = handshake(host.startsWith('primary:') ? 'RSPrimary' : 'RSSecondary');
 
     const collection = (dbName: string, name: string) =>
       new Proxy(
@@ -62,8 +66,11 @@ const fakeClients = () => {
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       db: vi.fn(db),
       connect: vi.fn(async function (this: MongoClient) {
+        hello.connected();
+
         return this;
       }),
       close: vi.fn(async () => void closed.push(host))
@@ -162,6 +169,17 @@ describe('ServerlessMongoClient', () => {
     expect(users.dbName).toBe('app');
     expect(users.namespace).toBe('app.users');
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('parses the default database only when requested and reuses it', () => {
+    const parse = vi.spyOn(ConnectionString.prototype, 'isSRV', 'get');
+    const client = new ServerlessMongoClient('mongodb://localhost:27017/my%64b');
+
+    expect(client.db('explicit').databaseName).toBe('explicit');
+    expect(parse).not.toHaveBeenCalled();
+    expect(client.db().databaseName).toBe('mydb');
+    expect(client.db().databaseName).toBe('mydb');
+    expect(new Set(parse.mock.contexts).size).toBe(1);
   });
 
   it('uses the default database from the uri', async () => {
@@ -292,4 +310,28 @@ describe('ServerlessMongoClient', () => {
 
     await expect(client.db('app').collection('users').insertOne({})).rejects.toThrow(/PRIMARY/);
   });
+});
+
+it('accepts write execution separately from client routing', async () => {
+  const fake = fakeClients();
+  const primary = fake.create('mongodb://primary:27017/');
+  const secondary = fake.create('mongodb://secondary:27017/');
+  const executeWrite = vi.fn(async <T>(operation: () => Promise<T>) => operation());
+
+  const db = createDbFacade({
+    read: async () => secondary,
+    write: async () => primary
+  }, 'app', executeWrite);
+
+  await db.collection('users').findOne({});
+  expect(executeWrite).not.toHaveBeenCalled();
+  await db.collection('users').insertOne({});
+  await db.dropDatabase();
+
+  expect(executeWrite).toHaveBeenCalledTimes(2);
+  expect(fake.calls).toEqual([
+    'secondary:27017 app.users.findOne',
+    'primary:27017 app.users.insertOne',
+    'primary:27017 app.dropDatabase'
+  ]);
 });

@@ -1,7 +1,8 @@
-import type { MongoClient } from 'mongodb';
+import { handshake } from './harness/handshake.js';
+import type { MongoClient, MongoClientOptions } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
 import { ClientPair } from '../src/clients.js';
-import { NoPrimaryError, NoTopologyError } from '../src/errors.js';
+import { NoPrimaryError } from '../src/errors.js';
 import type { ReplSetGetStatus, TopologyPlugin } from '../src/plugin.js';
 
 const threeNode: ReplSetGetStatus = {
@@ -24,7 +25,6 @@ const pluginFor = (status: ReplSetGetStatus | null): TopologyPlugin => ({
   author: 'test',
   setup: vi.fn(async () => {}),
   verify: vi.fn(async () => {}),
-  // @ts-expect-error The null fixture exercises an invalid response from an external plugin.
   read: vi.fn(async () => status),
   write: vi.fn(async () => {})
 });
@@ -37,12 +37,15 @@ const factory = () => {
 
   const create = vi.fn((uri: string) => {
     built.push(uri);
+    const hello = handshake(new URL(uri).hostname === 'a' ? 'RSPrimary' : 'RSSecondary');
 
     // SAFETY: This fake implements the client operations exercised here; the suite never reads MongoClient internals.
     return {
+      on: hello.on,
       uri,
       connect: vi.fn(async function (this: MongoClient) {
         connected.push(uri);
+        hello.connected();
 
         return this;
       }),
@@ -224,12 +227,6 @@ describe('ClientPair', () => {
     await expect(pair.write()).rejects.toThrow(NoPrimaryError);
   });
 
-  it('surfaces NoTopologyError when the plugin returns nothing', async () => {
-    const { pair } = pairFor(null);
-
-    await expect(pair.write()).rejects.toThrow(NoTopologyError);
-  });
-
   it('does not cache a failed topology read', async () => {
     // A transient plugin failure should not poison the client for its lifetime.
     const plugin = pluginFor(threeNode);
@@ -250,4 +247,112 @@ describe('ClientPair', () => {
     expect(built[0]).toContain('user:pass@');
     expect(built[0]).toContain('appName=svc');
   });
+});
+
+it('keeps routed connections direct even when native options request discovery', async () => {
+  const hello = handshake('RSPrimary');
+  // SAFETY: This fake reports its handshake role and implements connection lifecycle.
+  const createClient = vi.fn(() => ({ on: hello.on, async connect() { hello.connected(); }, async close() {} } as never));
+
+  const pair = new ClientPair({
+    uri: 'mongodb://seed:27017/', plugin: pluginFor(singleNode), createClient,
+    driverOptions: { directConnection: false, retryWrites: true }
+  });
+
+  await pair.write();
+
+  expect(createClient).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ directConnection: true }));
+  await pair.close();
+});
+
+it.each([
+  ['routed', pluginFor(singleNode)],
+  ['bootstrap', undefined]
+])('leaves retryable writes to the native driver on %s connections', async (_path, plugin) => {
+  const hello = handshake('RSPrimary');
+  // SAFETY: This fake reports its handshake role and implements connection lifecycle.
+  const createClient = vi.fn((_uri: string, _options?: MongoClientOptions) => ({ on: hello.on, async connect() { hello.connected(); }, async close() {} } as never));
+
+  const defaults = new ClientPair({ uri: 'mongodb://a:27017/', plugin, createClient });
+  await defaults.write();
+  await defaults.close();
+
+  const optedOut = new ClientPair({ uri: 'mongodb://a:27017/', plugin, createClient, driverOptions: { retryWrites: false } });
+  await optedOut.write();
+  await optedOut.close();
+
+  expect(createClient.mock.calls[0]?.[1]).not.toHaveProperty('retryWrites');
+  expect(createClient.mock.calls[1]?.[1]).toMatchObject({ retryWrites: false });
+});
+
+it('waits for in-flight discovery on close and does not persist afterward', async () => {
+  let release!: (status: ReplSetGetStatus) => void;
+  let started!: () => void;
+  const discovery = new Promise<ReplSetGetStatus>(resolve => { release = resolve; });
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const closed = vi.fn(async () => {});
+  const plugin = pluginFor(null);
+  const hello = handshake('RSPrimary');
+
+  const pair = new ClientPair({
+    uri: 'mongodb://a:27017/', plugin,
+    // SAFETY: The fake blocks the status command to exercise close during discovery.
+    createClient: () => ({
+      options: {}, on: hello.on, async connect() { hello.connected(); }, close: closed,
+      db: () => ({ command: async () => {
+        started();
+
+        return discovery;
+      } })
+    } as never)
+  });
+
+  const attempt = pair.write().catch(error => error);
+  await ready;
+  let finished = false;
+  const closing = pair.close().then(() => { finished = true; });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(finished).toBe(false);
+  release(singleNode);
+  await closing;
+  expect(await attempt).toMatchObject({ message: expect.stringMatching(/closed/) });
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(plugin.write).not.toHaveBeenCalled();
+});
+
+it('closes a routed client when connection fails', async () => {
+  const closed = vi.fn(async () => {});
+
+  const pair = new ClientPair({
+    uri: 'mongodb://a:27017/', plugin: pluginFor(singleNode),
+    // SAFETY: This fake only exercises failed connection cleanup.
+    createClient: () => ({ on() {}, async connect() { throw new Error('connect failed'); }, close: closed } as never)
+  });
+
+  await expect(pair.write()).rejects.toThrow('connect failed');
+  expect(closed).toHaveBeenCalledTimes(1);
+  await expect(pair.close()).resolves.toBeUndefined();
+});
+
+
+it('does not bootstrap a no-plugin client after it has closed', async () => {
+  const createClient = vi.fn(() => { throw new Error('unexpected connection'); });
+  const pair = new ClientPair({ uri: 'mongodb://a:27017/', createClient });
+  await pair.close();
+
+  await expect(pair.write()).rejects.toThrow(/closed/i);
+  expect(createClient).not.toHaveBeenCalled();
+});
+
+it('rediscovers as soon as a refresh is requested', async () => {
+  // SAFETY: This fake implements the lifecycle discovery uses; it can never connect.
+  const createClient = vi.fn(() => ({ on() {}, async connect() { throw new Error('unreachable'); }, async close() {} } as never));
+  const pair = new ClientPair({ uri: 'mongodb://a:27017/', plugin: pluginFor(threeNode), createClient });
+  const started = performance.now();
+
+  await expect(pair.refreshTopology(pair.generation)).rejects.toThrow('unreachable');
+  expect(performance.now() - started).toBeLessThan(50);
+  expect(createClient).toHaveBeenCalledOnce();
 });

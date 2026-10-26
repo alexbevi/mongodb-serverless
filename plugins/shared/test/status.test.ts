@@ -19,3 +19,16 @@ it('validates routing fields and preserves the full BSON or JSON status document
   expect(() => assertStatus({ set: 1, members: [] })).toThrow(/set/);
   expect(() => assertStatus({})).toThrow(/members/);
 });
+
+
+it('preserves resolved authentication without requiring it on legacy topology', () => {
+  const members = [{ name: 'a:27017', state: 1 }];
+  const authentication = { mechanism: 'MONGODB-X509', source: '$external' };
+
+  expect(parseStatus(JSON.stringify({ members, authentication })).authentication).toEqual(authentication);
+  expect(() => assertStatus({ members })).not.toThrow();
+
+  for (const invalid of [null, {}, { mechanism: 'DEFAULT' }, { mechanism: '', source: 'admin' }, { mechanism: 'DEFAULT', source: 1 }]) {
+    expect(() => assertStatus({ members, authentication: invalid })).toThrow(/authentication/);
+  }
+});

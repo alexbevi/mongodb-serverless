@@ -9,6 +9,7 @@ const REQUIRED_METHODS = ['setup', 'verify', 'read', 'write'] as const;
 const REQUIRED_DETAILS = ['name', 'version', 'author'] as const;
 
 interface PluginFields {
+  getConnectionString?: unknown;
   setup?: unknown;
   verify?: unknown;
   read?: unknown;
@@ -40,13 +41,18 @@ export function clearDefaultPlugin(): void {
   defaultPlugin = undefined;
 }
 
+/** Resolves a plugin from an explicit source, else the configured default, or none when neither exists. */
+export async function resolveOptionalPlugin(source?: PluginSource): Promise<TopologyPlugin | undefined> {
+  return source == null && defaultPlugin == null ? undefined : resolvePlugin(source);
+}
+
 /** Resolves a plugin from an explicit source, else the configured default. */
 export async function resolvePlugin(source?: PluginSource): Promise<TopologyPlugin> {
   const chosen = source ?? defaultPlugin;
 
   if (chosen == null) {
     throw new MissingPluginError(
-      'No plugin configured. Pass one as new MongoClient(uri, { plugin }), ' +
+      'No plugin configured. Pass one as MongoClient.fromPlugin(plugin) or new MongoClient(uri, { plugin }), ' +
         'or call setDefaultPlugin() once at startup.'
     );
   }
@@ -140,6 +146,10 @@ export function validatePlugin(value: unknown, source: string): asserts value is
     throw new InvalidPluginError(
       `Plugin from ${source} is ${value === null ? 'null' : typeof value}, not an object.`
     );
+  }
+
+  if (value.getConnectionString !== undefined && !isFunction(value.getConnectionString)) {
+    throw new InvalidPluginError(`Plugin from ${source} has a non-callable getConnectionString.`);
   }
 
   const missing = [

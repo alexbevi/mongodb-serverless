@@ -10,7 +10,7 @@ at runtime.
 
 ```ts
 interface PluginConfig {
-  refreshIntervalMS: number;
+  connectionStringVariableName: string;
   clusterTopologyVariableName: string;
 }
 
@@ -23,7 +23,7 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   abstract setup(): Promise<void>;
   abstract verify(): Promise<void>;
-  abstract read(): Promise<ReplSetGetStatus>;
+  abstract read(): Promise<ReplSetGetStatus | null>;
   abstract write(status: ReplSetGetStatus): Promise<void>;
 
   get<K extends keyof C>(key: K): C[K];
@@ -36,23 +36,35 @@ abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
 `setup()` prepares the store. `verify()` throws if it is unusable, with a
 message saying what is wrong. `read()` returns the stored `replSetGetStatus`
-document and `write()` replaces it. Status extension fields accept BSON values
-and their JSON representations. The local plugin and watcher validate
+document, or `null` when no topology exists. `write()` replaces it atomically.
+Permission, transport, and malformed-data errors must throw. Status extension fields accept BSON values
+and their JSON representations. The local plugin and driver validate
 member names and routing field types before returning a status. Validation preserves extra fields,
 including dates and BSON scalars, and does not require a healthy primary.
 
 `get()` and `set()` throw `RangeError` on an unknown key, listing the keys that
 do exist. Config is per instance, so two plugins never share state.
 
-## Read-only by default
+A plugin may also implement `getConnectionString(): Promise<string | undefined>`
+to provide the cluster URI and credentials. It is optional when callers supply
+an explicit URI. The driver never writes credentials into topology documents.
 
-A plugin refuses to write unless constructed with `{ writable: true }`. Call
-`assertWritable()` at the top of `write()`, before touching the store, so a
-refused write changes nothing.
+The driver calls `read()` first, `setup()` on a miss, and `write()` after discovery
+or topology-related write failure. `setup()` must be idempotent. `verify()` is an
+explicit diagnostic hook and is not called automatically.
+
+## Writable by default
+
+Driver discovery writes topology on a cache miss, so a plugin can write unless
+constructed with `{ writable: false }`, for a store that is populated some other
+way. Call `assertWritable()` at the top of `write()`, before touching the store,
+so a refused write changes nothing.
 
 `set()` is allowed either way, since it configures the plugin rather than the
-store. The driver constructs plugins plainly and only reads; the watcher asks
-to write.
+store.
+
+Throw `PluginConfigurationError` when the store holds settings the plugin cannot
+use, such as a missing or malformed value.
 
 See [the plugin overview](..) for the default values.
 

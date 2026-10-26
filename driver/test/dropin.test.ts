@@ -73,14 +73,9 @@ describe.skipIf(!existsSync(built))('drop-in resolution', () => {
   it('constructs a client without a connection', () => {
     const output = run(
       'construct.mjs',
-      `import { MongoClient, MissingPluginError } from '${built}';
-       const client = new MongoClient('mongodb://host:27017/db');
-       try {
-         await client.db('app').collection('c').findOne({});
-         console.log('unexpected');
-       } catch (error) {
-         console.log(error instanceof MissingPluginError);
-       }`
+      `import { MongoClient } from '${built}';
+       const client = new MongoClient('mongodb://127.0.0.1:1/app');
+       console.log(client.db().databaseName === 'app');`
     );
 
     expect(output).toBe('true');

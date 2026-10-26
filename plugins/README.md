@@ -19,14 +19,9 @@ setDefaultPlugin(new LocalPlugin());   // once at startup
 **The driver depends on no plugin package**, not even optionally, so publishing
 a plugin never requires a driver release.
 
-**Plugins are read-only unless constructed writable.** The driver only reads,
-so it gets the safe default without doing anything. The watcher is the only
-writer and asks for it:
-
-```ts
-new LocalPlugin()                    // driver: write() throws
-new LocalPlugin({ writable: true })  // watcher: write() permitted
-```
+**The driver reads and writes topology.** Plugins are writable by default; pass
+`{ writable: false }` for a store populated some other way. A plugin extending
+`ServerlessPlugin` calls `assertWritable()` before changing its store.
 
 **A plugin does not have to extend anything.** The driver checks that `setup`,
 `verify`, `read`, and `write` are functions and that `name`, `version`, and
@@ -36,23 +31,24 @@ is not published.
 
 ## Default configuration
 
-Every plugin inherits these, and may add its own by widening the config type.
+Plugins that extend `ServerlessPlugin` inherit these defaults and may add keys by widening the config type. Other plugins define their own configuration.
 Read and change them with `get()` and `set()`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `refreshIntervalMS` | `10000` | How often the watcher refreshes stored topology |
 | `clusterTopologyVariableName` | `__MONGODB_CLUSTER_TOPOLOGY` | Names where the topology document lives |
 
-`clusterTopologyVariableName` means an environment variable for
-`plugin-local`, and would be a parameter path, secret id, or cache key for
-other plugins.
+`clusterTopologyVariableName` means an environment variable for `plugin-local`
+and a parameter path for `plugin-aws-ssm`. A plugin that supplies the connection
+string adds its own key for where that lives, such as `plugin-local`'s
+`connectionStringVariableName`.
 
 ## Available plugins
 
 | Plugin | Package | Directory | Stores topology in | Use for |
 |---|---|---|---|---|
 | Local Environment | `@mongodb-serverless/plugin-local` | [`local/`](local) | A process environment variable | Local development |
+| AWS SSM | `@mongodb-serverless/plugin-aws-ssm` | [`aws-ssm/`](aws-ssm) | An SSM parameter, fetched with the SecureString URI in one request | Shared topology across Lambda instances |
 
 A deployment needs a plugin backed by a shared store, since a process
 environment cannot be updated from outside the process when a failover happens.
@@ -71,7 +67,7 @@ export class MyPlugin extends ServerlessPlugin {
 
   async setup(): Promise<void> {}                      // prepare the store
   async verify(): Promise<void> {}                     // throw if unusable
-  async read(): Promise<ReplSetGetStatus> { /* ... */ } // fetch the document
+  async read(): Promise<ReplSetGetStatus | null> { /* ... */ } // fetch the document
 
   async write(status: ReplSetGetStatus): Promise<void> {
     this.assertWritable();                             // refuse if read-only
@@ -80,8 +76,9 @@ export class MyPlugin extends ServerlessPlugin {
 }
 ```
 
-`verify()` should throw with a message naming what is wrong, since that message
-is what a user sees when their topology is missing or malformed. `write()`
+`read()` returns `null` for missing topology; malformed data and store failures
+must throw. `setup()` must be idempotent. `verify()` is an explicit diagnostic
+hook; the driver does not call it automatically. `write()`
 should call `assertWritable()` before touching the store, so a refused write
 changes nothing.
 
@@ -91,3 +88,6 @@ class under its own name is fine. A class is constructed with no arguments.
 
 See [`shared/README.md`](shared) for the full contract and
 [`local/`](local) for a worked example.
+
+See [architecture and plugin sequences](../docs/architecture.md) for local and
+shared-store behavior, credential handling, and recovery limits.

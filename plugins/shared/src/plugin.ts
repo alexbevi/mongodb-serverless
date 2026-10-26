@@ -12,21 +12,19 @@ export interface TopologyPlugin {
   readonly version: string;
   readonly author: string;
 
+  getConnectionString?(): Promise<string | undefined>;
   setup(): Promise<void>;
   verify(): Promise<void>;
-  read(): Promise<ReplSetGetStatus>;
+  read(): Promise<ReplSetGetStatus | null>;
   write(status: ReplSetGetStatus): Promise<void>;
 }
 
 export interface PluginConfig {
-  /** How often the watcher refreshes stored topology. */
-  refreshIntervalMS: number;
   /** Names where the topology document lives. Each plugin interprets it. */
   clusterTopologyVariableName: string;
 }
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
-  refreshIntervalMS: 10_000,
   clusterTopologyVariableName: '__MONGODB_CLUSTER_TOPOLOGY'
 };
 
@@ -46,14 +44,14 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
 
   /**
    * @param options Config keys a subclass adds on top of {@link PluginConfig},
-   * plus `writable` to permit writes.
+   * plus `writable: false` for a store the driver must not write to.
    */
   constructor(options?: { writable?: boolean } & Omit<C, keyof PluginConfig>) {
     if (new.target === ServerlessPlugin) {
       throw new TypeError('ServerlessPlugin is abstract and cannot be constructed directly');
     }
 
-    const { writable = false, ...defaults } = options ?? {};
+    const { writable = true, ...defaults } = options ?? {};
 
     this.#writable = writable;
     // SAFETY: Subclasses supply C's added keys in options; the base keys come from DEFAULT_PLUGIN_CONFIG.
@@ -61,10 +59,8 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   }
 
   /**
-   * Whether this plugin may write to its store.
-   *
-   * Read-only unless asked for, so a consumer that only reads is safe without
-   * doing anything. The watcher is the only writer.
+   * Whether this plugin may write to its store. True unless constructed with
+   * `writable: false`, because driver discovery writes topology on a cache miss.
    */
   get writable(): boolean {
     return this.#writable;
@@ -74,8 +70,8 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   protected assertWritable(): void {
     if (!this.#writable) {
       throw new PluginReadOnlyError(
-        `Plugin "${this.name}" is read-only. Construct it with { writable: true } to ` +
-          'write topology, which is the watcher\'s job rather than the driver\'s.'
+        `Plugin "${this.name}" was constructed with { writable: false }, so driver ` +
+          'discovery and topology refresh cannot store topology through it.'
       );
     }
   }
@@ -86,7 +82,7 @@ export abstract class ServerlessPlugin<C extends PluginConfig = PluginConfig> {
   /** Throw if the store is unusable, naming what is wrong. */
   abstract verify(): Promise<void>;
 
-  abstract read(): Promise<ReplSetGetStatus>;
+  abstract read(): Promise<ReplSetGetStatus | null>;
 
   abstract write(status: ReplSetGetStatus): Promise<void>;
 

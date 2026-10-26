@@ -7,7 +7,9 @@
     "rootDir": "..",
     "outDir": "dist",
     // Outside dist, so build metadata stays out of the published tarball.
-    "tsBuildInfoFile": "../tsconfig.driver.tsbuildinfo"
+    "tsBuildInfoFile": "../tsconfig.driver.tsbuildinfo",
+    // Keeps @internal declarations, such as the constructor fromPlugin uses, out of the published types.
+    "stripInternal": true
   },
   "include": ["src/**/*.ts", "../plugins/shared/src/**/*.ts"]
 }

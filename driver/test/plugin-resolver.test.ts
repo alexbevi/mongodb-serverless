@@ -191,3 +191,47 @@ describe('validatePlugin', () => {
     expect(() => validatePlugin({}, '@scope/my-plugin')).toThrow(/@scope\/my-plugin/);
   });
 });
+
+it('rejects a non-callable optional connection-string provider', () => {
+  expect(() => validatePlugin({ ...stub(), getConnectionString: 'mongodb://host/' }, 'test'))
+    .toThrow(/getConnectionString/);
+});
+
+it('reports connection-string provider failures from connect', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  const failure = new Error('secret store unavailable');
+
+  const client = ServerlessMongoClient.fromPlugin({ ...stub(), async getConnectionString() { throw failure; } });
+
+  await expect(client.connect()).rejects.toBe(failure);
+  await client.close();
+});
+
+it('defers credential lookup until the client is used', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  let lookups = 0;
+
+  const plugin = { ...stub(), async getConnectionString() {
+    lookups += 1;
+
+    return 'mongodb://seed/db';
+  } };
+
+  const client = ServerlessMongoClient.fromPlugin(plugin);
+
+  await Promise.resolve();
+
+  expect(lookups).toBe(0);
+  await client.connect();
+  expect(lookups).toBe(1);
+  await client.close();
+});
+
+it('validates the plugin given to fromPlugin', async () => {
+  const { ServerlessMongoClient } = await import('../src/client.js');
+  const plugin = stub();
+  Object.defineProperty(plugin, 'read', { value: undefined });
+  const client = ServerlessMongoClient.fromPlugin(plugin);
+
+  await expect(client.plugin()).rejects.toThrow(InvalidPluginError);
+});

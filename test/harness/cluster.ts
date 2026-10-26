@@ -60,12 +60,21 @@ const running = async (): Promise<boolean> => {
  * there is one thing to start, wait for, and remove.
  */
 export async function startCluster(): Promise<void> {
-  if (await running()) return;
+  if (await running()) {
+    if (await testCommandsEnabled()) return;
+
+    // A container from before failpoints were needed; rebuild it once.
+    await stopCluster();
+  } else {
+    await removeExited(CONTAINER);
+  }
 
   const launch = PORTS.map(
     port =>
       `mkdir -p /tmp/rs${port} && mongod --replSet ${REPLICA_SET} --port ${port} ` +
-      `--dbpath /tmp/rs${port} --bind_ip_all --fork --logpath /tmp/mongod-${port}.log`
+      `--dbpath /tmp/rs${port} --bind_ip_all --fork --logpath /tmp/mongod-${port}.log ` +
+      // Allows configureFailPoint, so tests can inject server and network errors.
+      '--setParameter enableTestCommands=1'
   ).join(' && ');
 
   try {
@@ -134,6 +143,60 @@ export async function startCluster(): Promise<void> {
 
     return states === 'PRIMARY,SECONDARY,SECONDARY';
   }, 'the replica set to elect a primary and sync both secondaries');
+}
+
+/**
+ * Removes a container that holds a harness name but is not running: stopped,
+ * or created and never started. Otherwise
+ * `docker run` reports "already in use" and the harness waits on a container
+ * that never starts.
+ */
+export async function removeExited(name: string): Promise<void> {
+  const exited = await docker(['ps', '-a', '--filter', `name=^${name}$`, '--filter', 'status=exited', '--filter', 'status=created', '--format', '{{.Names}}']);
+
+  if (exited === name) await docker(['rm', '-f', name]);
+}
+
+const testCommandsEnabled = async (): Promise<boolean> => {
+  const out = await mongosh(
+    PORTS[0],
+    'print(db.adminCommand({ getParameter: 1, enableTestCommands: 1 }).enableTestCommands)'
+  ).catch(() => '');
+
+  return out === '1' || out === 'true';
+};
+
+/** The `failCommand` failpoint options these tests use. */
+export interface FailCommandData {
+  failCommands: string[];
+  /** Limits the failpoint to one client, leaving other suites unaffected. */
+  appName: string;
+  closeConnection?: boolean;
+  errorCode?: number;
+}
+
+/**
+ * Makes the member at `hostPort` fail the next `times` matching commands.
+ *
+ * Returns a function that turns the failpoint off.
+ */
+export async function failCommand(
+  hostPort: string,
+  data: FailCommandData,
+  times: number
+): Promise<() => Promise<void>> {
+  const port = Number(hostPort.split(':').at(-1));
+
+  const configure = (mode: { times: number } | 'off') => mongosh(
+    port,
+    `db.adminCommand(${JSON.stringify({ configureFailPoint: 'failCommand', mode, data })})`
+  );
+
+  await configure({ times });
+
+  return async () => {
+    await configure('off');
+  };
 }
 
 export async function stopCluster(): Promise<void> {
@@ -213,11 +276,13 @@ export const STANDALONE_PORT = 29200;
 /**
  * Starts a single mongod with no replica set.
  *
- * Needed to prove the watcher rejects a server that has no topology. A direct
- * connection to one replica set member is not a substitute: it still reports
- * `setName`, so it passes the check it is meant to fail.
+ * Needed to prove discovery rejects a server that is not a replica-set member.
+ * A direct connection to one replica set member is not a substitute: it still
+ * reports `setName`, so it passes the check it is meant to fail.
  */
 export async function startStandalone(): Promise<void> {
+  await removeExited(STANDALONE);
+
   try {
     await docker([
       'run',

@@ -20,9 +20,9 @@ class StubPlugin extends ServerlessPlugin {
   }
 }
 
-class WritableStubPlugin extends StubPlugin {
+class ReadOnlyStubPlugin extends StubPlugin {
   constructor() {
-    super({ writable: true });
+    super({ writable: false });
   }
 }
 
@@ -48,8 +48,9 @@ class RegionPlugin extends ServerlessPlugin<RegionConfig> {
 }
 
 describe('ServerlessPlugin', () => {
-  it('defaults refreshIntervalMS to 10000', () => {
-    expect(new StubPlugin().get('refreshIntervalMS')).toBe(10_000);
+  it('rejects the removed polling interval', () => {
+    // @ts-expect-error Polling is no longer part of the plugin contract.
+    expect(() => new StubPlugin().get('refreshIntervalMS')).toThrow(/Unknown config key/);
   });
 
   it('defaults clusterTopologyVariableName to __MONGODB_CLUSTER_TOPOLOGY', () => {
@@ -58,17 +59,27 @@ describe('ServerlessPlugin', () => {
 
   it('round-trips a value through set and get', () => {
     const plugin = new StubPlugin();
-    plugin.set('refreshIntervalMS', 500);
+    plugin.set('clusterTopologyVariableName', 'MY_TOPOLOGY');
 
-    expect(plugin.get('refreshIntervalMS')).toBe(500);
+    expect(plugin.get('clusterTopologyVariableName')).toBe('MY_TOPOLOGY');
   });
 
   it('keeps config per instance', () => {
     const one = new StubPlugin();
     const two = new StubPlugin();
-    one.set('refreshIntervalMS', 500);
+    one.set('clusterTopologyVariableName', 'MY_TOPOLOGY');
 
-    expect(two.get('refreshIntervalMS')).toBe(10_000);
+    expect(two.get('clusterTopologyVariableName')).toBe('__MONGODB_CLUSTER_TOPOLOGY');
+  });
+
+  it('leaves connection-string settings to the plugins that supply one', () => {
+    // @ts-expect-error Only plugins that supply a connection string add this key.
+    expect(() => new StubPlugin().get('connectionStringVariableName')).toThrow(/Unknown config key/);
+  });
+
+  it('is writable unless constructed read-only, since discovery writes topology', () => {
+    expect(new StubPlugin().writable).toBe(true);
+    expect(new RegionPlugin({ writable: false }).writable).toBe(false);
   });
 
   it('rejects an unknown key on set', () => {
@@ -93,7 +104,7 @@ describe('ServerlessPlugin', () => {
     const plugin = new RegionPlugin();
 
     expect(plugin.get('region')).toBe('us-east-1');
-    expect(plugin.get('refreshIntervalMS')).toBe(10_000);
+    expect(plugin.get('clusterTopologyVariableName')).toBe('__MONGODB_CLUSTER_TOPOLOGY');
   });
 
   it('reports static plugin details', () => {
@@ -109,39 +120,35 @@ describe('ServerlessPlugin', () => {
   });
 
 describe('writability', () => {
-  it('is read-only by default', () => {
-    expect(new StubPlugin().writable).toBe(false);
-  });
-
-  it('is writable when constructed writable', () => {
-    expect(new WritableStubPlugin().writable).toBe(true);
+  it('is read-only when constructed read-only', () => {
+    expect(new ReadOnlyStubPlugin().writable).toBe(false);
   });
 
   it('throws PluginReadOnlyError from assertWritable when read-only', () => {
-    expect(() => new StubPlugin().guard()).toThrow(PluginReadOnlyError);
+    expect(() => new ReadOnlyStubPlugin().guard()).toThrow(PluginReadOnlyError);
   });
 
   it('names the plugin in the error', () => {
-    expect(() => new StubPlugin().guard()).toThrow(/stub/);
+    expect(() => new ReadOnlyStubPlugin().guard()).toThrow(/stub/);
   });
 
-  it('permits assertWritable when writable', () => {
-    expect(() => new WritableStubPlugin().guard()).not.toThrow();
+  it('permits assertWritable by default', () => {
+    expect(() => new StubPlugin().guard()).not.toThrow();
   });
 
   it('allows set() in read-only mode, since config is not the store', () => {
-    const plugin = new StubPlugin();
-    plugin.set('refreshIntervalMS', 500);
+    const plugin = new ReadOnlyStubPlugin();
+    plugin.set('clusterTopologyVariableName', 'MY_TOPOLOGY');
 
-    expect(plugin.get('refreshIntervalMS')).toBe(500);
+    expect(plugin.get('clusterTopologyVariableName')).toBe('MY_TOPOLOGY');
   });
 
-  it('keeps base defaults for a subclass that adds config and asks to write', () => {
-    const plugin = new RegionPlugin({ writable: true });
+  it('keeps base defaults for a read-only subclass that adds config', () => {
+    const plugin = new RegionPlugin({ writable: false });
 
-    expect(plugin.writable).toBe(true);
+    expect(plugin.writable).toBe(false);
     expect(plugin.get('region')).toBe('us-east-1');
-    expect(plugin.get('refreshIntervalMS')).toBe(10_000);
+    expect(plugin.get('clusterTopologyVariableName')).toBe('__MONGODB_CLUSTER_TOPOLOGY');
   });
 });
 

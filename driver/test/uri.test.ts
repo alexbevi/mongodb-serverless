@@ -135,3 +135,11 @@ describe('directUri', () => {
     expect(client.options.appName).toBe('svc');
   });
 });
+
+it('drops SRV-only options for direct connections without changing the input', async () => {
+  const { withoutSrvOptions } = await import('../src/uri.js');
+  const options = { srvServiceName: 'custom', srvMaxHosts: 2, appName: 'svc' };
+
+  expect(withoutSrvOptions(options)).toEqual({ appName: 'svc' });
+  expect(options).toEqual({ srvServiceName: 'custom', srvMaxHosts: 2, appName: 'svc' });
+});

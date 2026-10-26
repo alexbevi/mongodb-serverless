@@ -1,8 +1,10 @@
+import { assertStatus, type ResolvedAuthentication } from '../../plugins/shared/src/index.js';
 import type { ReplSetGetStatus, ReplSetGetStatusMember } from './plugin.js';
-import { InvalidTopologyError, NoPrimaryError, NoTopologyError } from './errors.js';
+import { InvalidTopologyError, NoPrimaryError } from './errors.js';
 
 export interface Topology {
   setName: string | undefined;
+  authentication?: ResolvedAuthentication;
   /** `host:port` of the primary. */
   primary: string;
   /** `host:port` of each healthy secondary, in the order reported. */
@@ -30,17 +32,12 @@ const STATE_NAMES = new Map<number, string>([
 const HOST_PORT = /^(?<host>\[[^\]]+\]|[^:]+):(?<port>\d{1,5})$/;
 
 /** Reads the routing targets out of a `replSetGetStatus` document. */
-export function parseTopology(status: ReplSetGetStatus | null | undefined): Topology {
-  if (status == null) {
-    throw new NoTopologyError(
-      'The plugin returned no topology. Check that it is configured and populated.'
-    );
-  }
-
-  if (!Array.isArray(status.members)) {
-    throw new InvalidTopologyError(
-      'Topology has no members array; it must be a replSetGetStatus document'
-    );
+export function parseTopology(status: ReplSetGetStatus): Topology {
+  // A plugin may return anything at runtime, so check structure with the shared contract first.
+  try {
+    assertStatus(status);
+  } catch (cause) {
+    throw new InvalidTopologyError(`Topology must be a replSetGetStatus document: ${String(cause)}`, { cause });
   }
 
   if (status.members.length === 0) {
@@ -74,7 +71,11 @@ export function parseTopology(status: ReplSetGetStatus | null | undefined): Topo
     );
   }
 
-  return { setName: isString(status.set) ? status.set : undefined, primary, secondaries };
+  const topology: Topology = { setName: isString(status.set) ? status.set : undefined, primary, secondaries };
+
+  if (status.authentication !== undefined) topology.authentication = status.authentication;
+
+  return topology;
 }
 
 function hostPortOf(member: ReplSetGetStatusMember): string {

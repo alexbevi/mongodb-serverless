@@ -1,3 +1,4 @@
+import type { MongoClientOptions } from 'mongodb';
 import { ConnectionString } from 'mongodb-connection-string-url';
 import { ServerlessDriverError } from './errors.js';
 
@@ -15,9 +16,8 @@ const INCOMPATIBLE = ['replicaSet', 'srvMaxHosts', 'srvServiceName'];
  * @param uri The user's original connection string.
  * @param hostPort The member to target, as `host:port`.
  */
-export function directUri(uri: string, hostPort: string): string {
-  const original = new ConnectionString(uri);
-  const rewritten = original.clone();
+export function directUri(uri: string, hostPort: string, options: MongoClientOptions = {}): string {
+  const rewritten = new ConnectionString(uri);
 
   // The driver rejects loadBalanced with directConnection, so routing a
   // load-balanced cluster this way cannot work.
@@ -28,9 +28,10 @@ export function directUri(uri: string, hostPort: string): string {
     );
   }
 
-  const srvImpliedTls = original.isSRV && !hasAnyOf(original, ['tls', 'ssl']);
+  const srvImpliedTls = rewritten.isSRV && !hasAnyOf(rewritten, ['tls', 'ssl']) &&
+    options.tls == null && options.ssl == null;
 
-  if (original.isSRV) {
+  if (rewritten.isSRV) {
     rewritten.protocol = 'mongodb:';
   }
 
@@ -51,4 +52,11 @@ export function directUri(uri: string, hostPort: string): string {
 
 function hasAnyOf(url: ConnectionString, options: string[]): boolean {
   return options.some(option => url.searchParams.has(option));
+}
+
+/** Copies driver options without the SRV-only settings a direct connection rejects. */
+export function withoutSrvOptions<T extends MongoClientOptions>(options: T): Omit<T, 'srvServiceName' | 'srvMaxHosts'> {
+  const { srvServiceName: _service, srvMaxHosts: _hosts, ...direct } = options;
+
+  return direct;
 }

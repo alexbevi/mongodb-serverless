@@ -1,0 +1,19 @@
+{
+  "name": "mongodb-serverless-example-aws-no-cache",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --target ES2023 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck index.ts"
+  },
+  "dependencies": {
+    "@mongodb-serverless/driver": "^0.2.0",
+    "mongodb": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "typescript": "^5.7.2"
+  }
+}

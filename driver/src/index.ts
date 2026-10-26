@@ -19,10 +19,10 @@ export {
   MissingPluginError,
   PluginNotInstalledError,
   InvalidPluginError,
-  NoTopologyError,
   InvalidTopologyError,
   NoPrimaryError,
   SessionRoutingError,
   UnsupportedOperationError,
-  PluginReadOnlyError
+  PluginReadOnlyError,
+  PluginConfigurationError
 } from './errors.js';

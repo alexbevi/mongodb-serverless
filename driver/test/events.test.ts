@@ -1,3 +1,4 @@
+import { reportRole } from './harness/handshake.js';
 import { MongoClient, ObjectId, type MongoClientOptions, type ConnectionReadyEvent } from 'mongodb';
 import { expect, it, vi } from 'vitest';
 import { ServerlessMongoClient } from '../src/client.js';
@@ -24,6 +25,7 @@ it.each(['read', 'write'] as const)('attaches the listener for a %s-only client'
   vi.spyOn(native, 'db').mockReturnValue(database);
   vi.spyOn(native, 'connect').mockImplementation(async () => {
     native.emit('open', native);
+    reportRole(native, operation === 'read' ? 'RSSecondary' : 'RSPrimary');
 
     return native;
   });
@@ -56,7 +58,13 @@ it('connects, runs an operation and closes when on is omitted', async () => {
   const database = native.db('events');
   const collection = database.collection('documents');
   const find = vi.spyOn(collection, 'findOne').mockResolvedValue(null);
-  const connect = vi.spyOn(native, 'connect').mockResolvedValue(native);
+
+  const connect = vi.spyOn(native, 'connect').mockImplementation(async () => {
+    reportRole(native, 'RSPrimary');
+
+    return native;
+  });
+
   const close = vi.spyOn(native, 'close').mockResolvedValue();
   const on = vi.spyOn(native, 'on');
 
@@ -71,7 +79,8 @@ it('connects, runs an operation and closes when on is omitted', async () => {
     await expect(client.db('events').collection('documents').findOne({})).resolves.toBeNull();
     expect(connect).toHaveBeenCalledOnce();
     expect(find).toHaveBeenCalledWith({});
-    expect(on).not.toHaveBeenCalled();
+    expect(on).toHaveBeenCalledTimes(1);
+    expect(on).toHaveBeenCalledWith('serverDescriptionChanged', expect.any(Function));
   } finally {
     await client.close();
   }
@@ -111,6 +120,7 @@ it('attaches constructor listeners directly to each native client before it conn
       expect(native.listeners('connectionReady')).toEqual([ready]);
       native.emit('connectionReady', payload);
       native.emit('open', native);
+      reportRole(native, uri.includes(':27018') ? 'RSSecondary' : 'RSPrimary');
 
       return native;
     });

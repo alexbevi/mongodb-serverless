@@ -23,6 +23,26 @@ describe('LocalPlugin', () => {
     process.env = env;
   });
 
+  it('provides the cluster connection string from its configured environment variable', async () => {
+    process.env['__MONGODB_CONNECTION_STRING'] = 'mongodb://user:secret@seed/db';
+    const plugin = new LocalPlugin();
+
+    await expect(plugin.getConnectionString()).resolves.toBe('mongodb://user:secret@seed/db');
+  });
+
+  it('reads the connection string from an overridden variable', async () => {
+    process.env['MY_URI'] = 'mongodb://seed/other';
+    const plugin = new LocalPlugin({ connectionStringVariableName: 'MY_URI' });
+
+    await expect(plugin.getConnectionString()).resolves.toBe('mongodb://seed/other');
+  });
+
+  it('reports unusable settings with a named error', async () => {
+    process.env[VAR] = 'not json';
+
+    await expect(new LocalPlugin().verify()).rejects.toMatchObject({ name: 'PluginConfigurationError' });
+  });
+
   it('reports its static details', () => {
     const plugin = new LocalPlugin();
 
@@ -83,10 +103,10 @@ describe('LocalPlugin', () => {
     await expect(new LocalPlugin().verify()).resolves.toBeUndefined();
   });
 
-  it('fails read when the variable is unset', async () => {
+  it('returns null when topology has not been discovered', async () => {
     delete process.env[VAR];
 
-    await expect(new LocalPlugin().read()).rejects.toThrow(new RegExp(VAR));
+    await expect(new LocalPlugin().read()).resolves.toBeNull();
   });
 
   it('setup leaves an already-valid environment alone', async () => {
@@ -98,25 +118,25 @@ describe('LocalPlugin', () => {
   });
 
   describe('writability', () => {
-    it('is read-only by default', () => {
-      expect(new LocalPlugin().writable).toBe(false);
+    it('is writable by default for driver discovery', () => {
+      expect(new LocalPlugin().writable).toBe(true);
     });
 
     it('refuses to write when read-only', async () => {
-      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow(PluginReadOnlyError);
     });
 
     it('leaves the environment untouched when a write is refused', async () => {
       delete process.env[VAR];
 
-      await expect(new LocalPlugin().write(status)).rejects.toThrow(PluginReadOnlyError);
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow(PluginReadOnlyError);
       expect(process.env[VAR]).toBeUndefined();
     });
 
     it('does not overwrite an existing value when refused', async () => {
       process.env[VAR] = JSON.stringify({ set: 'original', members: [] });
 
-      await expect(new LocalPlugin().write(status)).rejects.toThrow();
+      await expect(new LocalPlugin({ writable: false }).write(status)).rejects.toThrow();
       expect(process.env[VAR]).toBe(JSON.stringify({ set: 'original', members: [] }));
     });
 
@@ -129,7 +149,7 @@ describe('LocalPlugin', () => {
 
     it('reads and verifies while read-only', async () => {
       process.env[VAR] = JSON.stringify(status);
-      const plugin = new LocalPlugin();
+      const plugin = new LocalPlugin({ writable: false });
 
       await expect(plugin.verify()).resolves.toBeUndefined();
       await expect(plugin.read()).resolves.toEqual(status);

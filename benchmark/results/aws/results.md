@@ -1,91 +1,125 @@
-# AWS connection benchmark
+# AWS Lambda results
 
-Measured on 15 October 2026 in `ap-southeast-2`, using AWS Lambda with 1769 MB
-memory. This is a point-in-time result for that deployment and workload. It is
-not necessarily representative of the current driver, application or AWS performance.
-Local benchmark runs do not update these results. Future AWS runs replace the
-data, diagram and report in this folder, keeping the same links.
+Measured 2026-10-25T15:50:29.318Z · Node v24.21.0.
 
-![AWS connection timings from 15 October 2026](latency.png)
+| Operation / pattern | n | Mean | Median | SD | p95 | Mean 95% CI |
+|---|---:|---:|---:|---:|---:|---:|
+| read / Native MongoDB | 200 | 158.5 | 157.0 | 14.4 | 179.8 | 156.5–160.5 |
+| read / No plugin | 200 | 117.8 | 116.8 | 11.6 | 135.0 | 116.3–119.5 |
+| read / aws-ssm · cached topology | 200 | 117.8 | 117.7 | 10.8 | 135.2 | 116.4–119.3 |
+| read / aws-ssm · no cached topology | 200 | 161.3 | 160.7 | 12.5 | 183.6 | 159.6–163.0 |
+| write / Native MongoDB | 200 | 169.0 | 164.9 | 32.7 | 201.1 | 165.1–174.1 |
+| write / No plugin | 200 | 170.0 | 176.3 | 48.7 | 212.5 | 163.9–177.4 |
+| write / No plugin · 1 connection | 61 | 129.5 | 118.3 | 66.8 | 142.2 | 118.7–148.2 |
+| write / No plugin · 2 connections | 139 | 187.8 | 185.8 | 21.0 | 213.7 | 184.6–191.4 |
+| write / aws-ssm · cached topology | 200 | 121.7 | 120.8 | 16.8 | 142.1 | 119.5–124.3 |
+| write / aws-ssm · no cached topology | 200 | 206.1 | 214.0 | 32.5 | 242.3 | 201.6–210.4 |
 
-Median read time was **261.3 → 212.4 ms (18.7% less time)**; median write time was
-**285.0 → 210.5 ms (26.2% less time)**.
+### Average read phase times
 
-Percentages use unrounded medians. Each driver/operation has 120 verified cold Lambda
-invocations, collected in four batches of 30. The complete run took approximately
-8m 08s, including authentication, worker resets and logout. Timing starts before handler invocation, including lazy client construction,
-and ends at the operation result;
-imports, Lambda INIT, watcher work and client close are excluded.
+| Phase | Native MongoDB (n=200) | No plugin (n=200) | aws-ssm · cached topology (n=200) | aws-ssm · no cached topology (n=200) |
+|---|---:|---:|---:|---:|
+| Setup before the first member connection | 22.7 | 35.3 | 37.3 | 35.9 |
+| ↳ Plugin topology read | — | — | ~0.2 | ~0.4 |
+| ↳ URI and option parsing | ~6 | ~7 | ~7 | ~8 |
+| ↳ SRV + TXT DNS | ~3 | ~2 | — | ~2 |
+| ↳ Client and topology construction | ~8 | ~5 | ~9 | ~6 |
+| ↳ No-monitoring module load | — | — | ~9 | — |
+| ↳ Driver runtime metadata | ~6 | ~21 | ~13 | ~21 |
+| SSM parameter request | 0.0 | 0.0 | 0.0 | 0.0 |
+| SSM topology write | 0.0 | 0.0 | 0.0 | 35.2 |
+| Monitor handshakes | 64.1 | 0.0 | 0.0 | 0.0 |
+| Host DNS | 5.7 | 5.9 | 5.1 | 6.0 |
+| TCP connect | 4.2 | 1.3 | 1.2 | 1.2 |
+| TLS handshake | 38.4 | 39.9 | 39.4 | 39.9 |
+| Initial hello | 5.1 | 8.2 | 7.9 | 7.9 |
+| Authentication | 11.6 | 15.9 | 15.3 | 16.0 |
+| Topology discovery (replSetGetStatus) | 0.0 | 0.0 | 0.0 | 4.3 |
+| Topology parsing and member selection | 0.0 | 0.0 | 0.0 | 6.0 |
+| Connection checkout wait | 0.2 | 0.4 | 0.4 | 0.5 |
+| Command preparation | 0.9 | 5.8 | 5.8 | 4.4 |
+| Operation command → reply | 4.1 | 3.8 | 3.9 | 2.8 |
+| Reply → result returned | 1.5 | 1.3 | 1.4 | 1.1 |
+| Other handler work | 0.0 | 0.0 | 0.0 | 0.0 |
+| **Total** | **158.5** | **117.8** | **117.8** | **161.3** |
 
-AWS results were collected on a sample application using MongoDB driver 7.7.0
-and serverless driver 0.2.0 on Node.js 24.21.0. Diagnostic probes were enabled. The MongoDB driver used the cluster SRV URI and
-`secondary` for reads. The serverless driver used watcher-provided direct
-secondary/read and primary/write URIs with monitoring disabled. Writes used
-majority acknowledgement. Every read from both drivers reached a secondary; every write reached a primary.
+### Average write phase times
 
-Every serverless sample opened one authenticated application socket and no monitor
-socket. Each illustrated trace is a real sample nearest its driver/operation
-median, with every socket from that sample shown. The diagram headings
-compare medians across all 120 samples per driver/operation.
-Cluster DNS is the shared SRV/TXT discovery stage, shown as one block spanning
-all three node lanes before sockets open. Its elapsed time averaged 11.57 ms for MongoDB reads and 10.45 ms for writes.
-The requests overlap; their individual durations must not be added. Host DNS
-segments show hostname resolution before TCP on each socket. For the selected
-application socket, this averaged 8.88/3.82 ms for MongoDB reads/writes and
-4.87/4.64 ms for serverless reads/writes. Direct clients skip cluster discovery
-DNS but still resolve the member hostname. Detailed means are in `dnsMeanMs` in
-the summary; individual requests are retained in `trace.dns`.
+| Phase | Native MongoDB (n=200) | No plugin (n=200) | No plugin · 1 connection (n=61) | No plugin · 2 connections (n=139) | aws-ssm · cached topology (n=200) | aws-ssm · no cached topology (n=200) |
+|---|---:|---:|---:|---:|---:|---:|
+| Setup before the first member connection | 21.3 | 34.7 | 34.3 | 34.9 | 36.4 | 36.1 |
+| ↳ Plugin topology read | — | — | — | — | ~0.2 | ~0.4 |
+| ↳ URI and option parsing | ~5 | ~7 | ~7 | ~7 | ~7 | ~8 |
+| ↳ SRV + TXT DNS | ~3 | ~2 | ~2 | ~2 | — | ~2 |
+| ↳ Client and topology construction | ~7 | ~5 | ~5 | ~5 | ~9 | ~6 |
+| ↳ No-monitoring module load | — | — | — | — | ~8 | — |
+| ↳ Driver runtime metadata | ~6 | ~20 | ~20 | ~20 | ~13 | ~21 |
+| SSM parameter request | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| SSM topology write | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 34.6 |
+| Monitor handshakes | 69.1 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| Host DNS | 4.4 | 8.6 | 6.1 | 9.7 | 5.0 | 7.8 |
+| TCP connect | 2.3 | 2.1 | 1.6 | 2.3 | 1.3 | 2.1 |
+| TLS handshake | 41.4 | 70.4 | 47.0 | 80.7 | 40.7 | 68.4 |
+| Initial hello | 5.7 | 10.7 | 8.3 | 11.7 | 8.1 | 10.2 |
+| Authentication | 12.1 | 19.4 | 16.4 | 20.6 | 15.5 | 19.5 |
+| Topology discovery (replSetGetStatus) | 0.0 | 2.8 | 0.0 | 4.0 | 0.0 | 4.2 |
+| Topology parsing and member selection | 0.0 | 6.6 | 0.0 | 9.5 | 0.0 | 9.4 |
+| Connection checkout wait | 1.2 | 0.5 | 0.4 | 0.5 | 0.4 | 0.5 |
+| Command preparation | 0.9 | 6.1 | 5.0 | 6.6 | 5.1 | 5.9 |
+| Operation command → reply | 8.2 | 7.7 | 9.6 | 6.8 | 8.5 | 6.8 |
+| Reply → result returned | 0.9 | 0.5 | 0.8 | 0.4 | 0.8 | 0.4 |
+| Other handler work | 1.4 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| **Total** | **169.0** | **170.0** | **129.5** | **187.8** | **121.7** | **206.1** |
 
-The diagram uses the same [code probes and legend definitions](../../README.md#reading-the-diagram)
-as the local benchmark. Setup, connection and operation colours come from measured
-code scopes, DNS/socket phases and callback/dispatch boundaries. Every invocation
-has continuous execution coverage from handler invocation through its result;
-there are no unclassified elapsed-time intervals. Remaining callback work is
-labelled **Other callbacks**, without claiming to identify every instruction.
+Durations are milliseconds from handler entry to the operation result. SSM retrieval during startup is excluded.
 
-Hatching marks callbacks whose elapsed time exceeded their measured thread CPU
-by at least 2 ms. The annotation beneath each client gives main-thread CPU and
-cumulative callback time off CPU. Hatching covers the callback's interval; it does
-not locate individual scheduling pauses or establish why the thread was off CPU.
-Lambda cgroup counters were not collected.
+Every phase comes from driver events (`commandStarted`, `connectionReady`, `serverHeartbeat*`, `topologyOpening`, checkout events) and socket events (`lookup`, `connect`, `secureConnect`, first reply). Nothing in the driver is patched. Each millisecond is counted once, in the order the table lists phases; overlapping sockets are not added.
 
-Bar-end labels report the illustrated sample's duration. Overlapping monitor
-durations must not be added.
+Setup has no events inside it. The ↳ rows marked ~ split the measured setup in proportions from an earlier run with code probes; SRV + TXT DNS applies only where the pattern resolves the SRV record.
 
-Lambda placement, CPU scheduling, DNS, TLS and database load affect these timings.
-The results do not establish current performance or the behavior of long-lived
-pools, elections or failover.
+Confidence intervals use 10,000 bootstrap resamples with a fixed seed and describe this run only.
 
-The summary retains means, p95 and median absolute deviations (MAD), the typical
-distance from the median. The mean reduction's 95% confidence interval uses 2,000
-hierarchical bootstrap resamples: batches first, then paired five-worker rounds
-within each batch. The batch range shows observed variation in mean reduction.
-Four batches describe these runs; they do not establish performance across other
-deployments or times of day.
+8 warm checks verified client and socket reuse without another SSM request or discovery. They are excluded from the cold results.
 
-The diagram separates Setup, Connection and Operation. Application phases take
-precedence over concurrent monitor phases; overlapping monitor intervals count
-once in the summary. `~` marks rounded values.
+### Read connection breakdowns
 
-Recording overhead remains in the timings. Creation-stack capture alone took a
-median **35.3 ms per invocation**, with a median share of **14.5%** of elapsed time.
-That is too large to omit. The ordinary secondary-only
-workers were deployed after collection; the CI performance gate remains unprofiled.
+#### Native MongoDB
 
-The raw JSON retains each code scope, callback/dispatch interval and thread CPU
-measurement. Repeated creation stacks are stored once in `executionSources` and
-referenced by `sourceId`; no timing segments are discarded.
+![Read · Native MongoDB](read-native.png)
 
-[Raw samples](samples.json) · [Summary statistics](summary.json) ·
-[Current local benchmark](../../../BENCHMARK.md)
+#### No plugin
 
-Infrastructure hostnames are replaced with stable member labels, and request,
-round and environment identifiers are omitted. Timings, roles, sample order and
-cold-start evidence are retained.
+![Read · No plugin](read-no-plugin.png)
 
-To redraw this snapshot from its saved data, run from the repository root with
-the [report dependencies](../../requirements-report.txt) installed:
+#### aws-ssm · cached topology
 
-```sh
-python3 benchmark/report.py benchmark/results/aws/samples.json --environment aws
-```
+![Read · aws-ssm · cached topology](read-ssm.png)
+
+#### aws-ssm · no cached topology
+
+![Read · aws-ssm · no cached topology](read-ssm-uncached.png)
+
+
+### Write connection breakdowns
+
+#### Native MongoDB
+
+![Write · Native MongoDB](write-native.png)
+
+#### No plugin · 1 connection
+
+![Write · No plugin · 1 connection](write-no-plugin-1-connection.png)
+
+#### No plugin · 2 connections
+
+![Write · No plugin · 2 connections](write-no-plugin-2-connections.png)
+
+#### aws-ssm · cached topology
+
+![Write · aws-ssm · cached topology](write-ssm.png)
+
+#### aws-ssm · no cached topology
+
+![Write · aws-ssm · no cached topology](write-ssm-uncached.png)
+
+Each chart shows the sample nearest its cohort median. Sockets occupy separate overlapping rows; do not add their times.

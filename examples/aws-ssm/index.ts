@@ -11,12 +11,8 @@ type ErrorResponse = {
   error: string;
 };
 
-// With MONGODB_URI set, the client discovers topology itself and keeps it for this
-// execution environment. Without it, the SSM plugin supplies the connection string
-// and shares discovered topology across cold starts.
-const uri = process.env['MONGODB_URI'];
-
-const client = uri ? new MongoServerlessClient(uri) : MongoServerlessClient.fromPlugin(new SsmPlugin());
+// The SSM plugin supplies the connection string and shares discovered topology across cold starts.
+const client = MongoServerlessClient.fromPlugin(new SsmPlugin());
 
 const documents = client
   .db(process.env['MONGODB_DATABASE'] ?? 'app')

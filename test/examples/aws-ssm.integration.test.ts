@@ -27,7 +27,7 @@ Object.assign(process.env, {
 
 const ssm = new SSMClient(settings);
 
-let handler: typeof import('../../examples/aws-lambda/index.js').handler;
+let handler: typeof import('../../examples/aws-ssm/index.js').handler;
 
 let connectionString: string;
 
@@ -44,7 +44,7 @@ beforeAll(async () => {
     Overwrite: true
   }));
 
-  handler = (await import('../../examples/aws-lambda/index.js')).handler;
+  handler = (await import('../../examples/aws-ssm/index.js')).handler;
 }, 90_000);
 
 afterAll(async () => {

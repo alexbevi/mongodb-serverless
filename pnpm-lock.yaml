@@ -57,7 +57,23 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  examples/aws-lambda:
+  examples/aws-no-cache:
+    dependencies:
+      '@mongodb-serverless/driver':
+        specifier: ^0.2.0
+        version: link:../../driver
+      mongodb:
+        specifier: ^7.7.0
+        version: 7.7.0
+    devDependencies:
+      '@types/aws-lambda':
+        specifier: ^8.10.0
+        version: 8.10.164
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  examples/aws-ssm:
     dependencies:
       '@mongodb-serverless/driver':
         specifier: ^0.2.0

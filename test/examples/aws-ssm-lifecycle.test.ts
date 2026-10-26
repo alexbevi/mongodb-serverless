@@ -11,5 +11,5 @@ it('does not read SSM while the Lambda module loads', async () => {
   vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'test');
   vi.stubEnv('AWS_MAX_ATTEMPTS', '1');
 
-  await expect(import('../../examples/aws-lambda/index.js')).resolves.toHaveProperty('handler');
+  await expect(import('../../examples/aws-ssm/index.js')).resolves.toHaveProperty('handler');
 });
